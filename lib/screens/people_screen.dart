@@ -7,6 +7,7 @@ import '../models/person.dart';
 import '../services/format.dart';
 import '../services/limits.dart';
 import '../services/pro_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/person_form_sheet.dart';
 import 'person_detail_screen.dart';
@@ -58,31 +59,29 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
           if (!isPro)
             Center(
               child: Padding(
-                padding: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.only(right: AppSpacing.page),
                 child: Text(
                   '${people.value?.length ?? 0} / ${FreeLimits.people}명',
-                  style: const TextStyle(fontSize: 16, color: Colors.black54),
+                  style: AppText.sub,
                 ),
               ),
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: null,
-        onPressed: _add,
-        icon: const Icon(Icons.person_add),
-        label: const Text('사람 추가', style: TextStyle(fontSize: 18)),
-      ),
+      floatingActionButtonLocation: const PillFabLocation(),
+      floatingActionButton:
+          PillActionButton(label: '사람 추가', icon: Icons.person_add_alt, onPressed: _add),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page, 4, AppSpacing.page, 4),
             child: TextField(
               controller: _search,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: '이름, 전화번호, 메모 검색',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search, color: AppColors.icon),
                 suffixIcon: _search.text.isEmpty
                     ? null
                     : IconButton(
@@ -93,15 +92,16 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
             ),
           ),
           SizedBox(
-            height: 56,
+            height: 52,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
               children: [
                 for (final r in [null, ...Relations.all])
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
+                    child: ChoiceChip(
+                      showCheckmark: false,
                       label: Text(r ?? '전체'),
                       selected: _relation == r,
                       onSelected: (_) => setState(() => _relation = r),
@@ -110,6 +110,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
               ],
             ),
           ),
+          const AppDivider(),
           Expanded(
             child: AsyncBody(
               value: people,
@@ -129,7 +130,8 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 return ListView.separated(
                   padding: const EdgeInsets.only(bottom: 96),
                   itemCount: list.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  separatorBuilder: (_, _) =>
+                      const AppDivider(indent: AppSpacing.page),
                   itemBuilder: (_, i) => _PersonRow(summary: list[i]),
                 );
               },
@@ -148,31 +150,38 @@ class _PersonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = summary.person;
-    return ListTile(
+    return InkWell(
       onTap: () => Navigator.push(context,
           MaterialPageRoute<void>(builder: (_) => PersonDetailScreen(personId: p.id!))),
-      leading: CircleAvatar(
-        radius: 24,
-        child: Text(p.name.characters.first, style: const TextStyle(fontSize: 20)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.page, vertical: AppSpacing.item + 2),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Flexible(
+                        child: Text(p.name,
+                            style: AppText.listName,
+                            overflow: TextOverflow.ellipsis)),
+                    const SizedBox(width: 6),
+                    Text(p.relation, style: AppText.sub),
+                  ]),
+                  const SizedBox(height: 2),
+                  Text(
+                    '보냄 ${formatWon(summary.sentTotal)} · 받음 ${formatWon(summary.receivedTotal)}',
+                    style: AppText.sub,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.divider),
+          ],
+        ),
       ),
-      title: Row(
-        children: [
-          Flexible(child: Text(p.name, overflow: TextOverflow.ellipsis)),
-          const SizedBox(width: 8),
-          Text(p.relation,
-              style: const TextStyle(fontSize: 15, color: Colors.black54)),
-        ],
-      ),
-      subtitle: Text.rich(TextSpan(children: [
-        TextSpan(
-            text: '보냄 ${formatWon(summary.sentTotal)}',
-            style: const TextStyle(color: sentColor)),
-        const TextSpan(text: '  /  '),
-        TextSpan(
-            text: '받음 ${formatWon(summary.receivedTotal)}',
-            style: const TextStyle(color: receivedColor)),
-      ])),
-      trailing: const Icon(Icons.chevron_right),
     );
   }
 }

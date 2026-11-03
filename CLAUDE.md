@@ -18,3 +18,10 @@
 - 이미 입력한 기록의 보기·수정·삭제는 한도와 상관없이 항상 허용.
 - 인앱 상품 ID: `pro_lifetime` (일회성 제품, 4,900원).
 - 알림은 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle)만 사용.
+
+## 디자인 (A 클린 화이트 + 아이콘 1)
+
+- 색 · 글자 · 간격은 `lib/theme/app_theme.dart`(AppColors / AppText / AppSpacing)만 사용. 화면에 색 코드를 직접 쓰지 않는다.
+- 카드 박스 · 그림자 대신 1px 구분선(AppDivider)으로 섹션을 나눈다. 좌우 여백 24, 섹션 간격 28.
+- 금액: 받은 돈 '+50,000원' 포인트색, 보낸 돈 '−50,000원' 기본 글자색 (`signedWon`).
+- 글꼴은 assets/fonts의 Noto Sans KR(400/500/700). 하단 메뉴 아이콘은 assets/icons의 SVG를 SvgTheme(currentColor)로 칠한다 (colorFilter 금지).

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../models/constants.dart';
 import '../models/person.dart';
+import '../theme/app_theme.dart';
 import 'amount_input.dart';
 import 'common.dart';
 import 'pro_gate.dart';
@@ -112,13 +113,14 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, bottom + 20),
+      padding: EdgeInsets.fromLTRB(
+          AppSpacing.page, 0, AppSpacing.page, bottom + 20),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(widget.existing == null ? '사람 추가' : '정보 수정',
-                style: Theme.of(context).textTheme.titleLarge),
+                style: AppText.appTitle),
             const SizedBox(height: 16),
             if (widget.existing == null) ...[
               OutlinedButton.icon(
@@ -131,12 +133,11 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
             TextField(
               controller: _name,
               autofocus: widget.existing == null,
-              style: const TextStyle(fontSize: 20),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
               decoration: const InputDecoration(labelText: '이름'),
             ),
             const SizedBox(height: 16),
-            const Text('관계', style: TextStyle(fontSize: 16, color: Colors.black54)),
-            const SizedBox(height: 8),
+            const FieldLabel('관계'),
             ChoiceChips(
               options: Relations.all,
               selected: _relation,

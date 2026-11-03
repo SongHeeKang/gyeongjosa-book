@@ -8,8 +8,13 @@ import '../data/providers.dart';
 import '../models/constants.dart';
 import '../services/format.dart';
 import '../services/pro_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
+
+/// 차트 색: 보냄 = 회색, 받음 = 포인트색
+const _sentBar = Color(0xFF9CA3AF);
+const _receivedBar = AppColors.primary;
 
 /// 통계 탭: 월별 막대그래프(무료) + 관계별 · 연도별 차트(프로)
 class StatsScreen extends ConsumerStatefulWidget {
@@ -37,13 +42,13 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                iconSize: 32,
+                iconSize: 28,
                 onPressed: years.first < _year ? () => setState(() => _year--) : null,
                 icon: const Icon(Icons.chevron_left),
               ),
-              Text('$_year년', style: Theme.of(context).textTheme.titleLarge),
+              Text('$_year년', style: AppText.appTitle),
               IconButton(
-                iconSize: 32,
+                iconSize: 28,
                 onPressed: _year < years.last ? () => setState(() => _year++) : null,
                 icon: const Icon(Icons.chevron_right),
               ),
@@ -56,13 +61,14 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               final received = rows.fold(0, (s, r) => s + r.received);
               return Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(children: [
-                      TotalTile(label: '보낸 돈', amount: sent, color: sentColor),
-                      TotalTile(label: '받은 돈', amount: received, color: receivedColor),
-                    ]),
-                  ),
+                  const SizedBox(height: 8),
+                  SummaryRow(
+                      sent: sent,
+                      received: received,
+                      sentLabel: '보낸 돈',
+                      receivedLabel: '받은 돈'),
+                  const SizedBox(height: AppSpacing.section),
+                  const AppDivider(),
                   const SectionTitle('월별 보냄 · 받음', trailing: _Legend()),
                   _ChartCard(
                     child: _GroupedBarChart(
@@ -76,6 +82,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               );
             },
           ),
+          const SizedBox(height: AppSpacing.section),
+          const AppDivider(),
           SectionTitle('관계별 ($_year년)',
               trailing: isPro ? null : const ProBadge()),
           if (isPro)
@@ -97,6 +105,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
           else
             const _LockedChart(
                 message: '가족 · 친구 · 회사별로\n얼마나 주고받았는지 한눈에 봐요'),
+          const SizedBox(height: AppSpacing.section),
+          const AppDivider(),
           SectionTitle('연도별', trailing: isPro ? null : const ProBadge()),
           if (isPro)
             AsyncBody(
@@ -125,14 +135,18 @@ class _Legend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget dot(Color c, String t) => Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 12, height: 12, color: c),
+          Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                  color: c, borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 4),
-          Text(t, style: const TextStyle(fontSize: 15)),
-          const SizedBox(width: 12),
+          Text(t, style: AppText.sub),
+          const SizedBox(width: 8),
         ]);
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      dot(sentColor, '보냄'),
-      dot(receivedColor, '받음'),
+      dot(_sentBar, '보냄'),
+      dot(_receivedBar, '받음'),
     ]);
   }
 }
@@ -142,14 +156,10 @@ class _ChartCard extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        elevation: 0,
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 20, 16, 8),
-          child: SizedBox(height: 240, child: child),
-        ),
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page - 12, 12, AppSpacing.page, 0),
+        child: SizedBox(height: 220, child: child),
       );
 }
 
@@ -160,28 +170,25 @@ class _LockedChart extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => ensurePro(context, ref,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.page, 8, AppSpacing.page, 0),
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        ),
+        onPressed: () => ensurePro(context, ref,
             reason: '관계별 · 연도별 상세 차트는 프로 기능이에요.'),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-          child: Column(
-            children: [
-              const Icon(Icons.lock_outline, size: 40, color: Colors.black45),
-              const SizedBox(height: 8),
-              Text(message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 17)),
-              const SizedBox(height: 12),
-              const Text('눌러서 프로로 열기',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-          ),
+        child: Column(
+          children: [
+            const Icon(Icons.lock_outline, size: 28, color: AppColors.icon),
+            const SizedBox(height: 8),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: AppText.sub.copyWith(height: 1.5)),
+            const SizedBox(height: 8),
+            Text('눌러서 프로로 열기',
+                style: AppText.link.copyWith(fontWeight: FontWeight.w700)),
+          ],
         ),
       ),
     );
@@ -228,14 +235,17 @@ class _GroupedBarChart extends StatelessWidget {
         gridData: FlGridData(
           drawVerticalLine: false,
           horizontalInterval: interval,
+          getDrawingHorizontalLine: (_) =>
+              const FlLine(color: AppColors.divider, strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (_) => Colors.black87,
+            getTooltipColor: (_) => AppColors.text,
             getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
               '${labels[groupIndex]}$labelSuffix ${rodIndex == 0 ? '보냄' : '받음'}\n${formatWon(rod.toY.round())}',
-              const TextStyle(color: Colors.white, fontSize: 15),
+              const TextStyle(
+                  fontFamily: AppText.fontFamily, color: Colors.white, fontSize: 13),
             ),
           ),
         ),
@@ -251,7 +261,7 @@ class _GroupedBarChart extends StatelessWidget {
                 return SideTitleWidget(
                   meta: meta,
                   child: Text(value == 0 ? '0' : '${formatNumber((value / 10000).round())}만',
-                      style: const TextStyle(fontSize: 13)),
+                      style: AppText.sub.copyWith(fontSize: 11)),
                 );
               },
             ),
@@ -265,7 +275,7 @@ class _GroupedBarChart extends StatelessWidget {
                 if (i < 0 || i >= labels.length) return const SizedBox.shrink();
                 return SideTitleWidget(
                   meta: meta,
-                  child: Text(labels[i], style: const TextStyle(fontSize: 14)),
+                  child: Text(labels[i], style: AppText.sub.copyWith(fontSize: 12)),
                 );
               },
             ),
@@ -279,12 +289,12 @@ class _GroupedBarChart extends StatelessWidget {
               barRods: [
                 BarChartRodData(
                     toY: sent[i].toDouble(),
-                    color: sentColor,
+                    color: _sentBar,
                     width: barWidth,
                     borderRadius: BorderRadius.circular(2)),
                 BarChartRodData(
                     toY: received[i].toDouble(),
-                    color: receivedColor,
+                    color: _receivedBar,
                     width: barWidth,
                     borderRadius: BorderRadius.circular(2)),
               ],

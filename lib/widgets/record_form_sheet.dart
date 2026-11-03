@@ -6,6 +6,7 @@ import '../models/constants.dart';
 import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../services/format.dart';
+import '../theme/app_theme.dart';
 import 'amount_input.dart';
 import 'common.dart';
 
@@ -135,22 +136,17 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, bottom + 20),
+      padding: EdgeInsets.fromLTRB(
+          AppSpacing.page, 0, AppSpacing.page, bottom + 20),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(widget.existing == null ? '내역 추가' : '내역 수정',
-                style: Theme.of(context).textTheme.titleLarge),
+                style: AppText.appTitle),
             const SizedBox(height: 16),
             SegmentedButton<String>(
-              style: SegmentedButton.styleFrom(
-                minimumSize: const Size(0, 52),
-                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                selectedBackgroundColor:
-                    directionColor(_direction == Direction.sent)
-                        .withValues(alpha: 0.15),
-              ),
+              showSelectedIcon: false,
               segments: const [
                 ButtonSegment(value: Direction.sent, label: Text('보냄 (내가 냄)')),
                 ButtonSegment(
@@ -160,16 +156,16 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
               onSelectionChanged: (s) => setState(() => _direction = s.first),
             ),
             const SizedBox(height: 20),
-            const _Label('금액'),
+            const FieldLabel('금액'),
             AmountInput(controller: _amount, onChanged: () => setState(() {})),
             const SizedBox(height: 20),
-            const _Label('행사'),
+            const FieldLabel('행사'),
             if (_hasFixedEvent)
               Text(
                 widget.event?.title ??
                     widget.existing?.eventLabel ??
                     '',
-                style: const TextStyle(fontSize: 18),
+                style: AppText.listName,
               )
             else
               ChoiceChips(
@@ -178,14 +174,14 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
                 onSelected: (v) => setState(() => _eventType = v),
               ),
             const SizedBox(height: 20),
-            const _Label('날짜'),
+            const FieldLabel('날짜'),
             OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(Icons.calendar_today),
               label: Text(formatDate(_date)),
             ),
             const SizedBox(height: 20),
-            const _Label('방법'),
+            const FieldLabel('방법'),
             ChoiceChips(
               options: Methods.all,
               selected: _method,
@@ -205,8 +201,7 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: _delete,
-                style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
                 child: const Text('이 내역 삭제'),
               ),
             ],
@@ -215,16 +210,4 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
       ),
     );
   }
-}
-
-class _Label extends StatelessWidget {
-  const _Label(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text,
-            style: const TextStyle(fontSize: 16, color: Colors.black54)),
-      );
 }

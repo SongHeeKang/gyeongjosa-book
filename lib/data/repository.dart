@@ -205,17 +205,25 @@ class Repository {
 
   // ───────────────────────── 통계 ─────────────────────────
 
-  /// 해당 연도의 보냄/받음 총액
-  Future<({int sent, int received})> yearTotals(int year) async {
+  /// 해당 연도의 보냄/받음 총액과 건수
+  Future<({int sent, int received, int sentCount, int receivedCount})>
+      yearTotals(int year) async {
     final db = await _db;
     final rows = await db.rawQuery('''
       SELECT
         COALESCE(SUM(CASE WHEN direction = '보냄' THEN amount END), 0) AS sent,
-        COALESCE(SUM(CASE WHEN direction = '받음' THEN amount END), 0) AS received
+        COALESCE(SUM(CASE WHEN direction = '받음' THEN amount END), 0) AS received,
+        COUNT(CASE WHEN direction = '보냄' THEN 1 END) AS sent_count,
+        COUNT(CASE WHEN direction = '받음' THEN 1 END) AS received_count
       FROM records WHERE substr(date, 1, 4) = ?
     ''', ['$year']);
     final r = rows.first;
-    return (sent: r['sent'] as int? ?? 0, received: r['received'] as int? ?? 0);
+    return (
+      sent: r['sent'] as int? ?? 0,
+      received: r['received'] as int? ?? 0,
+      sentCount: r['sent_count'] as int? ?? 0,
+      receivedCount: r['received_count'] as int? ?? 0,
+    );
   }
 
   /// 월별(1~12) 보냄/받음 합계

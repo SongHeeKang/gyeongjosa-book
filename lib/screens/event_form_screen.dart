@@ -7,6 +7,7 @@ import '../models/event.dart';
 import '../services/format.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
@@ -116,13 +117,11 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.existing == null ? '행사 추가' : '행사 수정')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, 8, AppSpacing.page, 32),
         children: [
           SegmentedButton<bool>(
-            style: SegmentedButton.styleFrom(
-              minimumSize: const Size(0, 52),
-              textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-            ),
+            showSelectedIcon: false,
             segments: const [
               ButtonSegment(value: false, label: Text('남의 행사 (내가 감)')),
               ButtonSegment(value: true, label: Text('내 행사 (내가 받음)')),
@@ -131,8 +130,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             onSelectionChanged: (s) => setState(() => _isMine = s.first),
           ),
           const SizedBox(height: 20),
-          const Text('종류', style: TextStyle(fontSize: 16, color: Colors.black54)),
-          const SizedBox(height: 8),
+          const FieldLabel('종류'),
           ChoiceChips(
             options: EventTypes.all,
             selected: _type,
@@ -141,7 +139,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           const SizedBox(height: 20),
           TextField(
             controller: _title,
-            style: const TextStyle(fontSize: 20),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
             decoration: InputDecoration(
               labelText: '행사 이름',
               hintText: _isMine ? '예: 우리 결혼식' : '예: 김철수 결혼식',
@@ -166,7 +164,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           const SizedBox(height: 12),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('전날 오전 9시 알림'),
+            title: const Text('전날 오전 9시 알림', style: AppText.listName),
             subtitle: Text(reminderPast
                 ? '이미 지난 날짜라 알림이 울리지 않아요'
                 : '${formatShortDate(reminder)} 오전 9시쯤 알려드려요'),

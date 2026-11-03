@@ -83,12 +83,16 @@ final eventDetailProvider =
 class HomeData {
   final int sent;
   final int received;
+  final int sentCount;
+  final int receivedCount;
   final List<Event> upcoming;
   final List<GiftRecord> recent;
   final int recordCount;
   const HomeData({
     required this.sent,
     required this.received,
+    required this.sentCount,
+    required this.receivedCount,
     required this.upcoming,
     required this.recent,
     required this.recordCount,
@@ -102,6 +106,8 @@ final homeProvider = FutureProvider<HomeData>((ref) async {
   return HomeData(
     sent: totals.sent,
     received: totals.received,
+    sentCount: totals.sentCount,
+    receivedCount: totals.receivedCount,
     upcoming: await repo.upcomingEvents(limit: 3),
     recent: await repo.recentRecords(5),
     recordCount: await repo.countRecords(),
@@ -130,4 +136,9 @@ final yearlyTotalsProvider =
     FutureProvider<List<({int year, int sent, int received})>>((ref) {
   ref.watch(dbVersionProvider);
   return ref.watch(repositoryProvider).yearlyTotals();
+});
+
+final allRecordsProvider = FutureProvider<List<GiftRecord>>((ref) {
+  ref.watch(dbVersionProvider);
+  return ref.watch(repositoryProvider).allRecords();
 });

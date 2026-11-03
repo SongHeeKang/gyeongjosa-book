@@ -8,6 +8,7 @@ import '../models/gift_record.dart';
 import '../models/person.dart';
 import '../services/format.dart';
 import '../services/settings_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
@@ -155,16 +156,18 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, 0, AppSpacing.page, 32),
         children: [
-          Text(widget.event.title, style: Theme.of(context).textTheme.titleMedium),
+          Text(widget.event.title, style: AppText.sectionTitle),
           if (detail != null)
-            Text(
-              '${widget.event.isMine ? '받은' : '보낸'} 사람 ${detail.mainRecords.length}명 · ${formatWon(detail.total)}',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: directionColor(!widget.event.isMine)),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '${widget.event.isMine ? '받은' : '보낸'} 사람 ${detail.mainRecords.length}명 · ${formatWon(detail.total)}',
+                style: AppText.listAmount.copyWith(
+                    color: AppColors.amount(!widget.event.isMine)),
+              ),
             ),
           const SizedBox(height: 16),
           RawAutocomplete<Person>(
@@ -183,7 +186,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
               focusNode: focusNode,
               autofocus: true,
               textInputAction: TextInputAction.next,
-              style: const TextStyle(fontSize: 22),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 labelText: '이름',
@@ -197,10 +200,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
               alignment: Alignment.topLeft,
               child: Material(
                 elevation: 4,
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                       maxHeight: 280,
-                      maxWidth: MediaQuery.of(context).size.width - 32),
+                      maxWidth: MediaQuery.of(context).size.width -
+                        AppSpacing.page * 2),
                   child: ListView(
                     shrinkWrap: true,
                     padding: EdgeInsets.zero,
@@ -219,8 +225,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           ),
           if (_selected == null) ...[
             const SizedBox(height: 12),
-            const Text('새 사람 관계', style: TextStyle(fontSize: 15, color: Colors.black54)),
-            const SizedBox(height: 4),
+            const FieldLabel('새 사람 관계'),
             ChoiceChips(
               options: Relations.all,
               selected: _relation,
@@ -231,9 +236,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
             ),
           ],
           const SizedBox(height: 16),
-          const Text('금액을 누르면 바로 저장돼요',
-              style: TextStyle(fontSize: 15, color: Colors.black54)),
-          const SizedBox(height: 8),
+          const FieldLabel('금액을 누르면 바로 저장돼요'),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -247,7 +250,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                   onPressed: _saving ? null : () => _save(a),
                   style: FilledButton.styleFrom(
                     textStyle: const TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.bold),
+                        fontFamily: AppText.fontFamily,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700),
                   ),
                   child: Text('${formatManWon(a)}원'),
                 ),
@@ -262,7 +267,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                   controller: _amount,
                   keyboardType: TextInputType.number,
                   inputFormatters: [ThousandsFormatter()],
-                  style: const TextStyle(fontSize: 20),
+                  style: const TextStyle(fontSize: 17),
                   decoration: const InputDecoration(
                       labelText: '다른 금액', suffixText: '원'),
                   onSubmitted: (t) => _save(parseAmount(t)),
@@ -270,7 +275,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                height: 58,
+                height: 52,
                 child: OutlinedButton(
                   onPressed:
                       _saving ? null : () => _save(parseAmount(_amount.text)),
@@ -286,12 +291,17 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
             onSelected: (v) => setState(() => _method = v),
           ),
           if (_session.isNotEmpty) ...[
-            SectionTitle('방금 입력한 ${_session.length}건'),
+            const SizedBox(height: 12),
+            const AppDivider(),
+            Padding(
+              padding: const EdgeInsets.only(top: 20, bottom: 4),
+              child: Text('방금 입력한 ${_session.length}건', style: AppText.sectionTitle),
+            ),
             for (final r in _session)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(r.personName ?? ''),
-                subtitle: Text(formatWon(r.amount)),
+                subtitle: Text(signedWon(r.amount, isSent: r.isSent)),
                 trailing: TextButton(
                   onPressed: () => _undo(r),
                   child: const Text('취소'),

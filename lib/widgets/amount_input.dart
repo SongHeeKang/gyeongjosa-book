@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/format.dart';
+import '../theme/app_theme.dart';
 
 /// 입력 중에 50,000 처럼 쉼표를 넣어준다.
 class ThousandsFormatter extends TextInputFormatter {
@@ -49,13 +50,18 @@ class AmountInput extends StatelessWidget {
           children: [
             for (final a in quickAmounts) ...[
               Expanded(
-                child: current == a
-                    ? FilledButton(
-                        onPressed: () => _set(a),
-                        child: Text(formatManWon(a)))
-                    : OutlinedButton(
-                        onPressed: () => _set(a),
-                        child: Text(formatManWon(a))),
+                child: OutlinedButton(
+                  onPressed: () => _set(a),
+                  style: current == a
+                      ? OutlinedButton.styleFrom(
+                          backgroundColor: AppColors.primarySoft,
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(
+                              color: AppColors.primary, width: 1.5),
+                        )
+                      : null,
+                  child: Text(formatManWon(a)),
+                ),
               ),
               if (a != quickAmounts.last) const SizedBox(width: 8),
             ],
@@ -67,7 +73,7 @@ class AmountInput extends StatelessWidget {
           focusNode: focusNode,
           keyboardType: TextInputType.number,
           inputFormatters: [ThousandsFormatter()],
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           decoration: const InputDecoration(
             labelText: '금액 직접 입력',
             suffixText: '원',
@@ -107,6 +113,7 @@ class ChoiceChips extends StatelessWidget {
       children: [
         for (final o in options)
           ChoiceChip(
+            showCheckmark: false,
             label: Text(o),
             selected: o == selected,
             onSelected: (_) => onSelected(o),

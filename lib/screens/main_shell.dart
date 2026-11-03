@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
 import 'ledger_screen.dart';
 import 'people_screen.dart';
@@ -27,27 +28,9 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.home_outlined, size: 28),
-              selectedIcon: Icon(Icons.home, size: 28),
-              label: '홈'),
-          NavigationDestination(
-              icon: Icon(Icons.people_outline, size: 28),
-              selectedIcon: Icon(Icons.people, size: 28),
-              label: '사람'),
-          NavigationDestination(
-              icon: Icon(Icons.menu_book_outlined, size: 28),
-              selectedIcon: Icon(Icons.menu_book, size: 28),
-              label: '장부'),
-          NavigationDestination(
-              icon: Icon(Icons.bar_chart_outlined, size: 28),
-              selectedIcon: Icon(Icons.bar_chart, size: 28),
-              label: '통계'),
-        ],
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
       ),
     );
   }

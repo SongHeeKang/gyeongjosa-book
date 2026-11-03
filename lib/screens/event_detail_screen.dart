@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../services/format.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/record_form_sheet.dart';
 import 'event_form_screen.dart';
@@ -39,12 +40,13 @@ class EventDetailScreen extends ConsumerWidget {
         }
         final e = d.event;
         final main = d.mainRecords;
+        final upcoming = !e.date.isBefore(dateOnly(DateTime.now()));
         return Scaffold(
           appBar: AppBar(
             title: Text(e.title),
             actions: [
               PopupMenuButton<String>(
-                iconSize: 28,
+                icon: const Icon(Icons.more_vert, color: AppColors.icon),
                 onSelected: (v) {
                   if (v == 'edit') {
                     Navigator.push(
@@ -59,64 +61,71 @@ class EventDetailScreen extends ConsumerWidget {
                   PopupMenuItem(value: 'delete', child: Text('삭제')),
                 ],
               ),
+              const SizedBox(width: 8),
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.only(bottom: 32),
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(
-                  [
-                    '${e.isMine ? '내 행사' : '남의 행사'} · ${e.type}',
-                    formatDate(e.date),
-                    if ((e.place ?? '').isNotEmpty) e.place!,
-                    if ((e.memo ?? '').isNotEmpty) e.memo!,
-                    if (e.notify) '🔔 전날 오전 9시 알림',
-                  ].join('\n'),
-                  style: const TextStyle(fontSize: 17, color: Colors.black54, height: 1.5),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(children: [
-                  Expanded(
-                    child: Card(
-                      elevation: 0,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(e.isMine ? '총 인원' : '보낸 건수',
-                                style: const TextStyle(fontSize: 16)),
-                            const SizedBox(height: 6),
-                            Text('${main.length}명',
-                                style: const TextStyle(
-                                    fontSize: 24, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page, 0, AppSpacing.page, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        [
+                          '${e.isMine ? '내 행사' : '남의 행사'} · ${e.type}',
+                          formatDate(e.date),
+                          if ((e.place ?? '').isNotEmpty) e.place!,
+                          if ((e.memo ?? '').isNotEmpty) e.memo!,
+                          if (e.notify) '전날 오전 9시 알림',
+                        ].join('\n'),
+                        style: AppText.sub.copyWith(height: 1.6),
                       ),
                     ),
+                    if (upcoming)
+                      Text(dDay(e.date),
+                          style: AppText.dDay.copyWith(color: AppColors.primary)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(e.isMine ? '총 인원' : '보낸 건수', style: AppText.label),
+                        const SizedBox(height: 4),
+                        Text('${main.length}명', style: AppText.summaryAmount),
+                      ],
+                    ),
                   ),
-                  TotalTile(
+                  const SizedBox(width: 16),
+                  SummaryColumn(
                     label: e.isMine ? '받은 총액' : '보낸 총액',
                     amount: d.total,
-                    color: e.isMine ? receivedColor : sentColor,
+                    highlight: e.isMine,
                   ),
                 ]),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page, 20, AppSpacing.page, 0),
                 child: FilledButton.icon(
                   onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute<void>(
                           builder: (_) => QuickEntryScreen(event: e))),
-                  icon: const Icon(Icons.bolt),
+                  icon: const Icon(Icons.bolt, size: 20),
                   label: Text(e.isMine ? '빠른 연속 입력 (받은 명단)' : '빠른 연속 입력 (보낸 돈)'),
                 ),
               ),
+              const SizedBox(height: AppSpacing.section),
+              const AppDivider(),
               SectionTitle(e.isMine ? '받은 명단' : '보낸 내역'),
               if (d.records.isEmpty)
                 EmptyView(
@@ -132,6 +141,7 @@ class EventDetailScreen extends ConsumerWidget {
                     onTap: () => showRecordForm(context,
                         personId: r.personId, existing: r, event: e),
                   ),
+              const SizedBox(height: 24),
             ],
           ),
         );

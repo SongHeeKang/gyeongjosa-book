@@ -116,8 +116,14 @@ class HomeScreen extends ConsumerWidget {
             ),
             if (data.recent.isEmpty)
               const EmptyView(
-                  icon: Icons.receipt_long,
-                  message: '아직 기록이 없어요.\n아래 [기록하기]를 눌러 시작해 보세요.')
+                icon: Icons.receipt_long,
+                message: "아직 기록이 없어요.\n아래 '+ 기록하기'를 눌러 첫 기록을 남겨보세요",
+                action: Align(
+                  alignment: Alignment.centerRight,
+                  child: Icon(Icons.south_east,
+                      size: 40, color: AppColors.primary),
+                ),
+              )
             else
               for (final r in data.recent)
                 RecordTile(

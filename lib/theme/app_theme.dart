@@ -62,6 +62,11 @@ class AppText {
   static const warning = TextStyle(
       fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.error);
 
+  // 첫 실행 가이드
+  static const guideTitle = TextStyle(
+      fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.text);
+  static const guideBody = TextStyle(
+      fontSize: 15, fontWeight: FontWeight.w400, color: AppColors.textSub);
 }
 
 /// 섹션을 나누는 1px 구분선

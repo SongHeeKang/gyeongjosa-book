@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/providers.dart';
 import 'screens/main_shell.dart';
+import 'screens/onboarding_screen.dart';
 import 'services/notification_service.dart';
 import 'services/purchase_service.dart';
 import 'services/settings_service.dart';
@@ -32,11 +33,12 @@ Future<void> main() async {
   await container.read(purchaseProvider.notifier).init();
 }
 
-class GyeongjosaApp extends StatelessWidget {
+class GyeongjosaApp extends ConsumerWidget {
   const GyeongjosaApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seen = ref.watch(onboardingSeenProvider);
     return MaterialApp(
       title: '경조사 장부',
       debugShowCheckedModeBanner: false,
@@ -48,7 +50,7 @@ class GyeongjosaApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const MainShell(),
+      home: seen ? const MainShell() : const OnboardingScreen(),
     );
   }
 }

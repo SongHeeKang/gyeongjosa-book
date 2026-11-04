@@ -116,7 +116,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                   return const Center(
                       child: EmptyView(
                           icon: Icons.people_outline,
-                          message: '아직 등록한 사람이 없어요.\n위 [사람 추가]를 눌러 보세요.'));
+                          message: '축의금 · 부의금을 주고받은 사람이\n여기에 모여요'));
                 }
                 if (list.isEmpty) {
                   return const Center(

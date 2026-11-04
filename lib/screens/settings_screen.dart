@@ -18,6 +18,7 @@ import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
+import 'onboarding_screen.dart';
 
 final _appVersionProvider = FutureProvider<String>((ref) async {
   final info = await PackageInfo.fromPlatform();
@@ -193,6 +194,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const AppDivider(),
             const SectionTitle('기타'),
             ListTile(
+              leading: const Icon(Icons.help_outline, size: 24),
+              title: const Text('사용 방법'),
+              subtitle: const Text('첫 실행 가이드를 다시 봐요'),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                      builder: (_) => const OnboardingScreen(replay: true))),
+            ),
+            ListTile(
               leading: const Icon(Icons.privacy_tip_outlined, size: 24),
               title: const Text('개인정보처리방침'),
               subtitle: const Text('모든 기록은 이 폰에만 저장돼요'),
@@ -250,6 +260,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             await NotificationService.instance
                 .ensurePermission(context, ref.read(prefsProvider));
             await NotificationService.instance.showTest();
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.replay_circle_filled_outlined, size: 24),
+          title: const Text('가이드 다시 보기 초기화'),
+          subtitle: const Text('앱을 다시 켜면 첫 실행 가이드가 보여요'),
+          onTap: () async {
+            await ref.read(onboardingSeenProvider.notifier).reset();
+            if (mounted) showSnack(context, '앱을 다시 켜면 가이드가 보여요.');
           },
         ),
         ListTile(

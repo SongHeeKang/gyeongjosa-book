@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gyeongjosa/data/database_helper.dart';
 import 'package:gyeongjosa/data/providers.dart';
 import 'package:gyeongjosa/data/repository.dart';
+import 'package:gyeongjosa/main.dart';
 import 'package:gyeongjosa/models/event.dart';
 import 'package:gyeongjosa/models/gift_record.dart';
 import 'package:gyeongjosa/models/person.dart';
@@ -14,6 +15,7 @@ import 'package:gyeongjosa/screens/event_form_screen.dart';
 import 'package:gyeongjosa/screens/home_screen.dart';
 import 'package:gyeongjosa/screens/main_shell.dart';
 import 'package:gyeongjosa/screens/my_events_screen.dart';
+import 'package:gyeongjosa/screens/onboarding_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/services/format.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
@@ -258,6 +260,60 @@ void main() {
       await pump(tester, const MyEventsScreen());
       expect(find.textContaining('남의 행사'), findsNothing);
       expect(find.text('내 행사 만들기'), findsOneWidget);
+    });
+
+    testWidgets('빈 화면 문구', (tester) async {
+      await pump(tester, const HomeScreen());
+      expect(find.textContaining("'+ 기록하기'를 눌러 첫 기록을 남겨보세요"), findsOneWidget);
+      expect(find.byIcon(Icons.south_east), findsOneWidget);
+
+      await pump(tester, const MyEventsScreen());
+      expect(find.text('결혼식 · 돌잔치처럼 내가 받는 행사를 만들어 보세요'), findsOneWidget);
+    });
+
+    testWidgets('가이드: 건너뛰면 다시 뜨지 않고, 마지막 장에 시작하기가 있다', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final widget = ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          repositoryProvider.overrideWithValue(FakeRepository()),
+        ],
+        child: const GyeongjosaApp(),
+      );
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.625;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(widget);
+      await tester.pumpAndSettle();
+      expect(find.text('주고받은 마음, 잊지 않게'), findsOneWidget);
+      expect(find.text('시작하기'), findsNothing);
+      expect(find.text('건너뛰기'), findsOneWidget);
+
+      await tester.tap(find.text('다음'));
+      await tester.pumpAndSettle();
+      expect(find.text('+ 버튼 하나면 돼요'), findsOneWidget);
+      await tester.tap(find.text('다음'));
+      await tester.pumpAndSettle();
+      expect(find.text('기록은 내 폰에만'), findsOneWidget);
+      expect(find.text('건너뛰기'), findsOneWidget);
+
+      await tester.tap(find.text('시작하기'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MainShell), findsOneWidget);
+      expect(prefs.getBool(PrefKeys.onboardingSeen), isTrue);
+
+      // 앱을 다시 켠 것과 같은 상황: 가이드 없이 바로 시작
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          repositoryProvider.overrideWithValue(FakeRepository()),
+        ],
+        child: const GyeongjosaApp(),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byType(OnboardingScreen), findsNothing);
     });
 
     testWidgets('얼마 내셨어요: 금액을 누르면 일정에 연결된 보냄 기록이 생기고 사라진다',

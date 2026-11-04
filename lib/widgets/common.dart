@@ -33,9 +33,13 @@ class AsyncBody<T> extends StatelessWidget {
 }
 
 class EmptyView extends StatelessWidget {
-  const EmptyView({super.key, required this.icon, required this.message});
+  const EmptyView(
+      {super.key, required this.icon, required this.message, this.action});
   final IconData icon;
   final String message;
+
+  /// 문구 아래에 놓는 버튼이나 화살표
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +54,10 @@ class EmptyView extends StatelessWidget {
           Text(message,
               textAlign: TextAlign.center,
               style: AppText.sub.copyWith(height: 1.5)),
+          if (action != null) ...[
+            const SizedBox(height: 16),
+            action!,
+          ],
         ],
       ),
     );

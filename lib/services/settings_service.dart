@@ -13,11 +13,31 @@ class PrefKeys {
   static const devProOverride = 'dev_pro_override';
   static const quickEntryRelation = 'quick_entry_relation';
   static const receptionOperator = 'reception_operator';
+  static const onboardingSeen = 'onboarding_seen';
 
   /// 접수 장부별 마지막 구분
   static String receptionLastSide(String receptionId) =>
       'reception_last_side_$receptionId';
 }
+
+/// 첫 실행 가이드를 봤는지
+class OnboardingSeenNotifier extends Notifier<bool> {
+  @override
+  bool build() =>
+      ref.read(prefsProvider).getBool(PrefKeys.onboardingSeen) ?? false;
+
+  Future<void> markSeen() async {
+    state = true;
+    await ref.read(prefsProvider).setBool(PrefKeys.onboardingSeen, true);
+  }
+
+  /// 테스트용: 앱을 다시 켜면 가이드가 보이게 한다.
+  Future<void> reset() =>
+      ref.read(prefsProvider).remove(PrefKeys.onboardingSeen);
+}
+
+final onboardingSeenProvider =
+    NotifierProvider<OnboardingSeenNotifier, bool>(OnboardingSeenNotifier.new);
 
 /// 마지막 수동 백업 시각
 class LastBackupNotifier extends Notifier<DateTime?> {

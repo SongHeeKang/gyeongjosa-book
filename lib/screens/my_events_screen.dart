@@ -25,15 +25,20 @@ class MyEventsScreen extends ConsumerWidget {
     final events = ref.watch(eventSummariesProvider);
     final receptions =
         ref.watch(receptionSummariesProvider).value ?? const <ReceptionSummary>[];
+    final hasMine =
+        events.value?.any((s) => s.event.isMine) ?? false;
     return Scaffold(
       appBar: AppBar(
         title: const Text('내 행사'),
         actions: [
-          TextButton(
-            onPressed: () => _create(context),
-            child: const Text('내 행사 만들기'),
-          ),
-          const SizedBox(width: 8),
+          // 비어 있을 때는 화면 가운데 버튼 하나만 보여준다
+          if (hasMine) ...[
+            TextButton(
+              onPressed: () => _create(context),
+              child: const Text('내 행사 만들기'),
+            ),
+            const SizedBox(width: 8),
+          ],
         ],
       ),
       body: AsyncBody(
@@ -43,9 +48,14 @@ class MyEventsScreen extends ConsumerWidget {
           return ListView(
             children: [
               if (mine.isEmpty)
-                const EmptyView(
-                    icon: Icons.celebration_outlined,
-                    message: '내 결혼식, 돌잔치처럼 내가 받은 행사를 등록하면\n받은 명단을 빠르게 정리할 수 있어요.')
+                EmptyView(
+                  icon: Icons.celebration_outlined,
+                  message: '결혼식 · 돌잔치처럼 내가 받는 행사를 만들어 보세요',
+                  action: FilledButton(
+                    onPressed: () => _create(context),
+                    child: const Text('내 행사 만들기'),
+                  ),
+                )
               else
                 for (final s in mine)
                   EventTile(

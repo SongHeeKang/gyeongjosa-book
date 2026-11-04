@@ -343,6 +343,37 @@ void main() {
       expect(find.text('+ 버튼 하나면 돼요'), findsOneWidget);
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
+
+      // 새 3장: 접수 안내 그림
+      expect(tester.takeException(), isNull);
+      expect(find.text('결혼식 · 장례식\n접수대에서도 바로'), findsOneWidget);
+      expect(find.text('손님 이름을 적고 금액만 누르면 저장돼요.\n끝나면 혼주에게 장부를 보내요.'),
+          findsOneWidget);
+      for (final t in [
+        '42명 · 3,150,000원',
+        '신랑측 ▾',
+        '김민수',
+        '이서연 · 10만 · 오후 12:34',
+        '되돌리기',
+        '5만',
+        '10만',
+        '15만',
+        '20만',
+        '25만',
+        '30만',
+        '50만',
+        '100만',
+        '이름 입력',
+        '금액 탭',
+        '장부 보내기',
+      ]) {
+        expect(find.text(t), findsOneWidget, reason: t);
+      }
+      expect(find.text('시작하기'), findsNothing);
+      expect(find.text('건너뛰기'), findsOneWidget);
+
+      await tester.tap(find.text('다음'));
+      await tester.pumpAndSettle();
       expect(find.text('기록은 내 폰에만'), findsOneWidget);
       expect(find.text('건너뛰기'), findsOneWidget);
 

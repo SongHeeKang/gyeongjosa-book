@@ -13,6 +13,10 @@ class AppColors {
   static const primarySoft = Color(0xFFEFF4FF); // 선택된 칩 배경
   static const error = Color(0xFFDC2626);
   static const chartSent = Color(0xFF9CA3AF); // 차트의 보냄 막대
+  static const guidePanel = Color(0xFFEEF4FF); // 가이드 그림의 연파랑 패널
+  static const guideChip = Color(0xFFDBEAFE); // 가이드 그림의 칩 바탕
+  static const guideChipText = Color(0xFF1E40AF); // 가이드 그림의 칩 글자
+  static const success = Color(0xFF16A34A); // 가이드 그림의 초록 체크
 
   /// 받은 돈 = 포인트색, 보낸 돈 = 기본 글자색
   static Color amount(bool isSent) => isSent ? text : primary;
@@ -67,6 +71,8 @@ class AppText {
       fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.text);
   static const guideBody = TextStyle(
       fontSize: 15, fontWeight: FontWeight.w400, color: AppColors.textSub);
+  static const guideSmall = TextStyle(
+      fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.text);
 }
 
 /// 섹션을 나누는 1px 구분선

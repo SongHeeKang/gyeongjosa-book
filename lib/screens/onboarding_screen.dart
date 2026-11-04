@@ -5,7 +5,7 @@ import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 
-/// 첫 실행 가이드 3장. 설정의 [사용 방법]에서 다시 볼 수 있다.
+/// 첫 실행 가이드 4장. 설정의 [사용 방법]에서 다시 볼 수 있다.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key, this.replay = false});
 
@@ -27,6 +27,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       '+ 버튼 하나면 돼요',
       '보냈어요 · 일정 추가 · 받은 돈 정리 · 행사장 접수',
       _ButtonPicture(),
+    ),
+    (
+      '결혼식 · 장례식\n접수대에서도 바로',
+      '손님 이름을 적고 금액만 누르면 저장돼요.\n끝나면 혼주에게 장부를 보내요.',
+      _ReceptionPicture(),
     ),
     (
       '기록은 내 폰에만',
@@ -221,7 +226,170 @@ class _ButtonPicture extends StatelessWidget {
   }
 }
 
-/// 3장 그림: 폰과 자물쇠
+/// 3장 그림: 접수 화면을 작게 줄인 카드와 사용 순서 3단계.
+/// 눌러지는 것처럼 보이지만 그림이므로 화면 읽기 대상에서 뺀다.
+class _ReceptionPicture extends StatelessWidget {
+  const _ReceptionPicture();
+
+  static const _amounts = [
+    ['5만', '10만', '15만', '20만'],
+    ['25만', '30만', '50만', '100만'],
+  ];
+  static const _picked = '10만';
+
+  Widget _amountRow(List<String> labels) => Row(
+        children: [
+          for (var i = 0; i < labels.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(child: _amountButton(labels[i])),
+          ],
+        ],
+      );
+
+  Widget _amountButton(String label) {
+    final picked = label == _picked;
+    return Container(
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: picked ? AppColors.primary : AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+            color: picked ? AppColors.primary : AppColors.divider),
+      ),
+      child: Text(
+        label,
+        style: AppText.guideSmall.copyWith(
+            fontWeight: FontWeight.w700,
+            color: picked ? Colors.white : AppColors.text),
+      ),
+    );
+  }
+
+  Widget _step(int number, String label) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+                color: AppColors.primary, shape: BoxShape.circle),
+            child: Text('$number',
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white)),
+          ),
+          const SizedBox(width: 4),
+          Text(label,
+              style: AppText.guideSmall.copyWith(fontWeight: FontWeight.w500)),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Container(
+        width: 348,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.guidePanel,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('42명 · 3,150,000원',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text)),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.guideChip,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('신랑측 ▾',
+                            style: AppText.guideSmall.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.guideChipText)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 44,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.primary, width: 1.5),
+                    ),
+                    child: const Text('김민수',
+                        style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text)),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(Icons.check,
+                          size: 16, color: AppColors.success),
+                      const SizedBox(width: 4),
+                      const Expanded(
+                        child: Text('이서연 · 10만 · 오후 12:34',
+                            style: AppText.guideSmall),
+                      ),
+                      Text('되돌리기',
+                          style: AppText.guideSmall.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.link)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _amountRow(_amounts[0]),
+                  const SizedBox(height: 6),
+                  _amountRow(_amounts[1]),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _step(1, '이름 입력'),
+                _step(2, '금액 탭'),
+                _step(3, '장부 보내기'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 4장 그림: 폰과 자물쇠
 class _PhonePicture extends StatelessWidget {
   const _PhonePicture();
 

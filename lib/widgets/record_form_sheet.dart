@@ -113,12 +113,30 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
       date: _date,
       memo: _memo.text.trim().isEmpty ? null : _memo.text.trim(),
       eventType: eventId == null ? _eventType : null,
+      needsReview: widget.existing?.needsReview ?? false,
     );
     if (widget.existing == null) {
       await repo.insertRecord(record);
     } else {
       await repo.updateRecord(record);
     }
+    ref.refreshData();
+    if (mounted) Navigator.pop(context, true);
+  }
+
+  /// 확인 필요: 기존 사람이 맞음
+  Future<void> _confirmSamePerson() async {
+    await ref
+        .read(repositoryProvider)
+        .markRecordReviewed(widget.existing!.id!);
+    ref.refreshData();
+    if (mounted) Navigator.pop(context, true);
+  }
+
+  /// 확인 필요: 다른 사람이므로 같은 이름의 새 사람으로 분리
+  Future<void> _splitToNewPerson() async {
+    await ref.read(repositoryProvider).moveRecordToNewPerson(
+        widget.existing!.id!, widget.existing!.personName ?? '');
     ref.refreshData();
     if (mounted) Navigator.pop(context, true);
   }
@@ -145,6 +163,34 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
             Text(widget.existing == null ? '내역 추가' : '내역 수정',
                 style: AppText.appTitle),
             const SizedBox(height: 16),
+            if (widget.existing?.needsReview == true) ...[
+              const Text('확인 필요', style: AppText.warning),
+              const SizedBox(height: 4),
+              Text(
+                  '${widget.existing!.personName} 님과 같은 이름이 있어요. 같은 사람이 맞나요?',
+                  style: AppText.body),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _confirmSamePerson,
+                      child: const Text('같은 사람'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _splitToNewPerson,
+                      child: const Text('다른 사람'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const AppDivider(),
+              const SizedBox(height: 20),
+            ],
             SegmentedButton<String>(
               showSelectedIcon: false,
               segments: const [

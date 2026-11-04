@@ -3,7 +3,9 @@ import 'package:sqflite/sqflite.dart';
 import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../models/person.dart';
+import '../models/reception.dart';
 import '../services/format.dart';
+import '../services/reception_import.dart';
 import 'database_helper.dart';
 
 /// 화면에서 쓰는 모든 DB 읽기/쓰기를 모아둔 곳.
@@ -201,6 +203,177 @@ class Repository {
   Future<void> deleteEvent(int id) async {
     final db = await _db;
     await db.delete('events', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ───────────────────────── 접수 모드 ─────────────────────────
+
+  Future<void> insertReception(Reception reception) async {
+    final db = await _db;
+    await db.insert('receptions', reception.toMap());
+  }
+
+  Future<List<ReceptionSummary>> receptionSummaries() async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      SELECT rc.*, COUNT(en.id) AS entry_count,
+        COALESCE(SUM(en.amount), 0) AS entry_total
+      FROM receptions rc
+      LEFT JOIN reception_entries en
+        ON en.reception_id = rc.id AND en.deleted = 0
+      GROUP BY rc.id
+      ORDER BY rc.started_at DESC
+    ''');
+    return rows
+        .map((r) => ReceptionSummary(
+              Reception.fromMap(r),
+              r['entry_count'] as int? ?? 0,
+              r['entry_total'] as int? ?? 0,
+            ))
+        .toList();
+  }
+
+  /// 접수 장부와 지우지 않은 항목(최신이 앞). 없으면 null.
+  Future<ReceptionPackage?> getReceptionPackage(String id) async {
+    final db = await _db;
+    final rows = await db.query('receptions', where: 'id = ?', whereArgs: [id]);
+    if (rows.isEmpty) return null;
+    final entries = await db.query('reception_entries',
+        where: 'reception_id = ? AND deleted = 0',
+        whereArgs: [id],
+        orderBy: 'created_at DESC, rowid DESC');
+    return ReceptionPackage(Reception.fromMap(rows.first),
+        entries.map(ReceptionEntry.fromMap).toList());
+  }
+
+  Future<void> setReceptionFinished(String id, {required bool finished}) async {
+    final db = await _db;
+    await db.update(
+        'receptions',
+        {'finished_at': finished ? DateTime.now().toIso8601String() : null},
+        where: 'id = ?',
+        whereArgs: [id]);
+  }
+
+  Future<void> deleteReception(String id) async {
+    final db = await _db;
+    await db.delete('receptions', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> insertReceptionEntry(ReceptionEntry entry) async {
+    final db = await _db;
+    await db.insert('reception_entries', entry.toMap());
+  }
+
+  Future<void> updateReceptionEntry(ReceptionEntry entry) async {
+    final db = await _db;
+    await db.update('reception_entries', entry.toMap(),
+        where: 'id = ?', whereArgs: [entry.id]);
+  }
+
+  /// 되돌리기 · 삭제: 표시만 해 두고 합계와 보내기에서 뺀다.
+  Future<void> deleteReceptionEntry(String id) async {
+    final db = await _db;
+    await db.update('reception_entries', {'deleted': 1},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ───────────────────────── 받은 장부 가져오기 ─────────────────────────
+
+  /// [maxPeople]은 전체 사람 수 한도. null이면 제한 없음.
+  Future<ImportPlan> planImport(ReceptionPackage package,
+      {int? eventId, int? maxPeople}) async {
+    return _planImport(await _db, package, eventId, maxPeople);
+  }
+
+  Future<ImportPlan> _planImport(DatabaseExecutor db, ReceptionPackage package,
+      int? eventId, int? maxPeople) async {
+    final imported = await db.query('imported_entries', columns: ['entry_id']);
+    final people = await db.query('people', columns: ['id', 'name'], orderBy: 'id');
+    final peopleByName = <String, List<int>>{};
+    for (final row in people) {
+      peopleByName.putIfAbsent(row['name'] as String, () => []).add(row['id'] as int);
+    }
+    final inEvent = eventId == null
+        ? const <Map<String, Object?>>[]
+        : await db.rawQuery('''
+            SELECT DISTINCT p.name AS name FROM records r
+            JOIN people p ON p.id = r.person_id
+            WHERE r.event_id = ?
+          ''', [eventId]);
+    return buildImportPlan(
+      entries: package.entries,
+      importedIds: imported.map((r) => r['entry_id'] as String).toSet(),
+      peopleByName: peopleByName,
+      namesInEvent: inEvent.map((r) => r['name'] as String).toSet(),
+      newPersonSlots:
+          maxPeople == null ? null : (maxPeople - people.length).clamp(0, maxPeople),
+    );
+  }
+
+  /// 계획대로 내 장부에 넣는다. 도중에 실패하면 아무것도 저장되지 않는다.
+  /// [eventId]가 null이면 [newEvent]를 새 장부로 만든다.
+  Future<({int eventId, ImportPlan plan})> applyImport(
+    ReceptionPackage package, {
+    int? eventId,
+    Event? newEvent,
+    int? maxPeople,
+  }) async {
+    final db = await _db;
+    return db.transaction((txn) async {
+      final targetId =
+          eventId ?? await txn.insert('events', newEvent!.toMap()..remove('id'));
+      final event = (await txn.query('events',
+              where: 'id = ?', whereArgs: [targetId]))
+          .first;
+      final plan = await _planImport(txn, package, targetId, maxPeople);
+      final newPeople = <String, int>{};
+      final now = DateTime.now().toIso8601String();
+      for (final item in plan.items) {
+        final entry = item.entry;
+        final name = entry.name.trim();
+        final personId = item.personId ??
+            newPeople[name] ??
+            (newPeople[name] = await txn.insert(
+                'people', Person(name: name, createdAt: DateTime.now()).toMap()..remove('id')));
+        final memo = entry.recordMemo;
+        await txn.insert('records', {
+          'person_id': personId,
+          'event_id': targetId,
+          'direction': '받음',
+          'amount': entry.amount,
+          'method': entry.method,
+          'date': event['date'],
+          'memo': memo.isEmpty ? null : memo,
+          'needs_review': item.needsReview ? 1 : 0,
+        });
+        await txn.insert(
+            'imported_entries', {'entry_id': entry.id, 'imported_at': now});
+      }
+      if (plan.skippedByLimit == 0) {
+        // 이 기기에서 접수한 장부라면 '옮김'으로 표시
+        await txn.update('receptions', {'imported': 1},
+            where: 'id = ?', whereArgs: [package.reception.id]);
+      }
+      return (eventId: targetId, plan: plan);
+    });
+  }
+
+  /// 확인 필요 내역: 같은 사람이 맞다고 확인
+  Future<void> markRecordReviewed(int recordId) async {
+    final db = await _db;
+    await db.update('records', {'needs_review': 0},
+        where: 'id = ?', whereArgs: [recordId]);
+  }
+
+  /// 확인 필요 내역: 다른 사람이므로 같은 이름의 새 사람으로 분리
+  Future<void> moveRecordToNewPerson(int recordId, String name) async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      final personId = await txn.insert('people',
+          Person(name: name, createdAt: DateTime.now()).toMap()..remove('id'));
+      await txn.update('records', {'person_id': personId, 'needs_review': 0},
+          where: 'id = ?', whereArgs: [recordId]);
+    });
   }
 
   // ───────────────────────── 통계 ─────────────────────────

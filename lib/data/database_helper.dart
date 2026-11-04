@@ -11,12 +11,17 @@ import 'package:sqflite/sqflite.dart';
 /// 2. [_migrations]에 "이전 버전 → 새 버전" 단계를 추가한다.
 /// (DROP TABLE 처럼 데이터를 지우는 변경은 하지 않는다)
 class DatabaseHelper {
-  DatabaseHelper._();
+  DatabaseHelper._([this._pathOverride]);
   static final DatabaseHelper instance = DatabaseHelper._();
 
-  static const dbFileName = 'gyeongjosa.db';
-  static const _dbVersion = 2;
+  /// 테스트 전용: 실제 앱 데이터와 분리된 파일을 쓴다.
+  @visibleForTesting
+  factory DatabaseHelper.forTest(String path) => DatabaseHelper._(path);
 
+  static const dbFileName = 'gyeongjosa.db';
+  static const _dbVersion = 3;
+
+  final String? _pathOverride;
   Database? _db;
 
   Future<Database> get database async {
@@ -26,7 +31,8 @@ class DatabaseHelper {
     return _db!;
   }
 
-  Future<String> get dbPath async => p.join(await getDatabasesPath(), dbFileName);
+  Future<String> get dbPath async =>
+      _pathOverride ?? p.join(await getDatabasesPath(), dbFileName);
 
   Future<Database> _open() async {
     return openDatabase(
@@ -100,6 +106,47 @@ class DatabaseHelper {
           'CREATE INDEX IF NOT EXISTS idx_records_event ON records(event_id)');
       await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_records_date ON records(date)');
+    },
+    // v3: 접수 모드 (접수 장부, 접수 항목, 가져온 항목 기록, 확인 필요 표시)
+    3: (db) async {
+      await db.execute('''
+        CREATE TABLE receptions (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          event_type TEXT NOT NULL DEFAULT '기타',
+          date TEXT NOT NULL,
+          sides TEXT NOT NULL,
+          operator_name TEXT NOT NULL DEFAULT '',
+          started_at TEXT NOT NULL,
+          finished_at TEXT,
+          imported INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE reception_entries (
+          id TEXT PRIMARY KEY,
+          reception_id TEXT NOT NULL REFERENCES receptions(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          side TEXT NOT NULL DEFAULT '',
+          method TEXT NOT NULL DEFAULT '현금',
+          meal_tickets INTEGER NOT NULL DEFAULT 1,
+          memo TEXT,
+          created_at TEXT NOT NULL,
+          deleted INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+      await db.execute(
+          'CREATE INDEX idx_entries_reception ON reception_entries(reception_id)');
+      // 내역을 나중에 지워도 같은 파일을 다시 가져올 때 되살아나지 않도록 따로 기록한다.
+      await db.execute('''
+        CREATE TABLE imported_entries (
+          entry_id TEXT PRIMARY KEY,
+          imported_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute(
+          'ALTER TABLE records ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0');
     },
   };
 

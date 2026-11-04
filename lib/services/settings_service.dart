@@ -12,6 +12,11 @@ class PrefKeys {
   static const proPurchased = 'pro_purchased';
   static const devProOverride = 'dev_pro_override';
   static const quickEntryRelation = 'quick_entry_relation';
+  static const receptionOperator = 'reception_operator';
+
+  /// 접수 장부별 마지막 구분
+  static String receptionLastSide(String receptionId) =>
+      'reception_last_side_$receptionId';
 }
 
 /// 마지막 수동 백업 시각

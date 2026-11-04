@@ -16,6 +16,9 @@ class GiftRecord {
   /// 행사와 연결되지 않은 내역의 행사 종류 (결혼/장례/...)
   final String? eventType;
 
+  /// 받은 장부를 가져올 때 동명이인이 의심되어 확인이 필요한 내역
+  final bool needsReview;
+
   // 조회 시 함께 가져오는 표시용 값
   final String? personName;
   final String? personRelation;
@@ -31,6 +34,7 @@ class GiftRecord {
     required this.date,
     this.memo,
     this.eventType,
+    this.needsReview = false,
     this.personName,
     this.personRelation,
     this.eventTitle,
@@ -48,6 +52,7 @@ class GiftRecord {
         date: parseDbDate(m['date'] as String?),
         memo: m['memo'] as String?,
         eventType: (m['ev_type'] as String?) ?? (m['event_type'] as String?),
+        needsReview: (m['needs_review'] as int? ?? 0) == 1,
         personName: m['person_name'] as String?,
         personRelation: m['person_relation'] as String?,
         eventTitle: m['event_title'] as String?,
@@ -63,6 +68,7 @@ class GiftRecord {
         'date': toDbDate(date),
         'memo': memo,
         'event_type': eventType,
+        'needs_review': needsReview ? 1 : 0,
       };
 
   /// 화면에 보여줄 행사 이름 (예: "결혼 · 철수 결혼식")

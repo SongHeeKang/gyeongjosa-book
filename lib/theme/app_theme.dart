@@ -21,6 +21,8 @@ class AppSpacing {
   static const page = 24.0; // 좌우 여백
   static const section = 28.0; // 섹션 사이
   static const item = 10.0; // 목록 항목 위아래 여백
+  static const bigButton = 64.0; // 접수 화면 금액 버튼 높이
+  static const receptionButton = 56.0; // 접수 화면 그 밖의 버튼 높이
 }
 
 class AppText {
@@ -46,6 +48,18 @@ class AppText {
   static const link =
       TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.link);
   static const button = TextStyle(fontSize: 15, fontWeight: FontWeight.w700);
+
+  // 접수 화면: 행사장에서 빠르게 보도록 크게
+  static const receptionInput = TextStyle(
+      fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.text);
+  static const receptionAmount = TextStyle(
+      fontFamily: fontFamily, fontSize: 22, fontWeight: FontWeight.w700);
+  static const receptionButton = TextStyle(
+      fontFamily: fontFamily, fontSize: 17, fontWeight: FontWeight.w700);
+  static const receptionName = TextStyle(
+      fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.text);
+  static const warning = TextStyle(
+      fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.error);
 }
 
 /// 섹션을 나누는 1px 구분선

@@ -52,3 +52,6 @@ key.properties
 *.jks
 *.keystore
 build/
+
+# 기획서 · 개발 요청문 (공개 저장소에 올리지 않기)
+docs/*개발 요청문*.md

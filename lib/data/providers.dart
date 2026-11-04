@@ -3,11 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../models/person.dart';
+import '../models/reception.dart';
 import 'database_helper.dart';
 import 'repository.dart';
 
 final repositoryProvider =
     Provider<Repository>((ref) => Repository(DatabaseHelper.instance));
+
+final receptionSummariesProvider = FutureProvider<List<ReceptionSummary>>((ref) {
+  ref.watch(dbVersionProvider);
+  return ref.watch(repositoryProvider).receptionSummaries();
+});
+
+final receptionPackageProvider =
+    FutureProvider.family<ReceptionPackage?, String>((ref, id) {
+  ref.watch(dbVersionProvider);
+  return ref.watch(repositoryProvider).getReceptionPackage(id);
+});
 
 /// DB가 바뀔 때마다 숫자를 올려서, 이 값을 보고 있는 화면들이 새로 고쳐지게 한다.
 class DbVersion extends Notifier<int> {

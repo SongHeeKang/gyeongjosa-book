@@ -3,19 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
 import '../models/event.dart';
+import '../models/reception.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import 'event_detail_screen.dart';
 import 'event_form_screen.dart';
+import 'reception_form_screen.dart';
+import 'reception_import_screen.dart';
+import 'reception_screen.dart';
+import 'reception_summary_screen.dart';
 
-/// 장부 탭: 내 행사 / 다가오는 남의 행사 / 지난 남의 행사
+/// 장부 탭: 접수 시작 · 가져오기 / 내 행사 / 접수 장부 / 다가오는 남의 행사 / 지난 남의 행사
 class LedgerScreen extends ConsumerWidget {
   const LedgerScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final events = ref.watch(eventSummariesProvider);
+    final receptions =
+        ref.watch(receptionSummariesProvider).value ?? const <ReceptionSummary>[];
     return Scaffold(
       appBar: AppBar(title: const Text('장부')),
       floatingActionButtonLocation: const PillFabLocation(),
@@ -39,6 +46,37 @@ class LedgerScreen extends ConsumerWidget {
 
           return ListView(
             children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                              builder: (_) => const ReceptionFormScreen())),
+                      icon: const Icon(Icons.edit_note),
+                      label: const Text('접수 시작'),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => pickAndOpenImport(context),
+                      icon: const Icon(Icons.file_download_outlined),
+                      label: const Text('받은 장부 가져오기'),
+                    ),
+                  ],
+                ),
+              ),
+              if (receptions.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.section - 6),
+                const AppDivider(),
+                const SectionTitle('접수 장부'),
+                for (final s in receptions) _receptionRow(context, s),
+              ],
+              const SizedBox(height: AppSpacing.section - 6),
+              const AppDivider(),
               const SectionTitle('내 행사'),
               if (mine.isEmpty)
                 const EmptyView(
@@ -69,6 +107,49 @@ class LedgerScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _receptionRow(BuildContext context, ReceptionSummary s) {
+    final r = s.reception;
+    final status = !r.isFinished
+        ? '접수 중'
+        : (r.imported ? '내 장부로 옮김' : '접수 완료');
+    return InkWell(
+      onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+              builder: (_) => r.isFinished
+                  ? ReceptionSummaryScreen(receptionId: r.id)
+                  : ReceptionScreen(receptionId: r.id))),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.page, vertical: AppSpacing.item),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(r.title,
+                      style: AppText.listName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Text('$status · ${s.count}명 · ${formatWon(s.total)}',
+                      style: AppText.sub.copyWith(
+                          color: r.isFinished
+                              ? AppColors.textSub
+                              : AppColors.primary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.divider),
+          ],
+        ),
       ),
     );
   }

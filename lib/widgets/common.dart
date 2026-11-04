@@ -215,6 +215,11 @@ class RecordTile extends StatelessWidget {
                       style: AppText.sub,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
+                  if (record.needsReview) ...[
+                    const SizedBox(height: 2),
+                    const Text('확인 필요 · 동명이인일 수 있어요',
+                        style: AppText.warning),
+                  ],
                 ],
               ),
             ),

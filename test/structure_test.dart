@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gyeongjosa/data/database_helper.dart';
 import 'package:gyeongjosa/data/providers.dart';
@@ -17,9 +18,12 @@ import 'package:gyeongjosa/screens/main_shell.dart';
 import 'package:gyeongjosa/screens/my_events_screen.dart';
 import 'package:gyeongjosa/screens/onboarding_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
+import 'package:gyeongjosa/screens/stats_screen.dart';
 import 'package:gyeongjosa/services/format.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
+import 'package:gyeongjosa/widgets/app_bottom_nav.dart';
+import 'package:gyeongjosa/widgets/pro_gate.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -70,6 +74,12 @@ class FakeRepository extends Repository {
     pending = [];
   }
 
+  @override
+  Future<List<int>> recordYears() async => [DateTime.now().year];
+  @override
+  Future<List<({int month, int sent, int received})>> monthlyTotals(
+          int year) async =>
+      const [];
   @override
   Future<List<EventSummary>> eventSummaries() async => const [];
   @override
@@ -230,18 +240,56 @@ void main() {
       return repo;
     }
 
-    testWidgets('탭은 3개이고, 모든 탭 같은 자리에 기록하기 버튼이 있다', (tester) async {
+    testWidgets('탭은 4개이고, 모든 탭 같은 자리에 기록하기 버튼이 있다', (tester) async {
       await pump(tester, const MainShell());
       expect(find.text('장부'), findsNothing);
-      expect(find.text('통계'), findsNothing);
+      final labels = [
+        for (final widget in tester.widgetList<Text>(find.descendant(
+            of: find.byType(AppBottomNav), matching: find.byType(Text))))
+          widget.data,
+      ];
+      expect(labels, ['홈', '사람', '내 행사', '통계']);
 
       final position = tester.getCenter(find.text('기록하기'));
-      for (final tab in ['사람', '내 행사', '홈']) {
-        await tester.tap(find.text(tab).last);
+      for (final tab in ['사람', '내 행사', '통계', '홈']) {
+        await tester.tap(find.descendant(
+            of: find.byType(AppBottomNav), matching: find.text(tab)));
         await tester.pumpAndSettle();
         expect(find.text('기록하기'), findsOneWidget);
         expect(tester.getCenter(find.text('기록하기')), position);
       }
+    });
+
+    testWidgets('통계 탭: 선택되면 채운 아이콘 · 포인트색 · 굵은 라벨, 월별과 프로 잠금이 그대로', (tester) async {
+      await pump(tester, const MainShell());
+      final nav = find.byType(AppBottomNav);
+      await tester.tap(
+          find.descendant(of: nav, matching: find.text('통계')));
+      await tester.pumpAndSettle();
+
+      final label = tester.widget<Text>(
+          find.descendant(of: nav, matching: find.text('통계')));
+      expect(label.style!.color, AppColors.primary);
+      expect(label.style!.fontWeight, FontWeight.w700);
+      final loader = tester
+          .widget<SvgPicture>(find.descendant(of: nav, matching: find.byType(SvgPicture)).last)
+          .bytesLoader as SvgAssetLoader;
+      expect(loader.assetName, 'assets/icons/chart_filled.svg');
+
+      expect(find.byType(StatsScreen), findsOneWidget);
+      final locked = find.descendant(
+          of: find.byType(StatsScreen),
+          matching: find.byType(ProBadge, skipOffstage: false),
+          skipOffstage: false);
+      expect(locked, findsWidgets);
+    });
+
+    testWidgets('홈의 올해 요약은 눌러도 통계로 가지 않고 통계 보기 링크가 없다', (tester) async {
+      await pump(tester, const HomeScreen());
+      expect(find.text('통계 보기'), findsNothing);
+      await tester.tap(find.text('보낸 마음'));
+      await tester.pumpAndSettle();
+      expect(find.byType(StatsScreen), findsNothing);
     });
 
     testWidgets('기록하기를 누르면 선택지 4개가 보인다', (tester) async {

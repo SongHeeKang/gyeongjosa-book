@@ -18,6 +18,7 @@ class AppBottomNav extends StatelessWidget {
     ('home', '홈'),
     ('people', '사람'),
     ('book', '내 행사'),
+    ('chart', '통계'),
   ];
 
   @override

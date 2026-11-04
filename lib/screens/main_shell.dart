@@ -7,8 +7,9 @@ import '../widgets/record_menu_sheet.dart';
 import 'home_screen.dart';
 import 'my_events_screen.dart';
 import 'people_screen.dart';
+import 'stats_screen.dart';
 
-/// 하단 탭 3개(홈 · 사람 · 내 행사)와 모든 탭 같은 자리의 [+ 기록하기]
+/// 하단 탭 4개(홈 · 사람 · 내 행사 · 통계)와 모든 탭 같은 자리의 [+ 기록하기]
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
@@ -23,6 +24,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     HomeScreen(),
     PeopleScreen(),
     MyEventsScreen(),
+    StatsScreen(),
   ];
 
   @override

@@ -12,7 +12,7 @@
 
 ## 참고 (구현 메모)
 
-- 단계별 요청문(기획서)은 `docs/경조사비 장부 앱 기획서 & Claude Code 개발 요청문 (1).md`(가장 최신, 파일이 여러 개면 숫자가 큰 것)에 있다. 공개 저장소이므로 이 파일은 커밋하지 않는다(.gitignore). Claude Docs 링크는 VS Code에서 읽을 수 없으니 이 파일을 본다.
+- 단계별 요청문(기획서)은 `docs/`의 `경조사비 장부 앱 기획서 & Claude Code 개발 요청문 (2).md`에 있다(파일이 여러 개면 숫자가 가장 큰 것이 최신). 공개 저장소이므로 이 파일은 커밋하지 않는다(.gitignore). Claude Docs 링크는 VS Code에서 읽을 수 없으니 이 파일을 본다.
 - 앱 이름: 경조사 장부 / 패키지: com.heekangsong.gyeongjosa
 - DB 스키마 변경 시 `lib/data/database_helper.dart`의 `_dbVersion`을 올리고 `_migrations`에 단계를 추가한다. 기존 데이터를 지우는 마이그레이션은 금지.
 - 무료 한도: 사람 30명, 내 행사 1개. CSV 내보내기와 관계별·연도별 차트는 프로 전용 (`lib/services/limits.dart`).

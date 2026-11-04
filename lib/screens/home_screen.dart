@@ -12,7 +12,6 @@ import 'all_schedules_screen.dart';
 import 'event_detail_screen.dart';
 import 'person_detail_screen.dart';
 import 'settings_screen.dart';
-import 'stats_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -39,38 +38,18 @@ class HomeScreen extends ConsumerWidget {
         builder: (data) => ListView(
           children: [
             _BackupBanner(recordCount: data.recordCount),
-            InkWell(
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                      builder: (_) => const StatsScreen())),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.page, 12, AppSpacing.page - 8, 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                            child: Text('$year년 나의 경조사',
-                                style: AppText.label)),
-                        const Text('통계 보기', style: AppText.link),
-                        const Icon(Icons.chevron_right,
-                            size: 20, color: AppColors.link),
-                      ],
-                    ),
-                  ),
-                  SummaryRow(
-                    sent: data.sent,
-                    received: data.received,
-                    sentCount: data.sentCount,
-                    receivedCount: data.receivedCount,
-                  ),
-                  const SizedBox(height: AppSpacing.section),
-                ],
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page, 12, AppSpacing.page, 12),
+              child: Text('$year년 나의 경조사', style: AppText.label),
             ),
+            SummaryRow(
+              sent: data.sent,
+              received: data.received,
+              sentCount: data.sentCount,
+              receivedCount: data.receivedCount,
+            ),
+            const SizedBox(height: AppSpacing.section),
             const AppDivider(),
             if (data.pending.isNotEmpty)
               PendingAmountSection(events: data.pending),

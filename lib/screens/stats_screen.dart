@@ -16,7 +16,7 @@ import '../widgets/pro_gate.dart';
 const _sentBar = AppColors.chartSent;
 const _receivedBar = AppColors.primary;
 
-/// 통계 (홈의 올해 요약을 누르면 열림): 월별 막대그래프(무료) + 관계별 · 연도별 차트(프로)
+/// 통계 탭: 월별 막대그래프(무료) + 관계별 · 연도별 차트(프로)
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
 
@@ -36,7 +36,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('통계')),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
+        // 맨 아래 내용이 떠 있는 [기록하기] 버튼에 가리지 않게
+        padding: const EdgeInsets.only(bottom: 96),
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

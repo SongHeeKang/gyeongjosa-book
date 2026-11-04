@@ -6,10 +6,12 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../models/constants.dart';
 import '../models/reception.dart';
+import 'app_config.dart';
 import 'format.dart';
 
-/// 장부 파일(JSON 1개) 만들기 · 공유 · 읽기
+/// 요약 메시지 공유, 장부 파일(JSON 1개) 만들기 · 공유 · 읽기
 class ReceptionFileService {
   static const _maxFileBytes = 20 * 1024 * 1024;
 
@@ -24,6 +26,34 @@ class ReceptionFileService {
       if (r.operatorName.trim().isNotEmpty) clean(r.operatorName),
     ];
     return '${parts.join('_')}.json';
+  }
+
+  /// 요약 메시지. 앱이 없어도 읽을 수 있고, 전체 명단은 넣지 않는다.
+  static String summaryMessage(ReceptionPackage package) {
+    final r = package.reception;
+    final totals = package.totals;
+    final hasOperator = r.operatorName.trim().isNotEmpty;
+    return [
+      '[경조사 장부] ${r.title} 접수 결과',
+      '${formatDate(r.date)}${hasOperator ? ' · 접수: ${r.operatorName}' : ''}',
+      '',
+      '총 ${totals.count}명 · ${formatWon(totals.amount)}',
+      for (final side in package.sides)
+        if (side != ReceptionDefaults.noSide)
+          '- $side ${package.totalsFor(side).count}명 · ${formatWon(package.totalsFor(side).amount)}',
+      '식권 ${totals.mealTickets}장',
+      '',
+      "전체 명단은 '경조사 장부' 앱에서 장부 파일을 열어 확인하세요.",
+      '앱 받기: ${AppConfig.playStoreUrl}',
+    ].join('\n');
+  }
+
+  /// 요약 메시지를 글자로 공유창에 보낸다.
+  static Future<void> shareSummary(ReceptionPackage package) async {
+    await SharePlus.instance.share(ShareParams(
+      text: summaryMessage(package),
+      subject: '${package.reception.title} 접수 결과',
+    ));
   }
 
   /// 파일을 만들어 공유창으로 보낸다.

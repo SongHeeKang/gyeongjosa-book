@@ -76,7 +76,7 @@ class MyEventsScreen extends ConsumerWidget {
     final r = s.reception;
     final status = !r.isFinished
         ? '접수 중'
-        : (r.imported ? '내 행사로 옮김' : '접수 완료');
+        : (r.imported ? '내 장부로 옮김' : '접수 완료');
     return InkWell(
       onTap: () => Navigator.push(
           context,

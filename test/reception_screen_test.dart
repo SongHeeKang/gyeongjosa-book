@@ -148,7 +148,7 @@ void main() {
     final repo = await open(tester);
 
     await tester.enterText(find.byType(TextField), '김철수');
-    await tester.tap(find.text('5만원'));
+    await tester.tap(find.text('5만'));
     await tester.pumpAndSettle();
 
     expect(repo.entries.single.name, '김철수');
@@ -164,7 +164,7 @@ void main() {
   testWidgets('이름 없이 금액을 누르면 저장하지 않고 안내한다', (tester) async {
     final repo = await open(tester);
 
-    await tester.tap(find.text('10만원'));
+    await tester.tap(find.text('10만'));
     await tester.pumpAndSettle();
 
     expect(repo.entries, isEmpty);
@@ -175,15 +175,77 @@ void main() {
     final repo = await open(tester);
 
     await tester.enterText(find.byType(TextField), '김철수');
-    await tester.tap(find.text('5만원'));
+    await tester.tap(find.text('5만'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '김철수');
     await tester.pumpAndSettle();
     expect(find.text('같은 이름이 있어요'), findsOneWidget);
 
-    await tester.tap(find.text('3만원'));
+    await tester.tap(find.text('15만'));
     await tester.pumpAndSettle();
     expect(repo.entries.length, 2);
+    // 저장 뒤에도 '방금 저장' 줄에서 경고한다
+    expect(find.text('같은 이름이 있어요'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('금액 버튼은 8개이고 눌러도 키보드 포커스가 이름칸에 남는다', (tester) async {
+    final repo = await open(tester);
+    for (final label in ['5만', '10만', '15만', '20만', '25만', '30만', '50만', '100만']) {
+      expect(find.text(label), findsOneWidget);
+    }
+    await tester.enterText(find.byType(TextField), '박민수');
+    await tester.tap(find.text('100만'));
+    await tester.pumpAndSettle();
+    expect(repo.entries.single.amount, 1000000);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.focusNode!.hasFocus, isTrue);
+  });
+
+  testWidgets('키보드가 열리면 현황은 한 줄, 전체 내역 대신 방금 저장 줄만', (tester) async {
+    final repo = await open(tester);
+    for (final name in ['김철수', '이영희']) {
+      await tester.enterText(find.byType(TextField), name);
+      await tester.tap(find.text('5만'));
+      await tester.pumpAndSettle();
+    }
+    expect(repo.entries.length, 2);
+    // 키보드 닫힘: 구분별 소계와 전체 내역이 보인다
+    expect(find.textContaining('신랑측 2명'), findsOneWidget);
+    expect(find.text('김철수'), findsOneWidget);
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 800);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('신랑측 2명'), findsNothing);
+    expect(find.text('김철수'), findsNothing);
+    expect(find.text('2명 · 100,000원'), findsOneWidget);
+    expect(find.textContaining('이영희 · 5만 · '), findsOneWidget);
+    expect(find.text('되돌리기'), findsOneWidget);
+    // 금액 패드는 키보드 위에 그대로 있다
+    expect(find.text('100만'), findsOneWidget);
+  });
+
+  testWidgets('전체 접수 내역은 저장 시각과 함께 끝까지 스크롤된다', (tester) async {
+    final repo = await open(tester);
+    for (var i = 0; i < 30; i++) {
+      repo.entries.add(ReceptionEntry(
+        id: 'e$i',
+        receptionId: 'r1',
+        name: '손님$i',
+        amount: 50000,
+        side: '신랑측',
+        createdAt: DateTime(2026, 11, 1, 12, 34),
+      ));
+    }
+    await tester.enterText(find.byType(TextField), '마지막손님');
+    await tester.tap(find.text('5만'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('오후 12:34'), findsWidgets);
+    await tester.scrollUntilVisible(find.text('손님0'), 200,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.text('손님0'), findsOneWidget);
   });
 
   testWidgets('구분을 바꾸면 저장되는 구분도 바뀌고, 되돌리기로 지울 수 있다', (tester) async {
@@ -192,7 +254,7 @@ void main() {
     await tester.tap(find.text('신부측'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '이영희');
-    await tester.tap(find.text('20만원'));
+    await tester.tap(find.text('20만'));
     await tester.pumpAndSettle();
     expect(repo.entries.single.side, '신부측');
 
@@ -288,7 +350,7 @@ void main() {
     final repo = await open(tester);
     for (var i = 0; i < 40; i++) {
       await tester.enterText(find.byType(TextField), '손님$i');
-      await tester.tap(find.text('5만원'));
+      await tester.tap(find.text('5만'));
       await tester.pumpAndSettle();
     }
     expect(repo.entries.length, 40);

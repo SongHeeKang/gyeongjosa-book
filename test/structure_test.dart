@@ -303,6 +303,19 @@ void main() {
       expect(find.text('얼마 내셨어요?'), findsNothing);
     });
 
+    testWidgets('기록이 20개 이상이고 백업을 안 했으면 홈 위에 백업 배너가 보인다', (tester) async {
+      final repo = FakeRepository()
+        ..inserted.addAll(List.generate(
+            20,
+            (_) => GiftRecord(
+                personId: 1,
+                direction: '보냄',
+                amount: 1000,
+                date: DateTime(2026))));
+      await pump(tester, const HomeScreen(), repository: repo);
+      expect(find.text('백업해 두면 폰을 바꿔도 기록이 안전해요'), findsOneWidget);
+    });
+
     testWidgets('일정 추가: 금액 없이 사람과 일정이 함께 만들어진다', (tester) async {
       final repo = await pump(tester, const EventFormScreen());
       expect(find.text('일정 추가'), findsOneWidget);

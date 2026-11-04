@@ -21,6 +21,9 @@ String formatDate(DateTime d) => DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').fo
 /// 11월 3일
 String formatShortDate(DateTime d) => DateFormat('M월 d일', 'ko_KR').format(d);
 
+/// 오후 12:34
+String formatTime(DateTime d) => DateFormat('a h:mm', 'ko_KR').format(d);
+
 /// 2026.11.03
 String formatDotDate(DateTime d) => DateFormat('yyyy.MM.dd').format(d);
 

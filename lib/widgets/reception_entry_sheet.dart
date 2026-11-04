@@ -9,7 +9,7 @@ import '../theme/app_theme.dart';
 import 'amount_input.dart';
 import 'common.dart';
 
-/// 접수 항목 한 줄: 이름 / 구분 · 식권 · 방법 · 메모 / 금액
+/// 접수 항목 한 줄: 이름 / 구분 · 저장 시각 · 식권 · 방법 · 메모 / 금액
 class ReceptionEntryTile extends StatelessWidget {
   const ReceptionEntryTile(
       {super.key, required this.entry, required this.onTap, this.padding});
@@ -21,6 +21,7 @@ class ReceptionEntryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final sub = [
       if (entry.side != ReceptionDefaults.noSide) entry.side,
+      formatTime(entry.createdAt),
       '식권 ${entry.mealTickets}',
       ReceptionDefaults.methodLabel(entry.method),
       if ((entry.memo ?? '').isNotEmpty) entry.memo!,

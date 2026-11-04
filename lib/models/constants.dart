@@ -20,8 +20,17 @@ class ReceptionDefaults {
   /// 구분을 나누지 않는 행사
   static const noSide = '전체';
 
-  /// 금액 버튼: 3만 · 5만 · 10만 · 20만
-  static const amounts = [30000, 50000, 100000, 200000];
+  /// 금액 버튼 8개. 손이 위치를 외우도록 순서를 바꾸지 않는다.
+  static const amounts = [
+    50000,
+    100000,
+    150000,
+    200000,
+    250000,
+    300000,
+    500000,
+    1000000,
+  ];
 
   static String methodLabel(String method) =>
       method == transfer ? '계좌이체' : '현금';

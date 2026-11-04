@@ -8,6 +8,7 @@ import 'package:gyeongjosa/models/person.dart';
 import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/services/reception_file_service.dart';
 import 'package:gyeongjosa/services/reception_import.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -38,6 +39,37 @@ Event myEvent() => Event(
 void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
+
+  group('요약 메시지', () {
+    setUpAll(() => initializeDateFormatting('ko_KR'));
+
+    test('총액 · 구분별 소계 · 식권 · 앱 링크가 있고 전체 명단은 없다', () {
+      final text = ReceptionFileService.summaryMessage(ReceptionPackage(
+        reception(),
+        [
+          entry('a', '김철수', amount: 100000),
+          ReceptionEntry(
+              id: 'b',
+              receptionId: 'r1',
+              name: '이영희',
+              amount: 50000,
+              side: '신부측',
+              mealTickets: 2,
+              createdAt: DateTime(2026, 11, 1)),
+        ],
+      ));
+      expect(text, contains('[경조사 장부] 홍길동 결혼식 접수 결과'));
+      expect(text, contains('2026년 11월 1일 (일) · 접수: 김민수'));
+      expect(text, contains('총 2명 · 150,000원'));
+      expect(text, contains('- 신랑측 1명 · 100,000원'));
+      expect(text, contains('- 신부측 1명 · 50,000원'));
+      expect(text, contains('식권 3장'));
+      expect(text,
+          contains('https://play.google.com/store/apps/details?id=com.heekangsong.gyeongjosa'));
+      expect(text, isNot(contains('김철수')));
+      expect(text, isNot(contains('이영희')));
+    });
+  });
 
   group('파일 형식', () {
     test('보내고 읽으면 내용이 같고, 지운 항목은 빠진다', () {

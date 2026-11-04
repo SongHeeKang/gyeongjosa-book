@@ -6,10 +6,13 @@ import '../models/constants.dart';
 import '../models/event.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
+import '../services/limits.dart';
+import '../services/pro_service.dart';
 import '../services/reception_file_service.dart';
 import '../services/reception_import.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/pro_gate.dart';
 import 'event_detail_screen.dart';
 
 /// 장부 탭의 [받은 장부 가져오기]: 파일을 골라 미리보기 화면으로 간다.
@@ -100,15 +103,47 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
     );
   }
 
+  /// 사람 30명 한도 처리. 넘으면 안내 후 결제 화면을 띄우고,
+  /// 결제하지 않으면 한도까지만 가져올지 묻는다. 파일은 그대로 남으니 나중에 마저 가져올 수 있다.
+  Future<({bool proceed, int? limit})> _resolvePeopleLimit() async {
+    if (ref.read(isProProvider)) return (proceed: true, limit: null);
+    final plan = await ref.read(repositoryProvider).planImport(widget.package,
+        eventId: _eventId, maxPeople: FreeLimits.people);
+    if (plan.skippedByLimit == 0) {
+      return (proceed: true, limit: FreeLimits.people);
+    }
+    if (!mounted) return (proceed: false, limit: null);
+    final upgraded = await showPaywall(context, ref,
+        reason: '${plan.remaining}명 중 ${plan.items.length}명까지 가져올 수 있어요.');
+    if (upgraded) return (proceed: true, limit: null);
+    if (!mounted) return (proceed: false, limit: null);
+    if (plan.items.isEmpty) {
+      showSnack(context, '프로를 구매한 뒤 같은 파일을 다시 가져올 수 있어요.');
+      return (proceed: false, limit: null);
+    }
+    final partial = await confirmDialog(context,
+        title: '${plan.items.length}명만 먼저 가져올까요?',
+        message:
+            '나머지 ${plan.skippedByLimit}명은 프로를 구매한 뒤 같은 파일을 다시 가져오면 들어와요. 파일을 지우지 말고 보관해 주세요.',
+        okText: '${plan.items.length}명 가져오기');
+    return (proceed: partial, limit: FreeLimits.people);
+  }
+
   Future<void> _import() async {
     if (_working) return;
     setState(() => _working = true);
     try {
       final repo = ref.read(repositoryProvider);
+      // 내 행사 장부 한도: 새 장부를 만들 때만 확인
+      if (_eventId == null && !await ensureCanAddMyEvent(context, ref)) return;
+      if (!mounted) return;
+      final maxPeople = await _resolvePeopleLimit();
+      if (!maxPeople.proceed) return;
       final result = await repo.applyImport(
         widget.package,
         eventId: _eventId,
         newEvent: _eventId == null ? _newEvent() : null,
+        maxPeople: maxPeople.limit,
       );
       ref.refreshData();
       if (!mounted) return;
@@ -135,7 +170,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
             if (plan.reviewCount > 0)
               '동명이인일 수 있는 ${plan.reviewCount}명은 \'확인 필요\'로 표시했어요.',
             if (plan.skippedByLimit > 0)
-              '${plan.skippedByLimit}명은 아직 못 가져왔어요. 이 파일을 지우지 말고 보관해 주세요.',
+              '${plan.skippedByLimit}명은 아직 못 가져왔어요. 프로를 구매한 뒤 같은 파일을 다시 가져오면 들어와요.',
           ].join('\n')),
           actions: [
             FilledButton(

@@ -4,9 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gyeongjosa/data/database_helper.dart';
 import 'package:gyeongjosa/data/providers.dart';
 import 'package:gyeongjosa/data/repository.dart';
+import 'package:gyeongjosa/models/event.dart';
 import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
+import 'package:gyeongjosa/screens/reception_import_screen.dart';
 import 'package:gyeongjosa/screens/reception_screen.dart';
+import 'package:gyeongjosa/services/limits.dart';
+import 'package:gyeongjosa/services/reception_import.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -38,6 +42,70 @@ class FakeRepository extends Repository {
   @override
   Future<void> deleteReceptionEntry(String id) async =>
       entries.removeWhere((e) => e.id == id);
+}
+
+/// 가져오기 화면용: 사람이 한 명도 없는 상태에서 31명짜리 파일을 가져온다.
+class ImportFakeRepository extends Repository {
+  ImportFakeRepository() : super(DatabaseHelper.forTest('unused.db'));
+
+  final package = ReceptionPackage(
+    Reception(
+      id: 'r1',
+      title: '홍길동 결혼식',
+      eventType: '결혼',
+      date: DateTime(2026, 11, 1),
+      sides: const ['신랑측'],
+      operatorName: '김민수',
+      startedAt: DateTime(2026, 11, 1),
+    ),
+    [
+      for (var i = 0; i < 31; i++)
+        ReceptionEntry(
+          id: 'e$i',
+          receptionId: 'r1',
+          name: '손님$i',
+          amount: 50000,
+          side: '신랑측',
+          createdAt: DateTime(2026, 11, 1).add(Duration(minutes: i)),
+        ),
+    ],
+  );
+
+  /// applyImport에 넘어온 사람 한도
+  final appliedLimits = <int?>[];
+
+  @override
+  Future<List<EventSummary>> eventSummaries() async => const [];
+
+  @override
+  Future<int> countMyEvents() async => 0;
+
+  @override
+  Future<Event?> getEvent(int id) async => null;
+
+  ImportPlan _plan(int? maxPeople) => buildImportPlan(
+        entries: package.entries,
+        importedIds: const {},
+        peopleByName: const {},
+        namesInEvent: const {},
+        newPersonSlots: maxPeople,
+      );
+
+  @override
+  Future<ImportPlan> planImport(ReceptionPackage package,
+          {int? eventId, int? maxPeople}) async =>
+      _plan(maxPeople);
+
+  @override
+  Future<({int eventId, ImportPlan plan})> applyImport(
+    ReceptionPackage package, {
+    int? eventId,
+    Event? newEvent,
+    int? maxPeople,
+  }) async {
+    appliedLimits.add(maxPeople);
+    return (eventId: 1, plan: _plan(maxPeople));
+  }
 }
 
 void main() {
@@ -146,6 +214,74 @@ void main() {
     await tester.tap(find.text('멈추기'));
     await tester.pumpAndSettle();
     expect(find.byType(ReceptionScreen), findsNothing);
+  });
+
+  group('받은 장부 가져오기 한도', () {
+    Future<ImportFakeRepository> openImport(WidgetTester tester,
+        {bool pro = false}) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.625;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues(
+          {if (pro) 'flutter.${PrefKeys.proPurchased}': true});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = ImportFakeRepository();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          repositoryProvider.overrideWithValue(repo),
+        ],
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: ReceptionImportScreen(package: repo.package),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      return repo;
+    }
+
+    testWidgets('무료: 30명을 넘으면 안내와 결제 화면 → 닫으면 30명만 가져올지 묻는다', (tester) async {
+      final repo = await openImport(tester);
+
+      await tester.tap(find.text('31명 가져오기'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaywallScreen), findsOneWidget);
+      expect(find.text('31명 중 30명까지 가져올 수 있어요.'), findsOneWidget);
+      expect(repo.appliedLimits, isEmpty);
+
+      await tester.ensureVisible(find.text('나중에 할게요'));
+      await tester.tap(find.text('나중에 할게요'));
+      await tester.pumpAndSettle();
+      expect(find.text('30명만 먼저 가져올까요?'), findsOneWidget);
+
+      await tester.tap(find.text('30명 가져오기'));
+      await tester.pumpAndSettle();
+      expect(repo.appliedLimits, [FreeLimits.people]);
+      expect(find.text('30명을 가져왔어요'), findsOneWidget);
+    });
+
+    testWidgets('무료: 결제 화면을 닫고 취소하면 아무것도 저장하지 않는다', (tester) async {
+      final repo = await openImport(tester);
+
+      await tester.tap(find.text('31명 가져오기'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('나중에 할게요'));
+      await tester.tap(find.text('나중에 할게요'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+      expect(repo.appliedLimits, isEmpty);
+    });
+
+    testWidgets('프로: 결제 화면 없이 전부 가져온다', (tester) async {
+      final repo = await openImport(tester, pro: true);
+
+      await tester.tap(find.text('31명 가져오기'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaywallScreen), findsNothing);
+      expect(repo.appliedLimits, [null]);
+      expect(find.text('31명을 가져왔어요'), findsOneWidget);
+    });
   });
 
   testWidgets('접수 중에는 사람 40명을 넘게 받아도 결제 화면이 뜨지 않는다', (tester) async {

@@ -16,6 +16,7 @@
 - 앱 이름: 경조사 장부 / 패키지: com.heekangsong.gyeongjosa
 - DB 스키마 변경 시 `lib/data/database_helper.dart`의 `_dbVersion`을 올리고 `_migrations`에 단계를 추가한다. 기존 데이터를 지우는 마이그레이션은 금지.
 - 무료 한도: 사람 30명, 내 행사 장부 1개. CSV 내보내기와 관계별·연도별 차트는 프로 전용 (`lib/services/limits.dart`).
+- 접수 모드와 장부 보내기는 무료·무제한이고, 접수 명단은 people에 넣지 않는다. 접수 중에는 결제 화면을 띄우지 않는다. 받은 장부를 가져올 때만 사람 30명 한도를 적용한다(넘으면 안내 후 결제 화면, 파일로 나중에 마저 가져오기).
 - 이미 입력한 기록의 보기·수정·삭제는 한도와 상관없이 항상 허용.
 - 인앱 상품 ID: `pro_lifetime` (일회성 제품, 4,900원).
 - 알림은 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle)만 사용.

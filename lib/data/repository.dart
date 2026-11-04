@@ -172,13 +172,59 @@ class Repository {
     return rows.isEmpty ? null : Event.fromMap(rows.first);
   }
 
-  Future<List<Event>> upcomingEvents({int? limit}) async {
+  static const _scheduleSelect = '''
+    SELECT e.*, p.relation AS person_relation
+    FROM events e
+    LEFT JOIN people p ON p.id = e.person_id
+  ''';
+
+  /// 다가오는 일정 (남의 행사만)
+  Future<List<Event>> upcomingSchedules({int? limit}) async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      $_scheduleSelect
+      WHERE e.is_mine = 0 AND e.date >= ?
+      ORDER BY e.date ASC, e.id ASC
+      LIMIT ?
+    ''', [toDbDate(DateTime.now()), limit ?? -1]);
+    return rows.map(Event.fromMap).toList();
+  }
+
+  /// '얼마 내셨어요?': 날짜가 지났는데 보낸 기록이 없고 숨기지 않은 일정 (최근 순)
+  Future<List<Event>> pendingAmountEvents({int? limit}) async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      $_scheduleSelect
+      WHERE e.is_mine = 0 AND e.pending_hidden = 0 AND e.date < ?
+        AND NOT EXISTS (
+          SELECT 1 FROM records r
+          WHERE r.event_id = e.id AND r.direction = '보냄'
+        )
+      ORDER BY e.date DESC, e.id DESC
+      LIMIT ?
+    ''', [toDbDate(DateTime.now()), limit ?? -1]);
+    return rows.map(Event.fromMap).toList();
+  }
+
+  /// '안 갔어요': 카드에서 숨긴다. 일정 자체는 남는다.
+  Future<void> hidePendingEvent(int id) async {
+    final db = await _db;
+    await db.update('events', {'pending_hidden': 1},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> countSchedules() async {
+    final db = await _db;
+    return Sqflite.firstIntValue(await db
+            .rawQuery('SELECT COUNT(*) FROM events WHERE is_mine = 0')) ??
+        0;
+  }
+
+  /// 내 행사 (최근 날짜 순)
+  Future<List<Event>> myEvents() async {
     final db = await _db;
     final rows = await db.query('events',
-        where: 'date >= ?',
-        whereArgs: [toDbDate(DateTime.now())],
-        orderBy: 'date ASC, id ASC',
-        limit: limit);
+        where: 'is_mine = 1', orderBy: 'date DESC, id DESC');
     return rows.map(Event.fromMap).toList();
   }
 

@@ -9,6 +9,8 @@ import '../widgets/common.dart';
 import '../widgets/record_form_sheet.dart';
 import 'event_form_screen.dart';
 import 'quick_entry_screen.dart';
+import 'reception_form_screen.dart';
+import 'reception_import_screen.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({super.key, required this.eventId});
@@ -115,13 +117,45 @@ class EventDetailScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                     AppSpacing.page, 20, AppSpacing.page, 0),
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                          builder: (_) => QuickEntryScreen(event: e))),
-                  icon: const Icon(Icons.bolt, size: 20),
-                  label: Text(e.isMine ? '빠른 연속 입력 (받은 명단)' : '빠른 연속 입력 (보낸 돈)'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (e.isMine) ...[
+                      FilledButton.icon(
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    ReceptionFormScreen(event: e))),
+                        icon: const Icon(Icons.edit_note),
+                        label: const Text('행사장 접수'),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                                builder: (_) => QuickEntryScreen(event: e))),
+                        icon: const Icon(Icons.bolt, size: 20),
+                        label: const Text('받은 돈 정리'),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            pickAndOpenImport(context, eventId: e.id),
+                        icon: const Icon(Icons.file_download_outlined),
+                        label: const Text('장부 가져오기'),
+                      ),
+                    ] else
+                      FilledButton.icon(
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                                builder: (_) => QuickEntryScreen(event: e))),
+                        icon: const Icon(Icons.bolt, size: 20),
+                        label: const Text('빠른 연속 입력 (보낸 돈)'),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: AppSpacing.section),
@@ -131,7 +165,7 @@ class EventDetailScreen extends ConsumerWidget {
                 EmptyView(
                     icon: Icons.list_alt,
                     message: e.isMine
-                        ? '[빠른 연속 입력]으로 축의금 봉투를\n한 장씩 빠르게 입력해 보세요.'
+                        ? '[받은 돈 정리]로 축의금 봉투를\n한 장씩 빠르게 입력해 보세요.'
                         : '아직 기록이 없어요.')
               else
                 for (final r in d.records)

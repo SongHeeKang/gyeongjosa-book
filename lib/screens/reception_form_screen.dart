@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/providers.dart';
 import '../models/constants.dart';
+import '../models/event.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
 import '../services/settings_service.dart';
@@ -14,7 +15,10 @@ import 'reception_screen.dart';
 
 /// 접수 시작: 행사 이름, 종류, 날짜, 구분, 접수자
 class ReceptionFormScreen extends ConsumerStatefulWidget {
-  const ReceptionFormScreen({super.key});
+  const ReceptionFormScreen({super.key, this.event});
+
+  /// 내 행사 상세에서 들어오면 행사 이름 · 종류 · 날짜를 미리 채운다.
+  final Event? event;
 
   @override
   ConsumerState<ReceptionFormScreen> createState() =>
@@ -37,6 +41,12 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   @override
   void initState() {
     super.initState();
+    final event = widget.event;
+    if (event != null) {
+      _title.text = event.title;
+      _date = event.date;
+      if (EventTypes.all.contains(event.type)) _type = event.type;
+    }
     _sides.text = _defaultSidesFor(_type);
     _operator.text =
         ref.read(prefsProvider).getString(PrefKeys.receptionOperator) ?? '';
@@ -118,7 +128,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('접수 시작')),
+      appBar: AppBar(title: const Text('행사장 접수')),
       body: ListView(
         padding:
             const EdgeInsets.fromLTRB(AppSpacing.page, 8, AppSpacing.page, 32),

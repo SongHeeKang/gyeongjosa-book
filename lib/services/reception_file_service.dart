@@ -34,7 +34,7 @@ class ReceptionFileService {
     await SharePlus.instance.share(ShareParams(
       files: [XFile(file.path, mimeType: 'application/json')],
       subject: '${package.reception.title} 접수 장부',
-      text: '경조사 장부 앱에서 [장부 > 받은 장부 가져오기]로 이 파일을 불러오세요.',
+      text: '경조사 장부 앱에서 [내 행사 > 장부 가져오기]로 이 파일을 불러오세요.',
     ));
   }
 

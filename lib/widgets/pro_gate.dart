@@ -27,14 +27,14 @@ Future<bool> ensureCanAddPerson(BuildContext context, WidgetRef ref) async {
       reason: '무료 버전은 ${FreeLimits.people}명까지 등록할 수 있어요.');
 }
 
-/// 내 행사 장부를 새로 만들어도 되는지 확인 (두 번째부터 결제 화면)
+/// 내 행사를 새로 만들어도 되는지 확인 (두 번째부터 결제 화면)
 Future<bool> ensureCanAddMyEvent(BuildContext context, WidgetRef ref) async {
   if (ref.read(isProProvider)) return true;
   final count = await ref.read(repositoryProvider).countMyEvents();
   if (count < FreeLimits.myEvents) return true;
   if (!context.mounted) return false;
   return showPaywall(context, ref,
-      reason: '무료 버전은 내 행사 장부를 ${FreeLimits.myEvents}개까지 만들 수 있어요.');
+      reason: '무료 버전은 내 행사를 ${FreeLimits.myEvents}개까지 만들 수 있어요.');
 }
 
 /// 프로 전용 기능(CSV, 상세 차트)을 눌렀을 때

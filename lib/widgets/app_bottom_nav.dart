@@ -17,8 +17,7 @@ class AppBottomNav extends StatelessWidget {
   static const _items = [
     ('home', '홈'),
     ('people', '사람'),
-    ('book', '장부'),
-    ('chart', '통계'),
+    ('book', '내 행사'),
   ];
 
   @override

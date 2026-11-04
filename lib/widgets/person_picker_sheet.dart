@@ -2,29 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
+import '../models/constants.dart';
 import '../models/person.dart';
 import '../theme/app_theme.dart';
 import 'common.dart';
 import 'person_form_sheet.dart';
 import 'record_form_sheet.dart';
 
-/// [기록하기] 버튼: 사람을 고르고(또는 새로 추가하고) 바로 내역 입력창을 연다.
-Future<void> startQuickRecord(BuildContext context, WidgetRef ref) async {
+/// 사람을 고른다(또는 새로 추가). 고르지 않으면 null.
+Future<int?> pickPerson(BuildContext context, WidgetRef ref,
+    {required String title}) async {
   final picked = await showModalBottomSheet<_Pick>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
-    builder: (_) => const _PersonPickerSheet(),
+    builder: (_) => _PersonPickerSheet(title: title),
   );
-  if (picked == null || !context.mounted) return;
+  if (picked == null || !context.mounted) return null;
+  if (picked.addNew) return showPersonForm(context, ref);
+  return picked.personId;
+}
 
-  int? personId = picked.personId;
-  if (picked.addNew) {
-    personId = await showPersonForm(context, ref);
-  }
+/// [보냈어요]: 사람을 고르고 바로 보낸 내역 입력창을 연다.
+Future<void> startSentRecord(BuildContext context, WidgetRef ref) async {
+  final personId = await pickPerson(context, ref, title: '누구에게 보냈나요?');
   if (personId == null || !context.mounted) return;
-  await showRecordForm(context, personId: personId);
+  await showRecordForm(context,
+      personId: personId, initialDirection: Direction.sent);
 }
 
 class _Pick {
@@ -37,7 +42,8 @@ class _Pick {
 }
 
 class _PersonPickerSheet extends ConsumerStatefulWidget {
-  const _PersonPickerSheet();
+  const _PersonPickerSheet({required this.title});
+  final String title;
 
   @override
   ConsumerState<_PersonPickerSheet> createState() => _PersonPickerSheetState();
@@ -68,9 +74,10 @@ class _PersonPickerSheetState extends ConsumerState<_PersonPickerSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(AppSpacing.page, 0, AppSpacing.page, 12),
-              child: Text('누구와 주고받았나요?', style: AppText.appTitle),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page, 0, AppSpacing.page, 12),
+              child: Text(widget.title, style: AppText.appTitle),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),

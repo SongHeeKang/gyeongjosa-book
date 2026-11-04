@@ -122,3 +122,54 @@ class ChoiceChips extends StatelessWidget {
     );
   }
 }
+
+/// 금액 직접 입력 창. 입력한 금액을 돌려주고, 취소하면 null.
+Future<int?> showAmountDialog(BuildContext context) => showDialog<int>(
+      context: context,
+      builder: (_) => const _AmountDialog(),
+    );
+
+class _AmountDialog extends StatefulWidget {
+  const _AmountDialog();
+
+  @override
+  State<_AmountDialog> createState() => _AmountDialogState();
+}
+
+class _AmountDialogState extends State<_AmountDialog> {
+  final _amount = TextEditingController();
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final amount = parseAmount(_amount.text);
+    if (amount > 0) Navigator.pop(context, amount);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('금액 직접 입력'),
+      content: TextField(
+        controller: _amount,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        inputFormatters: [ThousandsFormatter()],
+        style: AppText.receptionInput,
+        decoration: const InputDecoration(suffixText: '원'),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.textSub),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소')),
+        FilledButton(onPressed: _submit, child: const Text('저장')),
+      ],
+    );
+  }
+}

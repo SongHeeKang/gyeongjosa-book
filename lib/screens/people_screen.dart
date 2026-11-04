@@ -58,19 +58,15 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
         actions: [
           if (!isPro)
             Center(
-              child: Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.page),
-                child: Text(
-                  '${people.value?.length ?? 0} / ${FreeLimits.people}명',
-                  style: AppText.sub,
-                ),
+              child: Text(
+                '${people.value?.length ?? 0} / ${FreeLimits.people}명',
+                style: AppText.sub,
               ),
             ),
+          TextButton(onPressed: _add, child: const Text('사람 추가')),
+          const SizedBox(width: 8),
         ],
       ),
-      floatingActionButtonLocation: const PillFabLocation(),
-      floatingActionButton:
-          PillActionButton(label: '사람 추가', icon: Icons.person_add_alt, onPressed: _add),
       body: Column(
         children: [
           Padding(
@@ -120,7 +116,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                   return const Center(
                       child: EmptyView(
                           icon: Icons.people_outline,
-                          message: '아직 등록한 사람이 없어요.\n아래 [사람 추가]를 눌러 보세요.'));
+                          message: '아직 등록한 사람이 없어요.\n위 [사람 추가]를 눌러 보세요.'));
                 }
                 if (list.isEmpty) {
                   return const Center(

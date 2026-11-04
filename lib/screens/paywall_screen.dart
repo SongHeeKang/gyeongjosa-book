@@ -14,7 +14,7 @@ class PaywallScreen extends ConsumerWidget {
 
   static const _benefits = [
     (Icons.people_outline, '사람 무제한 등록', '받은 장부도 인원 제한 없이 가져와요 (무료는 ${FreeLimits.people}명까지)'),
-    (Icons.menu_book_outlined, '내 행사 장부 무제한', '결혼식 · 돌잔치 · 칠순 모두 따로'),
+    (Icons.menu_book_outlined, '내 행사 무제한', '결혼식 · 돌잔치 · 칠순 모두 따로'),
     (Icons.table_view_outlined, '엑셀(CSV) 내보내기', '전체 내역을 엑셀로 정리'),
     (Icons.bar_chart, '관계별 · 연도별 상세 차트', '어디에 얼마나 썼는지 한눈에'),
   ];

@@ -19,7 +19,7 @@ class DatabaseHelper {
   factory DatabaseHelper.forTest(String path) => DatabaseHelper._(path);
 
   static const dbFileName = 'gyeongjosa.db';
-  static const _dbVersion = 3;
+  static const _dbVersion = 4;
 
   final String? _pathOverride;
   Database? _db;
@@ -147,6 +147,13 @@ class DatabaseHelper {
       ''');
       await db.execute(
           'ALTER TABLE records ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0');
+    },
+    // v4: 일정에 사람 연결, '얼마 내셨어요?' 숨김 여부
+    4: (db) async {
+      await db.execute(
+          'ALTER TABLE events ADD COLUMN person_id INTEGER REFERENCES people(id) ON DELETE SET NULL');
+      await db.execute(
+          'ALTER TABLE events ADD COLUMN pending_hidden INTEGER NOT NULL DEFAULT 0');
     },
   };
 

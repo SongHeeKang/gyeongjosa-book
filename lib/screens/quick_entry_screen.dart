@@ -11,6 +11,7 @@ import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/common.dart';
+import '../widgets/person_name_field.dart';
 import '../widgets/pro_gate.dart';
 
 /// 빠른 연속 입력: 이름 → 금액 버튼 탭(바로 저장) → 다음 이름.
@@ -149,7 +150,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('빠른 연속 입력'),
+        title: Text(widget.event.isMine ? '받은 돈 정리' : '빠른 연속 입력'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context), child: const Text('완료')),
@@ -170,58 +171,17 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
               ),
             ),
           const SizedBox(height: 16),
-          RawAutocomplete<Person>(
-            textEditingController: _name,
+          PersonNameField(
+            controller: _name,
             focusNode: _nameFocus,
-            displayStringForOption: (p) => p.name,
-            optionsBuilder: (value) {
-              final q = value.text.trim();
-              if (q.isEmpty) return const Iterable<Person>.empty();
-              return people.where((p) => p.name.contains(q)).take(6);
-            },
+            people: people,
+            autofocus: true,
+            hintText: '봉투에 적힌 이름',
+            helperText: _selected != null
+                ? '기존 사람(${_selected!.relation})에 연결돼요'
+                : (hasName ? '처음 보는 이름이면 새로 등록돼요' : null),
             onSelected: (p) => setState(() => _selected = p),
-            fieldViewBuilder: (context, controller, focusNode, onSubmit) =>
-                TextField(
-              controller: controller,
-              focusNode: focusNode,
-              autofocus: true,
-              textInputAction: TextInputAction.next,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: '이름',
-                hintText: '봉투에 적힌 이름',
-                helperText: _selected != null
-                    ? '기존 사람(${_selected!.relation})에 연결돼요'
-                    : (hasName ? '처음 보는 이름이면 새로 등록돼요' : null),
-              ),
-            ),
-            optionsViewBuilder: (context, onSelected, options) => Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4,
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(12),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                      maxHeight: 280,
-                      maxWidth: MediaQuery.of(context).size.width -
-                        AppSpacing.page * 2),
-                  child: ListView(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
-                    children: [
-                      for (final p in options)
-                        ListTile(
-                          title: Text(p.name),
-                          subtitle: Text([p.relation, if ((p.phone ?? '').isNotEmpty) p.phone!].join(' · ')),
-                          onTap: () => onSelected(p),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            onChanged: () => setState(() {}),
           ),
           if (_selected == null) ...[
             const SizedBox(height: 12),

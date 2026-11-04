@@ -123,10 +123,7 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
 
   Future<void> _enterAmount(Reception reception) async {
     if (!_checkName()) return;
-    final amount = await showDialog<int>(
-      context: context,
-      builder: (_) => const _AmountDialog(),
-    );
+    final amount = await showAmountDialog(context);
     if (amount != null) await _save(reception, amount);
   }
 
@@ -152,7 +149,7 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
   Future<void> _confirmLeave() async {
     final leave = await confirmDialog(context,
         title: '접수를 잠시 멈출까요?',
-        message: '입력한 내용은 저장되어 있어요.\n장부 탭에서 다시 들어오면 이어서 접수할 수 있어요.',
+        message: '입력한 내용은 저장되어 있어요.\n내 행사 탭에서 다시 들어오면 이어서 접수할 수 있어요.',
         okText: '멈추기');
     if (leave && mounted) Navigator.pop(context);
   }
@@ -381,52 +378,6 @@ class _SideToggle extends StatelessWidget {
         selected: {selected},
         onSelectionChanged: (s) => onSelected(s.first),
       ),
-    );
-  }
-}
-
-/// 금액 직접 입력 창. 입력한 금액을 돌려준다.
-class _AmountDialog extends StatefulWidget {
-  const _AmountDialog();
-
-  @override
-  State<_AmountDialog> createState() => _AmountDialogState();
-}
-
-class _AmountDialogState extends State<_AmountDialog> {
-  final _amount = TextEditingController();
-
-  @override
-  void dispose() {
-    _amount.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final amount = parseAmount(_amount.text);
-    if (amount > 0) Navigator.pop(context, amount);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('금액 직접 입력'),
-      content: TextField(
-        controller: _amount,
-        autofocus: true,
-        keyboardType: TextInputType.number,
-        inputFormatters: [ThousandsFormatter()],
-        style: AppText.receptionInput,
-        decoration: const InputDecoration(suffixText: '원'),
-        onSubmitted: (_) => _submit(),
-      ),
-      actions: [
-        TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.textSub),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소')),
-        FilledButton(onPressed: _submit, child: const Text('저장')),
-      ],
     );
   }
 }

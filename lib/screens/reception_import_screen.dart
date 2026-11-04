@@ -15,15 +15,16 @@ import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
 import 'event_detail_screen.dart';
 
-/// 장부 탭의 [받은 장부 가져오기]: 파일을 골라 미리보기 화면으로 간다.
-Future<void> pickAndOpenImport(BuildContext context) async {
+/// 내 행사의 [장부 가져오기]: 파일을 골라 미리보기 화면으로 간다.
+Future<void> pickAndOpenImport(BuildContext context, {int? eventId}) async {
   try {
     final package = await ReceptionFileService.pick();
     if (package == null || !context.mounted) return;
     await Navigator.push(
         context,
         MaterialPageRoute<void>(
-            builder: (_) => ReceptionImportScreen(package: package)));
+            builder: (_) => ReceptionImportScreen(
+                package: package, initialEventId: eventId)));
   } on FormatException catch (e) {
     if (context.mounted) {
       await showDialog<void>(
@@ -43,10 +44,14 @@ Future<void> pickAndOpenImport(BuildContext context) async {
   }
 }
 
-/// 미리보기 → 합칠 내 행사 장부 고르기 → 가져오기
+/// 미리보기 → 합칠 내 행사 고르기 → 가져오기
 class ReceptionImportScreen extends ConsumerStatefulWidget {
-  const ReceptionImportScreen({super.key, required this.package});
+  const ReceptionImportScreen(
+      {super.key, required this.package, this.initialEventId});
   final ReceptionPackage package;
+
+  /// 내 행사 상세에서 들어오면 그 행사에 합친다.
+  final int? initialEventId;
 
   @override
   ConsumerState<ReceptionImportScreen> createState() =>
@@ -63,6 +68,10 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialEventId != null) {
+      _eventId = widget.initialEventId;
+      _targetChosen = true;
+    }
     _refreshPlan();
   }
 
@@ -134,7 +143,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
     setState(() => _working = true);
     try {
       final repo = ref.read(repositoryProvider);
-      // 내 행사 장부 한도: 새 장부를 만들 때만 확인
+      // 내 행사 한도: 새로 만들 때만 확인
       if (_eventId == null && !await ensureCanAddMyEvent(context, ref)) return;
       if (!mounted) return;
       final maxPeople = await _resolvePeopleLimit();
@@ -149,6 +158,10 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
       if (!mounted) return;
       await _showResult(result.plan);
       if (!mounted) return;
+      if (widget.initialEventId == result.eventId) {
+        Navigator.pop(context);
+        return;
+      }
       Navigator.pushReplacement(
           context,
           MaterialPageRoute<void>(
@@ -224,7 +237,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
           ),
           const SizedBox(height: AppSpacing.section),
           const AppDivider(),
-          const SectionTitle('어느 장부에 합칠까요?'),
+          const SectionTitle('어느 내 행사에 합칠까요?'),
           RadioGroup<int?>(
             groupValue: _eventId,
             onChanged: _select,
@@ -243,7 +256,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: AppSpacing.page),
                   value: null,
-                  title: const Text('새 장부 만들기', style: AppText.listName),
+                  title: const Text('새 내 행사 만들기', style: AppText.listName),
                   subtitle: Text(r.title),
                 ),
               ],

@@ -12,6 +12,15 @@ class Event {
   /// 전날 오전 9시 알림 여부
   final bool notify;
 
+  /// 남의 행사(일정)에 연결된 사람. 이전 버전에서 만든 일정은 없을 수 있다.
+  final int? personId;
+
+  /// '얼마 내셨어요?'에서 '안 갔어요'를 눌러 숨겼는지
+  final bool pendingHidden;
+
+  /// 연결된 사람의 관계 (읽을 때만 채워짐)
+  final String? personRelation;
+
   const Event({
     this.id,
     required this.type,
@@ -21,6 +30,9 @@ class Event {
     this.place,
     this.memo,
     this.notify = true,
+    this.personId,
+    this.pendingHidden = false,
+    this.personRelation,
   });
 
   factory Event.fromMap(Map<String, Object?> m) => Event(
@@ -32,6 +44,9 @@ class Event {
         place: m['place'] as String?,
         memo: m['memo'] as String?,
         notify: (m['notify'] as int? ?? 1) == 1,
+        personId: m['person_id'] as int?,
+        pendingHidden: (m['pending_hidden'] as int? ?? 0) == 1,
+        personRelation: m['person_relation'] as String?,
       );
 
   Map<String, Object?> toMap() => {
@@ -43,7 +58,22 @@ class Event {
         'place': place,
         'memo': memo,
         'notify': notify ? 1 : 0,
+        'person_id': personId,
+        'pending_hidden': pendingHidden ? 1 : 0,
       };
+
+  /// 일정 이름: 김철수 + 결혼 → '김철수 결혼식'
+  static String scheduleTitle(String name, String type) {
+    const words = {
+      '결혼': '결혼식',
+      '장례': '장례식',
+      '돌': '돌잔치',
+      '생일': '생일',
+      '개업': '개업식',
+    };
+    final word = words[type];
+    return word == null ? name : '$name $word';
+  }
 }
 
 /// 장부 목록/상세에 쓰는 행사 요약.

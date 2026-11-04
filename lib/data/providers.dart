@@ -98,6 +98,12 @@ class HomeData {
   final int sentCount;
   final int receivedCount;
   final List<Event> upcoming;
+
+  /// '얼마 내셨어요?' 카드에 보여줄 일정
+  final List<Event> pending;
+
+  /// 남의 행사(일정) 전체 개수. 0이면 일정 섹션을 숨긴다.
+  final int scheduleCount;
   final List<GiftRecord> recent;
   final int recordCount;
   const HomeData({
@@ -106,6 +112,8 @@ class HomeData {
     required this.sentCount,
     required this.receivedCount,
     required this.upcoming,
+    required this.pending,
+    required this.scheduleCount,
     required this.recent,
     required this.recordCount,
   });
@@ -120,7 +128,9 @@ final homeProvider = FutureProvider<HomeData>((ref) async {
     received: totals.received,
     sentCount: totals.sentCount,
     receivedCount: totals.receivedCount,
-    upcoming: await repo.upcomingEvents(limit: 3),
+    upcoming: await repo.upcomingSchedules(limit: 3),
+    pending: await repo.pendingAmountEvents(limit: 3),
+    scheduleCount: await repo.countSchedules(),
     recent: await repo.recentRecords(5),
     recordCount: await repo.countRecords(),
   );

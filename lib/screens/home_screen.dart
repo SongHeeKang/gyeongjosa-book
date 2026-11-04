@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
+import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
-import '../widgets/person_picker_sheet.dart';
+import '../widgets/pending_amount_section.dart';
 import 'all_records_screen.dart';
+import 'all_schedules_screen.dart';
 import 'event_detail_screen.dart';
 import 'person_detail_screen.dart';
 import 'settings_screen.dart';
+import 'stats_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -31,47 +34,76 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(width: AppSpacing.page - 12),
         ],
       ),
-      floatingActionButtonLocation: const PillFabLocation(),
-      floatingActionButton: PillActionButton(
-        label: '기록하기',
-        onPressed: () => startQuickRecord(context, ref),
-      ),
       body: AsyncBody(
         value: home,
         builder: (data) => ListView(
           children: [
             _BackupBanner(recordCount: data.recordCount),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page, 12, AppSpacing.page, 12),
-              child: Text('$year년 나의 경조사', style: AppText.label),
+            InkWell(
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                      builder: (_) => const StatsScreen())),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.page, 12, AppSpacing.page - 8, 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                            child: Text('$year년 나의 경조사',
+                                style: AppText.label)),
+                        const Text('통계 보기', style: AppText.link),
+                        const Icon(Icons.chevron_right,
+                            size: 20, color: AppColors.link),
+                      ],
+                    ),
+                  ),
+                  SummaryRow(
+                    sent: data.sent,
+                    received: data.received,
+                    sentCount: data.sentCount,
+                    receivedCount: data.receivedCount,
+                  ),
+                  const SizedBox(height: AppSpacing.section),
+                ],
+              ),
             ),
-            SummaryRow(
-              sent: data.sent,
-              received: data.received,
-              sentCount: data.sentCount,
-              receivedCount: data.receivedCount,
-            ),
-            const SizedBox(height: AppSpacing.section),
             const AppDivider(),
-            const SectionTitle('다가오는 행사'),
-            if (data.upcoming.isEmpty)
-              const EmptyView(
-                  icon: Icons.event_available,
-                  message: '다가오는 행사가 없어요.\n장부 탭에서 행사를 등록해 보세요.')
-            else
-              for (var i = 0; i < data.upcoming.length; i++)
-                EventTile(
-                  event: data.upcoming[i],
-                  highlight: i == 0,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                          builder: (_) => EventDetailScreen(
-                              eventId: data.upcoming[i].id!))),
-                ),
-            const SizedBox(height: AppSpacing.section - 6),
-            const AppDivider(),
+            if (data.pending.isNotEmpty)
+              PendingAmountSection(events: data.pending),
+            if (data.scheduleCount > 0) ...[
+              SectionTitle(
+                '다가오는 일정',
+                trailing: LinkText('전체 보기',
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                            builder: (_) => const AllSchedulesScreen()))),
+              ),
+              if (data.upcoming.isEmpty)
+                const EmptyView(
+                    icon: Icons.event_available, message: '다가오는 일정이 없어요.')
+              else
+                for (var i = 0; i < data.upcoming.length; i++)
+                  EventTile(
+                    event: data.upcoming[i],
+                    highlight: i == 0,
+                    subtitle: [
+                      formatDate(data.upcoming[i].date),
+                      data.upcoming[i].personRelation ?? data.upcoming[i].type,
+                    ].join(' · '),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                            builder: (_) => EventDetailScreen(
+                                eventId: data.upcoming[i].id!))),
+                  ),
+              const SizedBox(height: AppSpacing.section - 6),
+              const AppDivider(),
+            ],
             SectionTitle(
               '최근 기록',
               trailing: data.recent.isEmpty

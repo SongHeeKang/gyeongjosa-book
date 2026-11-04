@@ -13,7 +13,7 @@ import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
 
 /// 차트 색: 보냄 = 회색, 받음 = 포인트색
-const _sentBar = Color(0xFF9CA3AF);
+const _sentBar = AppColors.chartSent;
 const _receivedBar = AppColors.primary;
 
 /// 통계 (홈의 올해 요약을 누르면 열림): 월별 막대그래프(무료) + 관계별 · 연도별 차트(프로)

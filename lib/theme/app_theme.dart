@@ -12,6 +12,7 @@ class AppColors {
   static const link = Color(0xFF1D4ED8); // 링크 (전체 보기)
   static const primarySoft = Color(0xFFEFF4FF); // 선택된 칩 배경
   static const error = Color(0xFFDC2626);
+  static const chartSent = Color(0xFF9CA3AF); // 차트의 보냄 막대
 
   /// 받은 돈 = 포인트색, 보낸 돈 = 기본 글자색
   static Color amount(bool isSent) => isSent ? text : primary;
@@ -60,6 +61,7 @@ class AppText {
       fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.text);
   static const warning = TextStyle(
       fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.error);
+
 }
 
 /// 섹션을 나누는 1px 구분선

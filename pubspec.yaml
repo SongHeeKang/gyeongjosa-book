@@ -69,6 +69,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   sqflite_common_ffi: ^2.4.5
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -89,3 +90,12 @@ flutter:
           weight: 500
         - asset: assets/fonts/NotoSansKR-Bold.otf
           weight: 700
+
+# 앱 아이콘 (임시). 더 좋은 아이콘이 생기면 assets/icon/의 두 파일만 바꾸고
+# 'dart run flutter_launcher_icons'를 다시 실행하면 된다.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/icon.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/icon/icon_foreground.png

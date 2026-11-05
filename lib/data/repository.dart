@@ -300,6 +300,12 @@ class Repository {
         whereArgs: [id]);
   }
 
+  Future<void> setReceptionMealTicketEnabled(String id, bool enabled) async {
+    final db = await _db;
+    await db.update('receptions', {'meal_ticket_enabled': enabled ? 1 : 0},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> deleteReception(String id) async {
     final db = await _db;
     await db.delete('receptions', where: 'id = ?', whereArgs: [id]);
@@ -322,6 +328,20 @@ class Repository {
     await db.update('reception_entries', {'deleted': 1},
         where: 'id = ?', whereArgs: [id]);
   }
+
+  /// 사람 · 기록 · 일정 · 접수 중 하나라도 있으면 true
+  Future<bool> hasAnyData() async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      SELECT EXISTS(SELECT 1 FROM people)
+        OR EXISTS(SELECT 1 FROM records)
+        OR EXISTS(SELECT 1 FROM events)
+        OR EXISTS(SELECT 1 FROM receptions)
+    ''');
+    return Sqflite.firstIntValue(rows) == 1;
+  }
+
+  Future<void> snapshotTo(String outPath) => _helper.snapshotTo(outPath);
 
   Future<int> countReceptionEntries() async {
     final db = await _db;

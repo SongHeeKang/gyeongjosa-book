@@ -7,6 +7,7 @@ import '../data/database_helper.dart';
 import '../data/providers.dart';
 import '../data/sample_data.dart';
 import '../services/app_config.dart';
+import '../services/auto_backup_service.dart';
 import '../services/backup_service.dart';
 import '../services/csv_service.dart';
 import '../services/format.dart';
@@ -18,6 +19,7 @@ import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
 import 'onboarding_screen.dart';
+import 'restore_prompt.dart';
 
 final _appVersionProvider = FutureProvider<String>((ref) async {
   final info = await PackageInfo.fromPlatform();
@@ -67,10 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               okText: '복원',
               destructive: true);
           if (!ok) return;
-          await _backup.restoreFrom(path);
-          ref.refreshData();
-          final events = await ref.read(repositoryProvider).allEvents();
-          await NotificationService.instance.resyncAll(events);
+          await restoreBackupFile(ref, _backup, path);
           if (mounted) showSnack(context, '복원했어요.');
         } on FormatException catch (e) {
           if (mounted) {
@@ -149,9 +148,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: const Text('새 폰에서 백업 파일을 골라 불러와요'),
               onTap: _restore,
             ),
+            _autoBackupTile(),
             const ListTile(
               leading: Icon(Icons.info_outline, size: 24),
-              title: Text('자동 백업'),
+              title: Text('Google 자동 백업'),
               subtitle: Text(
                   '휴대폰의 Google 백업이 켜져 있으면 기록이 내 Google 계정에 자동 백업되고, 새 폰을 설정할 때 복원돼요.'),
             ),
@@ -225,6 +225,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _autoBackupTile() {
+    final auto = ref.watch(autoBackupProvider);
+    final supported = ref.watch(autoBackupSupportedProvider).value ?? true;
+    final last = auto.lastAt;
+    final String status;
+    if (!supported) {
+      status = 'Android 10 이상에서 쓸 수 있어요. 위의 백업 파일 만들기를 이용해 주세요.';
+    } else if (!auto.enabled) {
+      status = '꺼져 있어요';
+    } else if (auto.failed) {
+      status = '마지막 자동 백업에 실패했어요. 다음 저장 때 다시 시도해요.';
+    } else if (last == null) {
+      status = '기록을 저장하면 자동으로 백업해요';
+    } else {
+      status = '마지막 자동 백업: ${formatShortDate(last)} ${formatTime(last)}';
+    }
+    return SwitchListTile(
+      secondary: const Icon(Icons.save_alt, size: 24),
+      title: const Text('자동 백업', style: AppText.listName),
+      subtitle: Text('$status\n'
+          '다운로드/경조사장부 폴더에 최근 7개를 보관해요. 다른 앱에서도 파일이 보일 수 있어요.'),
+      isThreeLine: true,
+      value: supported && auto.enabled,
+      onChanged: supported
+          ? (v) => ref.read(autoBackupProvider.notifier).setEnabled(v)
+          : null,
     );
   }
 

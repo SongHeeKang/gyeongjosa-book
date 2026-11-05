@@ -8,6 +8,8 @@ import 'data/providers.dart';
 import 'screens/main_shell.dart';
 import 'screens/manage_space_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/restore_prompt.dart';
+import 'services/auto_backup_service.dart';
 import 'services/notification_service.dart';
 import 'services/purchase_service.dart';
 import 'services/settings_service.dart';
@@ -26,6 +28,11 @@ Future<void> main() async {
     container: container,
     child: const GyeongjosaApp(),
   ));
+
+  final autoBackup = container.read(autoBackupProvider.notifier);
+  autoBackup.scheduleIfNeverBackedUp();
+  // 저장 직후 앱을 나가도 기다리던 자동 백업이 빠지지 않게 한다.
+  AppLifecycleListener(onPause: autoBackup.flush);
 
   // 화면을 먼저 띄우고 나서 알림 재예약 · 구매 내역 확인
   await NotificationService.instance.init();
@@ -70,7 +77,9 @@ class GyeongjosaApp extends ConsumerWidget {
       locale: _appLocale,
       supportedLocales: const [_appLocale],
       localizationsDelegates: _appLocalizations,
-      home: seen ? const MainShell() : const OnboardingScreen(),
+      home: seen
+          ? const RestorePromptGate(child: MainShell())
+          : const OnboardingScreen(),
     );
   }
 }

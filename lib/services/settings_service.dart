@@ -14,6 +14,10 @@ class PrefKeys {
   static const quickEntryRelation = 'quick_entry_relation';
   static const receptionOperator = 'reception_operator';
   static const onboardingSeen = 'onboarding_seen';
+  static const autoBackupEnabled = 'auto_backup_enabled';
+  static const lastAutoBackupAt = 'last_auto_backup_at';
+  static const autoBackupFileName = 'auto_backup_file_name';
+  static const restorePromptDone = 'restore_prompt_done';
 
   /// 접수 장부별 마지막 구분
   static String receptionLastSide(String receptionId) =>

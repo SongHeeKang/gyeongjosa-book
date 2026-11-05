@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/providers.dart';
 import 'screens/main_shell.dart';
+import 'screens/manage_space_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/notification_service.dart';
 import 'services/purchase_service.dart';
@@ -33,6 +34,29 @@ Future<void> main() async {
   await container.read(purchaseProvider.notifier).init();
 }
 
+/// 안드로이드 설정의 '공간 관리'에서 열리는 화면의 시작점 (ManageSpaceActivity.kt)
+@pragma('vm:entry-point')
+Future<void> manageSpaceMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('ko_KR');
+  runApp(MaterialApp(
+    title: '경조사 장부',
+    debugShowCheckedModeBanner: false,
+    theme: buildAppTheme(),
+    locale: _appLocale,
+    supportedLocales: const [_appLocale],
+    localizationsDelegates: _appLocalizations,
+    home: const ManageSpaceScreen(),
+  ));
+}
+
+const _appLocale = Locale('ko', 'KR');
+const _appLocalizations = [
+  GlobalMaterialLocalizations.delegate,
+  GlobalWidgetsLocalizations.delegate,
+  GlobalCupertinoLocalizations.delegate,
+];
+
 class GyeongjosaApp extends ConsumerWidget {
   const GyeongjosaApp({super.key});
 
@@ -43,13 +67,9 @@ class GyeongjosaApp extends ConsumerWidget {
       title: '경조사 장부',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
-      locale: const Locale('ko', 'KR'),
-      supportedLocales: const [Locale('ko', 'KR')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      locale: _appLocale,
+      supportedLocales: const [_appLocale],
+      localizationsDelegates: _appLocalizations,
       home: seen ? const MainShell() : const OnboardingScreen(),
     );
   }

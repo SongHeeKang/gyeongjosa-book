@@ -323,6 +323,13 @@ class Repository {
         where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<int> countReceptionEntries() async {
+    final db = await _db;
+    return Sqflite.firstIntValue(await db
+            .rawQuery('SELECT COUNT(*) FROM reception_entries WHERE deleted = 0')) ??
+        0;
+  }
+
   // ───────────────────────── 받은 장부 가져오기 ─────────────────────────
 
   /// [maxPeople]은 전체 사람 수 한도. null이면 제한 없음.

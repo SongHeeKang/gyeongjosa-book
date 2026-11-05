@@ -11,17 +11,22 @@ import 'package:sqflite/sqflite.dart';
 /// 2. [_migrations]에 "이전 버전 → 새 버전" 단계를 추가한다.
 /// (DROP TABLE 처럼 데이터를 지우는 변경은 하지 않는다)
 class DatabaseHelper {
-  DatabaseHelper._([this._pathOverride]);
+  DatabaseHelper._([this._pathOverride, this._singleInstance = true]);
   static final DatabaseHelper instance = DatabaseHelper._();
 
   /// 테스트 전용: 실제 앱 데이터와 분리된 파일을 쓴다.
   @visibleForTesting
   factory DatabaseHelper.forTest(String path) => DatabaseHelper._(path);
 
+  /// 앱 본체와 따로 여는 연결. 데이터 관리 화면처럼 앱 본체가 뒤에서 켜져 있을 수 있는
+  /// 곳에서 쓴다. 공유 연결을 닫으면 앱 본체의 DB까지 닫히기 때문이다.
+  factory DatabaseHelper.separateConnection() => DatabaseHelper._(null, false);
+
   static const dbFileName = 'gyeongjosa.db';
   static const _dbVersion = 4;
 
   final String? _pathOverride;
+  final bool _singleInstance;
   Database? _db;
 
   Future<Database> get database async {
@@ -38,6 +43,7 @@ class DatabaseHelper {
     return openDatabase(
       await dbPath,
       version: _dbVersion,
+      singleInstance: _singleInstance,
       onConfigure: (db) async {
         // 사람을 지우면 그 사람의 내역도 같이 지워지도록 외래키 사용
         await db.execute('PRAGMA foreign_keys = ON');
@@ -157,7 +163,18 @@ class DatabaseHelper {
     },
   };
 
-  /// 백업/복원을 위해 DB를 잠시 닫는다.
+  /// DB를 닫지 않고 지금 내용을 파일 하나로 복사한다. 복사하는 동안 다른 저장은 잠깐 기다린다.
+  Future<void> snapshotTo(String outPath) async {
+    final db = await database;
+    final source = await dbPath;
+    // WAL에 남은 내용을 본 파일로 옮긴다. WAL을 안 쓰는 기기에서는 아무 일도 하지 않는다.
+    await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+    await db.transaction((_) async {
+      await File(source).copy(outPath);
+    });
+  }
+
+  /// 복원을 위해 DB를 닫는다.
   Future<void> close() async {
     final db = _db;
     _db = null;

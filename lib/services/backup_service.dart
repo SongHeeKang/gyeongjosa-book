@@ -27,19 +27,12 @@ class BackupService {
   }
 
   Future<File> _createBackupFile() async {
-    final dbPath = await _helper.dbPath;
     final dir = await getTemporaryDirectory();
     final stamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
     final out = File(p.join(dir.path, 'gyeongjosa_backup_$stamp.db'));
     if (await out.exists()) await out.delete();
 
-    // 쓰는 중인 내용이 빠지지 않도록 DB를 잠시 닫고 복사
-    await _helper.close();
-    try {
-      await File(dbPath).copy(out.path);
-    } finally {
-      await _helper.database; // 다시 열기
-    }
+    await _helper.snapshotTo(out.path);
     return out;
   }
 

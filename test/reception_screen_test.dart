@@ -15,7 +15,6 @@ import 'package:gyeongjosa/services/limits.dart';
 import 'package:gyeongjosa/services/reception_import.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
-import 'package:gyeongjosa/widgets/amount_input.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -209,7 +208,7 @@ void main() {
     await tester.tap(find.text('15만'));
     await tester.pumpAndSettle();
     expect(repo.entries.length, 2);
-    // 저장 뒤에도 '방금 저장' 줄에서 경고한다
+    // 저장 뒤에도 '최근 저장' 맨 위에서 경고한다
     expect(find.text('같은 이름이 있어요'), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
   });
@@ -227,7 +226,7 @@ void main() {
     expect(field.focusNode!.hasFocus, isTrue);
   });
 
-  testWidgets('키보드가 열리면 현황은 한 줄, 전체 내역 대신 방금 저장 줄만', (tester) async {
+  testWidgets('키보드가 열리면 현황은 한 줄, 전체 내역 대신 최근 저장만', (tester) async {
     final repo = await open(tester);
     for (final name in ['김철수', '이영희']) {
       await tester.enterText(find.byType(TextField).first, name);
@@ -277,17 +276,22 @@ void main() {
   group('금액칸', () {
     Finder amountField() => find.widgetWithText(TextField, '금액');
 
-    testWidgets('만원 단위로 적고 키보드 완료로 저장하고, 커서는 이름칸으로', (tester) async {
+    testWidgets('실제 금액을 적고 키보드 완료로 저장하고, 커서는 이름칸으로', (tester) async {
       final repo = await open(tester);
       expect(find.text('직접 입력'), findsNothing);
 
+      // 쉼표가 자동으로 들어가고, 아래에 읽기 쉬운 금액이 보인다
+      await tester.enterText(amountField(), '70000');
+      await tester.pump();
+      expect(tester.widget<TextField>(amountField()).controller!.text, '70,000');
+      expect(find.text('7만원'), findsOneWidget);
+
       // 이름이 없으면 금액은 남겨 두고 이름부터 받는다
-      await tester.enterText(amountField(), '7');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(repo.entries, isEmpty);
       expect(find.text('이름을 먼저 입력해 주세요'), findsOneWidget);
-      expect(tester.widget<TextField>(amountField()).controller!.text, '7');
+      expect(tester.widget<TextField>(amountField()).controller!.text, '70,000');
 
       await tester.enterText(find.byType(TextField).first, '김철수');
       await tester.testTextInput.receiveAction(TextInputAction.next);
@@ -298,32 +302,128 @@ void main() {
       await tester.pumpAndSettle();
       expect(repo.entries.single.amount, 70000);
       expect(tester.widget<TextField>(amountField()).controller!.text, isEmpty);
+      expect(find.text('7만원'), findsNothing);
       final name = tester.widget<TextField>(find.byType(TextField).first);
       expect(name.focusNode!.hasFocus, isTrue);
     });
 
-    testWidgets('3.5는 35,000원, 70000처럼 큰 수는 저장하지 않고 안내한다', (tester) async {
+    testWidgets('천 원 단위와 큰 금액도 적은 그대로 저장한다', (tester) async {
       final repo = await open(tester);
       await tester.enterText(find.byType(TextField).first, '이영희');
-      await tester.enterText(amountField(), '3.5');
+      await tester.enterText(amountField(), '35000');
+      await tester.pump();
+      expect(find.text('3만 5천원'), findsOneWidget);
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(repo.entries.single.amount, 35000);
 
       await tester.enterText(find.byType(TextField).first, '박민수');
-      await tester.enterText(amountField(), '70000');
+      await tester.enterText(amountField(), '20000000');
       await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-      expect(repo.entries.length, 1);
-      expect(find.text('금액은 만원 단위로 입력해요. 7 → 70,000원'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(repo.entries.last.amount, 20000000);
+    });
+  });
+
+  group('최근 저장', () {
+    Future<FakeRepository> saveFour(WidgetTester tester) async {
+      final repo = await open(tester);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 800);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+      for (final name in ['첫째', '둘째', '셋째', '넷째']) {
+        await tester.enterText(find.byType(TextField).first, name);
+        await tester.tap(find.text('5만'));
+        await tester.pumpAndSettle();
+      }
+      return repo;
+    }
+
+    double topOf(WidgetTester tester, String name) =>
+        tester.getTopLeft(find.textContaining('$name · 5만')).dy;
+
+    testWidgets('최신이 맨 위인 3줄만 보이고, 넘친 항목은 전체 내역에 남는다', (tester) async {
+      final repo = await saveFour(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('첫째 · 5만'), findsNothing);
+      expect(topOf(tester, '넷째'), lessThan(topOf(tester, '셋째')));
+      expect(topOf(tester, '셋째'), lessThan(topOf(tester, '둘째')));
+      expect(find.text('되돌리기'), findsOneWidget);
+      expect(repo.entries.length, 4);
+
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+      expect(find.text('첫째'), findsOneWidget);
     });
 
-    test('만원 환산', () {
-      expect(parseManWon('7'), 70000);
-      expect(parseManWon('3.5'), 35000);
-      expect(parseManWon('.5'), 5000);
-      expect(parseManWon('1.2345'), 12345);
-      expect(parseManWon(''), 0);
+    testWidgets('새로 저장하면 맨 위가 강조되고 1초 뒤 사라지며, 전 항목은 밀려 내려온다',
+        (tester) async {
+      await saveFour(tester);
+      Color? highlight() {
+        final box = tester.widget<Container>(find
+            .ancestor(
+                of: find.textContaining('다섯째 · 5만'),
+                matching: find.byType(Container))
+            .first);
+        return (box.decoration! as BoxDecoration).color;
+      }
+
+      final settledTop = topOf(tester, '넷째');
+      await tester.enterText(find.byType(TextField).first, '다섯째');
+      await tester.tap(find.text('5만'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(highlight()!.a, greaterThan(0.5));
+
+      await tester.pumpAndSettle();
+      expect(highlight()!.a, 0);
+      expect(topOf(tester, '다섯째'), settledTop);
+      expect(topOf(tester, '넷째'), greaterThan(settledTop));
+      expect(find.textContaining('둘째 · 5만'), findsNothing);
+    });
+
+    testWidgets('작은 폰에서 키보드가 열려도 넘치지 않고 줄 수를 줄인다', (tester) async {
+      final repo = await open(tester);
+      // 360 x 640 폰, 키보드 300
+      tester.view.physicalSize = const Size(360 * 2.625, 640 * 2.625);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300 * 2.625);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+      for (final name in ['첫째', '둘째', '셋째']) {
+        await tester.enterText(find.byType(TextField).first, name);
+        await tester.tap(find.text('5만'));
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull);
+      expect(repo.entries.length, 3);
+      expect(find.textContaining('셋째 · 5만'), findsOneWidget);
+    });
+
+    testWidgets('일반 폰(360 x 780)에서는 키보드가 열려도 최근 저장 3줄이 보인다', (tester) async {
+      await open(tester);
+      tester.view.physicalSize = const Size(360 * 2.625, 780 * 2.625);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300 * 2.625);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+      for (final name in ['첫째', '둘째', '셋째']) {
+        await tester.enterText(find.byType(TextField).first, name);
+        await tester.tap(find.text('5만'));
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull);
+      for (final name in ['첫째', '둘째', '셋째']) {
+        expect(find.textContaining('$name · 5만'), findsOneWidget);
+      }
+    });
+
+    testWidgets('되돌리기는 맨 위 항목만 지우고 아래 항목이 올라온다', (tester) async {
+      final repo = await saveFour(tester);
+      await tester.tap(find.text('되돌리기'));
+      await tester.pumpAndSettle();
+      expect(repo.entries.map((e) => e.name), ['첫째', '둘째', '셋째']);
+      expect(find.textContaining('셋째 · 5만'), findsOneWidget);
+      expect(find.textContaining('첫째 · 5만'), findsOneWidget);
     });
   });
 
@@ -390,10 +490,16 @@ void main() {
       expect(repo.entries.single.mealTickets, 2);
     });
 
-    testWidgets('좁은 폰에서는 칩이 윗줄로 올라가고 넘치지 않는다', (tester) async {
+    testWidgets('360 폭 폰에서는 칩이 금액칸과 같은 줄에 들어간다', (tester) async {
       await open(tester, width: 360 * 2.625);
       expect(tester.takeException(), isNull);
-      expect(find.widgetWithText(OutlinedButton, '4+'), findsOneWidget);
+      expect(tester.getCenter(find.widgetWithText(OutlinedButton, '4+')).dy,
+          tester.getCenter(find.widgetWithText(TextField, '금액')).dy);
+    });
+
+    testWidgets('아주 좁은 폰에서는 칩이 윗줄로 올라가고 넘치지 않는다', (tester) async {
+      await open(tester, width: 300 * 2.625);
+      expect(tester.takeException(), isNull);
       expect(tester.getTopLeft(find.widgetWithText(OutlinedButton, '4+')).dy,
           lessThan(tester.getTopLeft(find.widgetWithText(TextField, '금액')).dy));
     });

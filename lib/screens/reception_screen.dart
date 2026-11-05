@@ -26,9 +26,6 @@ class ReceptionScreen extends ConsumerStatefulWidget {
 }
 
 class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
-  /// 금액칸에 만원 단위로 넣을 수 있는 한도 (더 큰 금액은 항목을 눌러 수정)
-  static const _maxTypedAmount = 10000000;
-
   final _name = TextEditingController();
   final _nameFocus = FocusNode();
   final _amount = TextEditingController();
@@ -133,14 +130,8 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
 
   /// 금액칸에 적은 금액으로 저장. 이름이 비어 있으면 금액은 그대로 두고 이름칸으로 간다.
   Future<void> _saveTyped(Reception reception) async {
-    final amount = parseManWon(_amount.text);
+    final amount = parseAmount(_amount.text);
     if (amount <= 0) {
-      _amountFocus.requestFocus();
-      return;
-    }
-    // 70000처럼 원 단위로 치면 7억 원이 되므로 저장하지 않고 알려준다.
-    if (amount >= _maxTypedAmount) {
-      showSnack(context, '금액은 만원 단위로 입력해요. 7 → 70,000원');
       _amountFocus.requestFocus();
       return;
     }
@@ -221,16 +212,21 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
     // 키보드가 열려 있으면 바쁜 때: 현황을 한 줄로 줄이고 전체 내역은 숨긴다.
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     final entries = package.entries;
+    // 키보드와 제목을 뺀 공간이 아주 작은 폰: 금액 패드를 낮추고 확인 줄을 뺀다.
+    final media = MediaQuery.of(context);
+    final tight = media.size.height -
+            media.viewInsets.bottom -
+            media.padding.vertical -
+            kToolbarHeight <
+        AppSpacing.receptionTightBody;
 
-    final inputExtras = <Widget>[
-      if (entries.isNotEmpty || duplicate)
-        _SavedLine(
+    Widget recentSaved(int lines) => _RecentSaved(
           reception: reception,
           entries: entries,
+          lines: lines,
           duplicateTyped: duplicate,
           onUndo: () => _undo(entries.first),
-        ),
-    ];
+        );
 
     return SafeArea(
       top: false,
@@ -284,10 +280,20 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
           ),
           Expanded(
             child: keyboardOpen
-                ? ListView(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.page),
-                    children: inputExtras,
+                // 최근 저장은 3줄, 화면이 작은 폰에서는 들어가는 만큼만
+                ? LayoutBuilder(
+                    builder: (_, constraints) => ListView(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.page),
+                      children: [
+                        if (entries.isNotEmpty || duplicate)
+                          recentSaved(((constraints.maxHeight -
+                                      _RecentSaved.warningHeight) /
+                                  AppSpacing.recentLine)
+                              .floor()
+                              .clamp(1, 3)),
+                      ],
+                    ),
                   )
                 : ListView.builder(
                     itemCount: entries.length + 1,
@@ -299,7 +305,8 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              ...inputExtras,
+                              if (entries.isNotEmpty || duplicate)
+                                recentSaved(1),
                               if (entries.isNotEmpty) const AppDivider(),
                             ],
                           ),
@@ -325,15 +332,19 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
             onMeals: (v) => setState(() => _mealsPicked = v),
             transfer: reception.methodEnabled ? _transfer : null,
             onTransfer: () => setState(() => _transfer = !_transfer),
+            tight: tight,
           ),
-          _AmountPad(onAmount: (a) => _save(reception, a)),
+          _AmountPad(
+            onAmount: (a) => _save(reception, a),
+            buttonHeight: tight ? AppSpacing.padButtonTight : AppSpacing.padButton,
+          ),
         ],
       ),
     );
   }
 }
 
-/// 금액 버튼 바로 위 줄: 만원 단위 금액칸 + 식권 칩 + 계좌 칩.
+/// 금액 버튼 바로 위 줄: 금액칸 + 식권 칩 + 계좌 칩, 그 아래에 읽기 쉬운 금액.
 /// 키보드의 완료를 누르면 저장된다. 칩까지 한 줄에 안 들어가는 폰에서는 칩을 윗줄로 올린다.
 class _AmountField extends StatelessWidget {
   const _AmountField({
@@ -344,7 +355,9 @@ class _AmountField extends StatelessWidget {
     required this.onMeals,
     required this.transfer,
     required this.onTransfer,
+    required this.tight,
   });
+  final bool tight;
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onSave;
@@ -357,16 +370,24 @@ class _AmountField extends StatelessWidget {
   final bool? transfer;
   final VoidCallback onTransfer;
 
-  static const _chipWidth = 34.0;
+  static const _maxChipWidth = 36.0;
+  static const _minChipWidth = 28.0;
   static const _chipGap = 3.0;
-  static const _mealLabelWidth = 32.0;
   static const _transferWidth = 48.0;
+  static const _transferGap = 6.0;
   static const _minFieldWidth = 84.0;
+  static const _fieldGap = 8.0;
 
-  double get _chipsWidth =>
-      (meals != null ? _mealLabelWidth + 5 * _chipWidth + 4 * _chipGap : 0) +
+  double get _extrasWidth =>
+      (meals != null ? 4 * _chipGap : 0) +
       (transfer != null ? _transferWidth : 0) +
-      (meals != null && transfer != null ? 6 : 0);
+      (meals != null && transfer != null ? _transferGap : 0);
+
+  /// 금액칸과 한 줄에 넣을 수 있는 식권 칩 폭. 화면이 넓어도 커지기만 하고 금액칸을 넓게 남긴다.
+  double _chipWidthFor(double maxWidth) {
+    final room = maxWidth - _minFieldWidth - _fieldGap - _extrasWidth;
+    return (room / 5).clamp(0.0, _maxChipWidth);
+  }
 
   /// 4+는 누를 때마다 한 장씩 늘어난다.
   void _pickMeals(int value) {
@@ -399,7 +420,7 @@ class _AmountField extends StatelessWidget {
     );
   }
 
-  Widget _chips() {
+  Widget _chips(double chipWidth) {
     final current = meals;
     final paying = transfer;
     // 칩이 포커스를 가져가면 키보드가 닫히므로 포커스를 받지 않게 한다.
@@ -408,20 +429,18 @@ class _AmountField extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (current != null) ...[
-            const SizedBox(
-                width: _mealLabelWidth,
-                child: Text('식권', style: AppText.label)),
             for (var count = 0; count <= 4; count++) ...[
               if (count > 0) const SizedBox(width: _chipGap),
               _chip(
                 count < 4 ? '$count' : (current > 4 ? '$current' : '4+'),
                 count < 4 ? current == count : current >= 4,
                 () => _pickMeals(count),
-                _chipWidth,
+                chipWidth,
               ),
             ],
           ],
-          if (current != null && paying != null) const SizedBox(width: 6),
+          if (current != null && paying != null)
+            const SizedBox(width: _transferGap),
           if (paying != null)
             _chip('계좌', paying, onTransfer, _transferWidth),
         ],
@@ -434,36 +453,39 @@ class _AmountField extends StatelessWidget {
     final field = TextField(
       controller: controller,
       focusNode: focusNode,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      keyboardType: TextInputType.number,
       textInputAction: TextInputAction.done,
-      inputFormatters: [ManWonFormatter()],
+      inputFormatters: [ThousandsFormatter()],
       style: AppText.receptionName,
       onEditingComplete: () {},
       onSubmitted: (_) => onSave(),
       decoration: const InputDecoration(
         hintText: '금액',
-        suffixText: '만원',
         isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       ),
     );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, AppSpacing.page, 4),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, AppSpacing.page, 0),
       child: LayoutBuilder(builder: (context, constraints) {
-        final chipsWidth = _chipsWidth;
-        final sameLine = chipsWidth > 0 &&
-            constraints.maxWidth - chipsWidth - 8 >= _minFieldWidth;
+        final hasMeals = meals != null;
+        final hasChips = hasMeals || transfer != null;
+        final fitted = _chipWidthFor(constraints.maxWidth);
+        // 아주 좁은 폰에서만 칩을 윗줄로 올린다.
+        final sameLine = hasChips && (!hasMeals || fitted >= _minChipWidth);
+        final chipWidth = sameLine ? fitted : _maxChipWidth;
+        final chips = _chips(chipWidth);
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (chipsWidth > 0 && !sameLine) ...[
+            if (hasChips && !sameLine) ...[
               SizedBox(
                 height: AppSpacing.padButton,
                 child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
-                    child: _chips()),
+                    child: chips),
               ),
               const SizedBox(height: 4),
             ],
@@ -474,12 +496,43 @@ class _AmountField extends StatelessWidget {
                 children: [
                   Expanded(child: field),
                   if (sameLine) ...[
-                    const SizedBox(width: 8),
-                    _chips(),
+                    const SizedBox(width: _fieldGap),
+                    chips,
                   ],
                 ],
               ),
             ),
+            // 맞게 쳤는지 확인하는 줄. 자리를 미리 잡아 입력할 때 칸이 움직이지 않게 한다.
+            // 키보드를 뺀 공간이 아주 작은 폰에서는 생략한다.
+            if (!tight)
+              SizedBox(
+                height: 20,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ValueListenableBuilder(
+                        valueListenable: controller,
+                        builder: (_, value, _) {
+                          final amount = parseAmount(value.text);
+                          return Text(
+                              amount > 0 ? formatReadableWon(amount) : '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.sub);
+                        },
+                      ),
+                    ),
+                    if (hasMeals)
+                      SizedBox(
+                        width: 5 * chipWidth + 4 * _chipGap +
+                            (transfer != null
+                                ? _transferGap + _transferWidth
+                                : 0),
+                        child: const Text('식권', style: AppText.label),
+                      ),
+                  ],
+                ),
+              ),
           ],
         );
       }),
@@ -489,8 +542,9 @@ class _AmountField extends StatelessWidget {
 
 /// 금액 버튼 8개(4개씩 2줄). 키보드 바로 위에 붙고, 누르면 짧게 진동한다.
 class _AmountPad extends StatelessWidget {
-  const _AmountPad({required this.onAmount});
+  const _AmountPad({required this.onAmount, required this.buttonHeight});
   final ValueChanged<int> onAmount;
+  final double buttonHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -503,8 +557,8 @@ class _AmountPad extends StatelessWidget {
               onAmount(amount);
             },
             style: FilledButton.styleFrom(
-              minimumSize: const Size(0, AppSpacing.padButton),
-              maximumSize: const Size(double.infinity, AppSpacing.padButton),
+              minimumSize: Size(0, buttonHeight),
+              maximumSize: Size(double.infinity, buttonHeight),
               padding: EdgeInsets.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               textStyle: AppText.receptionAmount,
@@ -538,72 +592,175 @@ class _AmountPad extends StatelessWidget {
   }
 }
 
-/// 방금 저장 한 줄: ✓ 이름 · 금액 · 저장 시각 + 되돌리기. 같은 이름 경고도 여기에 표시한다.
-class _SavedLine extends StatelessWidget {
-  const _SavedLine({
+/// 최근 저장 목록: 새 항목이 맨 위에 들어오며 1초쯤 강조되고, 전 항목은 한 칸씩 밀리며 흐려진다.
+/// 되돌리기와 같은 이름 경고는 맨 위 항목 기준이다. 넘치는 항목은 이 목록에서만 사라진다.
+class _RecentSaved extends StatefulWidget {
+  const _RecentSaved({
     required this.reception,
     required this.entries,
+    required this.lines,
     required this.duplicateTyped,
     required this.onUndo,
   });
   final Reception reception;
+
+  /// 최신이 맨 앞
   final List<ReceptionEntry> entries;
+  final int lines;
   final bool duplicateTyped;
   final VoidCallback onUndo;
 
+  static const warningHeight = 22.0;
+
   @override
-  Widget build(BuildContext context) {
-    final latest = entries.isEmpty ? null : entries.first;
-    final duplicateSaved = latest != null &&
-        entries.where((e) => e.name == latest.name).length > 1;
-    final warn = duplicateTyped || duplicateSaved;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 44),
+  State<_RecentSaved> createState() => _RecentSavedState();
+}
+
+class _RecentSavedState extends State<_RecentSaved>
+    with SingleTickerProviderStateMixin {
+  // 끝난 상태(1)로 시작해 화면을 다시 열었을 때는 강조하지 않는다.
+  late final _controller = AnimationController(
+      vsync: this, duration: const Duration(seconds: 1), value: 1);
+
+  @override
+  void didUpdateWidget(_RecentSaved old) {
+    super.didUpdateWidget(old);
+    final entries = widget.entries;
+    // 되돌리기로 줄어들 때는 움직이지 않고, 새로 저장했을 때만 움직인다.
+    if (entries.isNotEmpty &&
+        !old.entries.any((e) => e.id == entries.first.id)) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _line(ReceptionEntry entry, {required bool latest, Color? background}) {
+    final reception = widget.reception;
+    return Container(
+      height: AppSpacing.recentLine,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+          color: background, borderRadius: BorderRadius.circular(6)),
       child: Row(
         children: [
-          if (latest != null) ...[
-            const Icon(Icons.check, size: 18, color: AppColors.primary),
-            const SizedBox(width: 6),
-          ],
+          Icon(Icons.check,
+              size: 16,
+              color: latest ? AppColors.primary : AppColors.textSub),
+          const SizedBox(width: 6),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (latest != null)
-                  Text.rich(
-                    TextSpan(children: [
-                      TextSpan(
-                          text:
-                              '${latest.name} · ${formatManWon(latest.amount)} · '),
-                      if (reception.mealTicketEnabled ||
-                          latest.mealTickets > 0) ...[
-                        TextSpan(
-                          text: '식권 ${latest.mealTickets}',
-                          // 기본 매수와 다르면 굵게 보여 실수를 알아채게 한다
-                          style: latest.mealTickets !=
-                                  reception.defaultMealTickets
-                              ? const TextStyle(fontWeight: FontWeight.w700)
-                              : null,
-                        ),
-                        const TextSpan(text: ' · '),
-                      ],
-                      if (latest.method == ReceptionDefaults.transfer)
-                        const TextSpan(text: '계좌 · '),
-                      TextSpan(text: formatTime(latest.createdAt)),
-                    ]),
-                    style: AppText.body,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                    text: '${entry.name} · ${formatManWon(entry.amount)} · '),
+                if (reception.mealTicketEnabled || entry.mealTickets > 0) ...[
+                  TextSpan(
+                    text: '식권 ${entry.mealTickets}',
+                    // 기본 매수와 다르면 굵게 보여 실수를 알아채게 한다
+                    style: entry.mealTickets != reception.defaultMealTickets
+                        ? const TextStyle(fontWeight: FontWeight.w700)
+                        : null,
                   ),
-                if (warn) const Text('같은 이름이 있어요', style: AppText.warning),
-              ],
+                  const TextSpan(text: ' · '),
+                ],
+                if (entry.method == ReceptionDefaults.transfer)
+                  const TextSpan(text: '계좌 · '),
+                TextSpan(text: formatTime(entry.createdAt)),
+              ]),
+              style: latest ? AppText.body : AppText.sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (latest != null)
-            TextButton(onPressed: onUndo, child: const Text('되돌리기')),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = widget.entries;
+    final latest = entries.isEmpty ? null : entries.first;
+    final warn = widget.duplicateTyped ||
+        (latest != null &&
+            entries.where((e) => e.name == latest.name).length > 1);
+    final visible = entries.length.clamp(0, widget.lines);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (warn)
+          const SizedBox(
+            height: _RecentSaved.warningHeight,
+            child: Text('같은 이름이 있어요', style: AppText.warning),
+          ),
+        if (latest != null)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  builder: (_, _) {
+                    // 앞의 4분의 1 동안 한 칸 내려오고, 강조는 1초에 걸쳐 사라진다.
+                    final slide = 1 -
+                        Curves.easeOut
+                            .transform((_controller.value * 4).clamp(0.0, 1.0));
+                    final count = visible + (slide > 0 ? 1 : 0);
+                    return SizedBox(
+                      height: visible * AppSpacing.recentLine,
+                      child: ClipRect(
+                        child: OverflowBox(
+                          alignment: Alignment.topCenter,
+                          maxHeight: double.infinity,
+                          child: Transform.translate(
+                            offset: Offset(0, -slide * AppSpacing.recentLine),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                for (final (i, e)
+                                    in entries.take(count).indexed)
+                                  _line(
+                                    e,
+                                    latest: i == 0,
+                                    background: i == 0
+                                        ? Color.lerp(
+                                            AppColors.primarySoft,
+                                            AppColors.primarySoft.withValues(alpha: 0),
+                                            _controller.value)
+                                        : null,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // 줄은 낮아도 되돌리기는 누르기 쉽게 44 높이를 준다
+              SizedBox(
+                height: 44,
+                child: ExcludeFocus(
+                  child: TextButton(
+                    onPressed: widget.onUndo,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      alignment: Alignment.topCenter,
+                    ),
+                    child: const Text('되돌리기'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 }

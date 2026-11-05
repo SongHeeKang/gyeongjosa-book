@@ -12,6 +12,12 @@ void main() {
   test('금액은 50,000원 형식', () {
     expect(formatWon(50000), '50,000원');
     expect(formatManWon(100000), '10만');
+    expect(formatReadableWon(70000), '7만원');
+    expect(formatReadableWon(35000), '3만 5천원');
+    expect(formatReadableWon(12345), '1만 2,345원');
+    expect(formatReadableWon(5000), '5천원');
+    expect(formatReadableWon(1000000), '100만원');
+    expect(formatReadableWon(150000000), '1억 5,000만원');
   });
 
   group('백업 배너', () {

@@ -15,6 +15,19 @@ String formatManWon(int amount) {
   return formatNumber(amount);
 }
 
+/// 입력한 금액을 읽기 쉽게: 70,000 → 7만원, 35,000 → 3만 5천원, 12,345 → 1만 2,345원
+String formatReadableWon(int amount) {
+  final eok = amount ~/ 100000000;
+  final man = amount % 100000000 ~/ 10000;
+  final rest = amount % 10000;
+  return '${[
+    if (eok > 0) '$eok억',
+    if (man > 0) '${formatNumber(man)}만',
+    if (rest > 0) rest % 1000 == 0 ? '${rest ~/ 1000}천' : formatNumber(rest),
+    if (amount == 0) '0',
+  ].join(' ')}원';
+}
+
 /// 2026년 11월 3일 (화)
 String formatDate(DateTime d) => DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').format(d);
 

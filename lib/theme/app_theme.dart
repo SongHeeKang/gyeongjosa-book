@@ -27,7 +27,10 @@ class AppSpacing {
   static const section = 28.0; // 섹션 사이
   static const item = 10.0; // 목록 항목 위아래 여백
   static const padButton = 48.0; // 접수 화면 키보드 위 금액 버튼 높이
+  static const padButtonTight = 38.0; // 키보드를 뺀 공간이 아주 작은 폰의 금액 버튼 높이
+  static const receptionTightBody = 320.0; // 이보다 공간이 작으면 접수 화면을 줄인다
   static const receptionButton = 56.0; // 접수 화면 그 밖의 버튼 높이
+  static const recentLine = 28.0; // 접수 화면 '최근 저장' 한 줄 높이
 }
 
 class AppText {

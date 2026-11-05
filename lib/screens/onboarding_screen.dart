@@ -366,6 +366,17 @@ class _ReceptionPicture extends StatelessWidget {
                               color: AppColors.link)),
                     ],
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.check,
+                          size: 16, color: AppColors.textSub),
+                      const SizedBox(width: 4),
+                      Text('박민수 · 5만 · 오후 12:33',
+                          style: AppText.guideSmall
+                              .copyWith(color: AppColors.textSub)),
+                    ],
+                  ),
                   const SizedBox(height: 10),
                   _amountRow(_amounts[0]),
                   const SizedBox(height: 6),

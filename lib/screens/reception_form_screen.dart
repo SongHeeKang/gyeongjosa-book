@@ -33,6 +33,11 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   DateTime _date = DateTime.now();
   bool _saving = false;
 
+  /// 식권 기록 여부와 결제 방법 구분은 미리 고르지 않고 반드시 고르게 한다.
+  bool? _mealEnabled;
+  int _defaultMeals = 1;
+  bool? _methodEnabled;
+
   bool get _isFuneral => _type == '장례';
   bool get _isWedding => _type == '결혼';
 
@@ -80,33 +85,40 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
         ].join(', '));
   }
 
-  Widget _weddingSideButtons() {
-    final picked = _parseSides();
+  /// 나란히 놓인 큰 선택 버튼 묶음
+  Widget _choiceRow(List<(String, bool, VoidCallback)> choices) {
     return Row(
       children: [
-        for (final side in ReceptionDefaults.weddingSides) ...[
-          if (side != ReceptionDefaults.weddingSides.first)
-            const SizedBox(width: 8),
+        for (var i = 0; i < choices.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
           Expanded(
             child: SizedBox(
               height: AppSpacing.receptionButton,
               child: OutlinedButton(
-                onPressed: () => _toggleWeddingSide(side),
-                style: picked.contains(side)
-                    ? OutlinedButton.styleFrom(
-                        backgroundColor: AppColors.primarySoft,
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(
-                            color: AppColors.primary, width: 1.5),
-                      )
-                    : null,
-                child: Text(side),
+                onPressed: choices[i].$3,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  backgroundColor: choices[i].$2 ? AppColors.primarySoft : null,
+                  foregroundColor: choices[i].$2 ? AppColors.primary : null,
+                  side: choices[i].$2
+                      ? const BorderSide(color: AppColors.primary, width: 1.5)
+                      : null,
+                ),
+                child: Text(choices[i].$1),
               ),
             ),
           ),
         ],
       ],
     );
+  }
+
+  Widget _weddingSideButtons() {
+    final picked = _parseSides();
+    return _choiceRow([
+      for (final side in ReceptionDefaults.weddingSides)
+        (side, picked.contains(side), () => _toggleWeddingSide(side)),
+    ]);
   }
 
   Future<void> _pickDate() async {
@@ -151,6 +163,9 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       sides: sides.isEmpty ? const [ReceptionDefaults.noSide] : sides,
       operatorName: operatorName,
       startedAt: DateTime.now(),
+      mealTicketEnabled: _mealEnabled!,
+      defaultMealTickets: _defaultMeals,
+      methodEnabled: _methodEnabled!,
     );
     await ref.read(repositoryProvider).insertReception(reception);
     await ref
@@ -211,7 +226,8 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                       : '구분',
               // 입력칸을 누르기 전에도 예시가 보이도록 제목을 위에 고정한다
               floatingLabelBehavior: FloatingLabelBehavior.always,
-              hintText: _isFuneral ? '예: 홍길동, 홍길순' : '예: 신랑측, 신부측',
+              hintText:
+                  _isFuneral ? '예: 홍길동, 홍길순' : '예: 신랑측, 신부측 / 상주 이름',
               helperText: _isFuneral
                   ? '여러 명이면 쉼표(,)로 나눠 적어 주세요'
                   : '쉼표(,)로 나눠 적어요. 비워 두면 구분 없이 받아요',
@@ -226,11 +242,38 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
               hintText: '접수를 맡은 분 이름',
             ),
           ),
+          const SizedBox(height: 20),
+          const FieldLabel('식권'),
+          _choiceRow([
+            ('식권 기록 안 함', _mealEnabled == false,
+                () => setState(() => _mealEnabled = false)),
+            ('식권도 기록', _mealEnabled == true,
+                () => setState(() => _mealEnabled = true)),
+          ]),
+          if (_mealEnabled == true) ...[
+            const SizedBox(height: 12),
+            const FieldLabel('기본 매수'),
+            _choiceRow([
+              for (final count in const [1, 2])
+                ('$count매', _defaultMeals == count,
+                    () => setState(() => _defaultMeals = count)),
+            ]),
+          ],
+          const SizedBox(height: 20),
+          const FieldLabel('결제 방법'),
+          _choiceRow([
+            ('현금만', _methodEnabled == false,
+                () => setState(() => _methodEnabled = false)),
+            ('계좌이체도 구분', _methodEnabled == true,
+                () => setState(() => _methodEnabled = true)),
+          ]),
           const SizedBox(height: 28),
           SizedBox(
             height: AppSpacing.receptionButton,
             child: FilledButton(
-              onPressed: _saving ? null : _start,
+              onPressed: _saving || _mealEnabled == null || _methodEnabled == null
+                  ? null
+                  : _start,
               style: FilledButton.styleFrom(
                   textStyle: AppText.receptionButton),
               child: const Text('접수 시작'),

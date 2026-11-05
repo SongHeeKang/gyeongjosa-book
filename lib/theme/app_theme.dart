@@ -61,6 +61,8 @@ class AppText {
       fontFamily: fontFamily, fontSize: 18, fontWeight: FontWeight.w700);
   static const receptionButton = TextStyle(
       fontFamily: fontFamily, fontSize: 17, fontWeight: FontWeight.w700);
+  static const receptionChip = TextStyle(
+      fontFamily: fontFamily, fontSize: 15, fontWeight: FontWeight.w700);
   static const receptionName = TextStyle(
       fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.text);
   static const warning = TextStyle(

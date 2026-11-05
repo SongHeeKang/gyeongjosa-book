@@ -6,6 +6,7 @@ import '../models/reception.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/settings_button.dart';
 import 'event_detail_screen.dart';
 import 'event_form_screen.dart';
 import 'reception_screen.dart';
@@ -37,8 +38,9 @@ class MyEventsScreen extends ConsumerWidget {
               onPressed: () => _create(context),
               child: const Text('내 행사 만들기'),
             ),
-            const SizedBox(width: 8),
           ],
+          const SettingsButton(),
+          SettingsButton.trailingGap,
         ],
       ),
       body: AsyncBody(

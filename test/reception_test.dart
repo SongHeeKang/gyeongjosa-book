@@ -43,6 +43,77 @@ void main() {
   group('요약 메시지', () {
     setUpAll(() => initializeDateFormatting('ko_KR'));
 
+    test('식권 기록을 끄면 식권이 없고, 현금만이면 합계도 나누지 않는다', () {
+      final package = ReceptionPackage(
+        Reception(
+          id: 'r9',
+          title: '돌잔치',
+          eventType: '돌',
+          date: DateTime(2026, 11, 1),
+          sides: const ['전체'],
+          operatorName: '',
+          startedAt: DateTime(2026, 11, 1),
+          mealTicketEnabled: false,
+          methodEnabled: false,
+        ),
+        [
+          ReceptionEntry(
+            id: 'e',
+            receptionId: 'r9',
+            name: '김철수',
+            amount: 50000,
+            side: '전체',
+            mealTickets: 0,
+            createdAt: DateTime(2026, 11, 1),
+          ),
+        ],
+      );
+      final text = ReceptionFileService.summaryMessage(package);
+      expect(text, isNot(contains('식권')));
+      expect(text, isNot(contains('계좌이체')));
+      expect(package.entries.single.recordMemo, isNot(contains('식권')));
+
+      // 파일로 보내고 받아도 설정이 유지된다
+      final parsed = ReceptionPackage.parse(package.toJsonString());
+      expect(parsed.reception.mealTicketEnabled, isFalse);
+      expect(parsed.reception.methodEnabled, isFalse);
+    });
+
+    test('계좌이체를 구분하면 요약에 현금 · 계좌 합계가 나온다', () {
+      final package = ReceptionPackage(
+        Reception(
+          id: 'r9',
+          title: '돌잔치',
+          eventType: '돌',
+          date: DateTime(2026, 11, 1),
+          sides: const ['전체'],
+          operatorName: '',
+          startedAt: DateTime(2026, 11, 1),
+        ),
+        [
+          ReceptionEntry(
+            id: 'a',
+            receptionId: 'r9',
+            name: '김철수',
+            amount: 50000,
+            side: '전체',
+            createdAt: DateTime(2026, 11, 1),
+          ),
+          ReceptionEntry(
+            id: 'b',
+            receptionId: 'r9',
+            name: '이영희',
+            amount: 100000,
+            side: '전체',
+            method: '계좌',
+            createdAt: DateTime(2026, 11, 1),
+          ),
+        ],
+      );
+      expect(ReceptionFileService.summaryMessage(package),
+          contains('현금 50,000원 · 계좌이체 100,000원'));
+    });
+
     test('총액 · 구분별 소계 · 식권 · 앱 링크가 있고 전체 명단은 없다', () {
       final text = ReceptionFileService.summaryMessage(ReceptionPackage(
         reception(),

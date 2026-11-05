@@ -41,6 +41,10 @@ class FakeRepository extends Repository {
 
   List<Event> pending = [];
   List<Event> upcoming = [];
+
+  @override
+  Future<bool> hasAnyData() async => true;
+
   int people = 0;
   int mine = 0;
   final inserted = <GiftRecord>[];
@@ -140,7 +144,7 @@ void main() {
       await dir.delete(recursive: true);
     });
 
-    test('v3 데이터는 v4로 올려도 그대로 남는다', () async {
+    test('v3 데이터는 최신 버전으로 올려도 그대로 남는다', () async {
       final path = p.join(dir.path, 'old.db');
       final old = await databaseFactory.openDatabase(path,
           options: OpenDatabaseOptions(
@@ -152,10 +156,21 @@ void main() {
                   "CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL DEFAULT '기타', title TEXT NOT NULL, date TEXT NOT NULL, is_mine INTEGER NOT NULL DEFAULT 0, place TEXT, memo TEXT, notify INTEGER NOT NULL DEFAULT 1)");
               await db.execute(
                   "CREATE TABLE records (id INTEGER PRIMARY KEY AUTOINCREMENT, person_id INTEGER NOT NULL, event_id INTEGER, direction TEXT NOT NULL, amount INTEGER NOT NULL, method TEXT NOT NULL DEFAULT '현금', date TEXT NOT NULL, memo TEXT)");
+              await db.execute(
+                  "CREATE TABLE receptions (id TEXT PRIMARY KEY, title TEXT NOT NULL, event_type TEXT NOT NULL DEFAULT '기타', date TEXT NOT NULL, sides TEXT NOT NULL, operator_name TEXT NOT NULL DEFAULT '', started_at TEXT NOT NULL, finished_at TEXT, imported INTEGER NOT NULL DEFAULT 0)");
+              await db.execute(
+                  "CREATE TABLE reception_entries (id TEXT PRIMARY KEY, reception_id TEXT NOT NULL, name TEXT NOT NULL, amount INTEGER NOT NULL, side TEXT NOT NULL DEFAULT '', method TEXT NOT NULL DEFAULT '현금', meal_tickets INTEGER NOT NULL DEFAULT 1, memo TEXT, created_at TEXT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0)");
               await db.insert('events', {
                 'title': '옛 일정',
                 'date': '2026-01-01',
                 'is_mine': 0,
+              });
+              await db.insert('receptions', {
+                'id': 'old',
+                'title': '옛 접수',
+                'date': '2026-01-01',
+                'sides': '["신랑측"]',
+                'started_at': '2026-01-01T09:00:00',
               });
             },
           ));
@@ -167,6 +182,12 @@ void main() {
       expect(pending.single.title, '옛 일정');
       expect(pending.single.personId, isNull);
       expect(pending.single.pendingHidden, isFalse);
+      // 예전 접수는 전처럼 식권과 결제 방법이 모두 켜진 채로 남는다
+      final oldReception = (await migrated.receptionSummaries()).single.reception;
+      expect(oldReception.title, '옛 접수');
+      expect(oldReception.mealTicketEnabled, isTrue);
+      expect(oldReception.defaultMealTickets, 1);
+      expect(oldReception.methodEnabled, isTrue);
       await helper.close();
     });
 
@@ -291,6 +312,18 @@ void main() {
       await tester.tap(find.text('보낸 마음'));
       await tester.pumpAndSettle();
       expect(find.byType(StatsScreen), findsNothing);
+    });
+
+    testWidgets('모든 탭 오른쪽 위 같은 자리에 설정 아이콘이 있다', (tester) async {
+      await pump(tester, const MainShell());
+      final position = tester.getCenter(find.byTooltip('설정'));
+      for (final tab in ['사람', '내 행사', '통계']) {
+        await tester.tap(find.descendant(
+            of: find.byType(AppBottomNav), matching: find.text(tab)));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('설정'), findsOneWidget, reason: tab);
+        expect(tester.getCenter(find.byTooltip('설정')), position, reason: tab);
+      }
     });
 
     testWidgets('기록하기를 누르면 선택지 4개가 보인다', (tester) async {

@@ -7,6 +7,7 @@ import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/pending_amount_section.dart';
+import '../widgets/settings_button.dart';
 import 'all_records_screen.dart';
 import 'all_schedules_screen.dart';
 import 'event_detail_screen.dart';
@@ -24,13 +25,8 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('경조사 장부'),
         actions: [
-          IconButton(
-            tooltip: '설정',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
-          ),
-          const SizedBox(width: AppSpacing.page - 12),
+          const SettingsButton(),
+          SettingsButton.trailingGap,
         ],
       ),
       body: AsyncBody(

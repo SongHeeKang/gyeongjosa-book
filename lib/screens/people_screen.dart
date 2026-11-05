@@ -10,6 +10,7 @@ import '../services/pro_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/person_form_sheet.dart';
+import '../widgets/settings_button.dart';
 import 'person_detail_screen.dart';
 
 class PeopleScreen extends ConsumerStatefulWidget {
@@ -64,7 +65,8 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
               ),
             ),
           TextButton(onPressed: _add, child: const Text('사람 추가')),
-          const SizedBox(width: 8),
+          const SettingsButton(),
+          SettingsButton.trailingGap,
         ],
       ),
       body: Column(

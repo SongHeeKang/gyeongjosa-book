@@ -14,6 +14,13 @@ class Reception {
   final DateTime startedAt;
   final DateTime? finishedAt;
 
+  /// 식권을 기록하는지, 기록한다면 기본 몇 매인지
+  final bool mealTicketEnabled;
+  final int defaultMealTickets;
+
+  /// 현금과 계좌이체를 구분하는지
+  final bool methodEnabled;
+
   /// 내 장부로 모두 옮겼는지
   final bool imported;
 
@@ -26,8 +33,27 @@ class Reception {
     required this.operatorName,
     required this.startedAt,
     this.finishedAt,
+    this.mealTicketEnabled = true,
+    this.defaultMealTickets = 1,
+    this.methodEnabled = true,
     this.imported = false,
   });
+
+  /// 접수 중에 식권 기록을 켜거나 끌 때 쓴다.
+  Reception copyWith({bool? mealTicketEnabled}) => Reception(
+        id: id,
+        title: title,
+        eventType: eventType,
+        date: date,
+        sides: sides,
+        operatorName: operatorName,
+        startedAt: startedAt,
+        finishedAt: finishedAt,
+        mealTicketEnabled: mealTicketEnabled ?? this.mealTicketEnabled,
+        defaultMealTickets: defaultMealTickets,
+        methodEnabled: methodEnabled,
+        imported: imported,
+      );
 
   bool get isFinished => finishedAt != null;
 
@@ -41,6 +67,9 @@ class Reception {
         startedAt: DateTime.tryParse(m['started_at'] as String? ?? '') ??
             DateTime.now(),
         finishedAt: DateTime.tryParse(m['finished_at'] as String? ?? ''),
+        mealTicketEnabled: (m['meal_ticket_enabled'] as int? ?? 1) == 1,
+        defaultMealTickets: m['default_meal_tickets'] as int? ?? 1,
+        methodEnabled: (m['method_enabled'] as int? ?? 1) == 1,
         imported: (m['imported'] as int? ?? 0) == 1,
       );
 
@@ -53,6 +82,9 @@ class Reception {
         'operator_name': operatorName,
         'started_at': startedAt.toIso8601String(),
         'finished_at': finishedAt?.toIso8601String(),
+        'meal_ticket_enabled': mealTicketEnabled ? 1 : 0,
+        'default_meal_tickets': defaultMealTickets,
+        'method_enabled': methodEnabled ? 1 : 0,
         'imported': imported ? 1 : 0,
       };
 
@@ -144,7 +176,7 @@ class ReceptionEntry {
   /// 내 장부로 옮길 때 내역 메모에 남길 내용 (구분, 식권, 메모)
   String get recordMemo => [
         if (side.isNotEmpty && side != ReceptionDefaults.noSide) side,
-        if (mealTickets != 1) '식권 $mealTickets매',
+        if (mealTickets > 1) '식권 $mealTickets매',
         if ((memo ?? '').isNotEmpty) memo!,
       ].join(' · ');
 }
@@ -183,6 +215,14 @@ class ReceptionPackage {
 
   ReceptionTotals totalsFor(String side) =>
       ReceptionTotals.of(entries.where((e) => e.side == side));
+
+  /// 현금 · 계좌 합계 (결제 방법을 구분한 접수에서 보여준다)
+  ReceptionTotals totalsForMethod(String method) =>
+      ReceptionTotals.of(entries.where((e) => e.method == method));
+
+  /// 식권을 표시할지. 접수 중에 기록을 껐어도 이미 적은 식권은 보여준다.
+  bool get showsMealTickets =>
+      reception.mealTicketEnabled || totals.mealTickets > 0;
 
   /// 저장된 구분 + 항목에만 있는 구분 (수정 등으로 달라졌을 때도 빠지지 않게)
   List<String> get sides => {
@@ -243,6 +283,11 @@ class ReceptionPackage {
       operatorName: r['operator_name'] is String ? r['operator_name'] : '',
       startedAt: DateTime.tryParse('${r['started_at']}') ?? date,
       finishedAt: DateTime.tryParse('${r['finished_at']}'),
+      // 이 값들이 없는 예전 파일은 전처럼 식권과 결제 방법을 모두 보여준다.
+      mealTicketEnabled: r['meal_ticket_enabled'] != 0,
+      defaultMealTickets:
+          r['default_meal_tickets'] is int ? r['default_meal_tickets'] : 1,
+      methodEnabled: r['method_enabled'] != 0,
     );
 
     final entries = <ReceptionEntry>[];

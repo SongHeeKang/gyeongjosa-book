@@ -5,6 +5,7 @@ import 'package:gyeongjosa/data/database_helper.dart';
 import 'package:gyeongjosa/data/providers.dart';
 import 'package:gyeongjosa/data/repository.dart';
 import 'package:gyeongjosa/models/event.dart';
+import 'package:gyeongjosa/models/constants.dart';
 import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
@@ -14,6 +15,7 @@ import 'package:gyeongjosa/services/limits.dart';
 import 'package:gyeongjosa/services/reception_import.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
+import 'package:gyeongjosa/widgets/amount_input.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,7 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class FakeRepository extends Repository {
   FakeRepository() : super(DatabaseHelper.forTest('unused.db'));
 
-  final reception = Reception(
+  Reception reception = Reception(
     id: 'r1',
     title: '홍길동 결혼식',
     eventType: '결혼',
@@ -31,6 +33,10 @@ class FakeRepository extends Repository {
     startedAt: DateTime(2026, 11, 1, 9),
   );
   final entries = <ReceptionEntry>[];
+
+  @override
+  Future<void> setReceptionMealTicketEnabled(String id, bool enabled) async =>
+      reception = reception.copyWith(mealTicketEnabled: enabled);
 
   @override
   Future<ReceptionPackage?> getReceptionPackage(String id) async =>
@@ -112,13 +118,31 @@ class ImportFakeRepository extends Repository {
 void main() {
   setUpAll(() => initializeDateFormatting('ko_KR'));
 
-  Future<FakeRepository> open(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+  Future<FakeRepository> open(
+    WidgetTester tester, {
+    bool mealTicketEnabled = true,
+    int defaultMealTickets = 1,
+    bool methodEnabled = true,
+    double width = 1080,
+  }) async {
+    tester.view.physicalSize = Size(width, 2400);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final repo = FakeRepository();
+    repo.reception = Reception(
+      id: 'r1',
+      title: '홍길동 결혼식',
+      eventType: '결혼',
+      date: DateTime(2026, 11, 1),
+      sides: const ['신랑측', '신부측'],
+      operatorName: '김민수',
+      startedAt: DateTime(2026, 11, 1, 9),
+      mealTicketEnabled: mealTicketEnabled,
+      defaultMealTickets: defaultMealTickets,
+      methodEnabled: methodEnabled,
+    );
     await tester.pumpWidget(ProviderScope(
       overrides: [
         prefsProvider.overrideWithValue(prefs),
@@ -250,39 +274,135 @@ void main() {
     expect(find.text('손님0'), findsOneWidget);
   });
 
-  testWidgets('직접 입력 버튼 없이 금액칸에 적고 저장한다', (tester) async {
-    final repo = await open(tester);
-    expect(find.text('직접 입력'), findsNothing);
-    final amount = find.widgetWithText(TextField, '금액 직접 입력');
+  group('금액칸', () {
+    Finder amountField() => find.widgetWithText(TextField, '금액');
 
-    // 이름이 없으면 금액은 남겨 두고 이름부터 받는다
-    await tester.enterText(amount, '70000');
-    await tester.tap(find.text('저장'));
-    await tester.pumpAndSettle();
-    expect(repo.entries, isEmpty);
-    expect(find.text('이름을 먼저 입력해 주세요'), findsOneWidget);
-    expect(tester.widget<TextField>(amount).controller!.text, '70,000');
+    testWidgets('만원 단위로 적고 키보드 완료로 저장하고, 커서는 이름칸으로', (tester) async {
+      final repo = await open(tester);
+      expect(find.text('직접 입력'), findsNothing);
 
-    await tester.enterText(find.byType(TextField).first, '김철수');
-    await tester.tap(find.text('저장'));
-    await tester.pumpAndSettle();
-    expect(repo.entries.single.amount, 70000);
-    expect(tester.widget<TextField>(amount).controller!.text, isEmpty);
-    final name = tester.widget<TextField>(find.byType(TextField).first);
-    expect(name.focusNode!.hasFocus, isTrue);
+      // 이름이 없으면 금액은 남겨 두고 이름부터 받는다
+      await tester.enterText(amountField(), '7');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(repo.entries, isEmpty);
+      expect(find.text('이름을 먼저 입력해 주세요'), findsOneWidget);
+      expect(tester.widget<TextField>(amountField()).controller!.text, '7');
 
-    // 키보드의 완료로도 저장된다
-    await tester.enterText(find.byType(TextField).first, '이영희');
-    await tester.enterText(amount, '30000');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    expect(repo.entries.length, 2);
-    expect(repo.entries.last.amount, 30000);
+      await tester.enterText(find.byType(TextField).first, '김철수');
+      await tester.testTextInput.receiveAction(TextInputAction.next);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(amountField()).focusNode!.hasFocus, isTrue);
+
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(repo.entries.single.amount, 70000);
+      expect(tester.widget<TextField>(amountField()).controller!.text, isEmpty);
+      final name = tester.widget<TextField>(find.byType(TextField).first);
+      expect(name.focusNode!.hasFocus, isTrue);
+    });
+
+    testWidgets('3.5는 35,000원, 70000처럼 큰 수는 저장하지 않고 안내한다', (tester) async {
+      final repo = await open(tester);
+      await tester.enterText(find.byType(TextField).first, '이영희');
+      await tester.enterText(amountField(), '3.5');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(repo.entries.single.amount, 35000);
+
+      await tester.enterText(find.byType(TextField).first, '박민수');
+      await tester.enterText(amountField(), '70000');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(repo.entries.length, 1);
+      expect(find.text('금액은 만원 단위로 입력해요. 7 → 70,000원'), findsOneWidget);
+    });
+
+    test('만원 환산', () {
+      expect(parseManWon('7'), 70000);
+      expect(parseManWon('3.5'), 35000);
+      expect(parseManWon('.5'), 5000);
+      expect(parseManWon('1.2345'), 12345);
+      expect(parseManWon(''), 0);
+    });
+  });
+
+  group('식권 · 계좌 칩', () {
+    testWidgets('칩을 고르면 이번 손님만 적용되고 저장 뒤 기본값으로 돌아간다', (tester) async {
+      final repo = await open(tester);
+      await tester.enterText(find.byType(TextField).first, '김철수');
+      await tester.tap(find.widgetWithText(OutlinedButton, '3'));
+      await tester.tap(find.widgetWithText(OutlinedButton, '계좌'));
+      await tester.pump();
+      await tester.tap(find.text('5만'));
+      await tester.pumpAndSettle();
+      expect(repo.entries.single.mealTickets, 3);
+      expect(repo.entries.single.method, ReceptionDefaults.transfer);
+      expect(find.textContaining('김철수 · 5만 · 식권 3 · 계좌'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).first, '이영희');
+      await tester.tap(find.text('10만'));
+      await tester.pumpAndSettle();
+      expect(repo.entries.last.mealTickets, 1);
+      expect(repo.entries.last.method, ReceptionDefaults.cash);
+    });
+
+    testWidgets('4+는 누를 때마다 한 장씩 늘어난다', (tester) async {
+      final repo = await open(tester);
+      await tester.enterText(find.byType(TextField).first, '김철수');
+      await tester.tap(find.widgetWithText(OutlinedButton, '4+'));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(OutlinedButton, '4+'));
+      await tester.pump();
+      await tester.tap(find.text('5만'));
+      await tester.pumpAndSettle();
+      expect(repo.entries.single.mealTickets, 5);
+    });
+
+    testWidgets('식권 기록과 계좌 구분을 끄면 칩이 없고 식권은 0으로 저장된다', (tester) async {
+      final repo = await open(tester,
+          mealTicketEnabled: false, methodEnabled: false);
+      expect(find.text('식권'), findsNothing);
+      expect(find.widgetWithText(OutlinedButton, '4+'), findsNothing);
+      expect(find.widgetWithText(OutlinedButton, '계좌'), findsNothing);
+
+      await tester.enterText(find.byType(TextField).first, '김철수');
+      await tester.tap(find.text('5만'));
+      await tester.pumpAndSettle();
+      expect(repo.entries.single.mealTickets, 0);
+      expect(find.textContaining('식권 0'), findsNothing);
+      expect(find.textContaining('김철수 · 5만 · '), findsWidgets);
+    });
+
+    testWidgets('기본 매수 2면 2가 선택되어 저장되고, 접수 중에 끌 수 있다', (tester) async {
+      final repo = await open(tester, defaultMealTickets: 2);
+      await tester.enterText(find.byType(TextField).first, '김철수');
+      await tester.tap(find.text('5만'));
+      await tester.pumpAndSettle();
+      expect(repo.entries.single.mealTickets, 2);
+
+      await tester.tap(find.text('식권 끄기'));
+      await tester.pumpAndSettle();
+      expect(repo.reception.mealTicketEnabled, isFalse);
+      expect(find.widgetWithText(OutlinedButton, '4+'), findsNothing);
+      expect(find.text('식권 켜기'), findsOneWidget);
+      // 이미 저장한 항목은 그대로
+      expect(repo.entries.single.mealTickets, 2);
+    });
+
+    testWidgets('좁은 폰에서는 칩이 윗줄로 올라가고 넘치지 않는다', (tester) async {
+      await open(tester, width: 360 * 2.625);
+      expect(tester.takeException(), isNull);
+      expect(find.widgetWithText(OutlinedButton, '4+'), findsOneWidget);
+      expect(tester.getTopLeft(find.widgetWithText(OutlinedButton, '4+')).dy,
+          lessThan(tester.getTopLeft(find.widgetWithText(TextField, '금액')).dy));
+    });
   });
 
   group('접수 시작 구분', () {
     Future<void> openForm(WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1080, 2400);
+      // 접수 시작 버튼까지 한 화면에 보이도록 세로를 넉넉하게
+      tester.view.physicalSize = const Size(1080, 4000);
       tester.view.devicePixelRatio = 2.625;
       addTearDown(tester.view.reset);
       SharedPreferences.setMockInitialValues({});
@@ -302,7 +422,7 @@ void main() {
     testWidgets('결혼: 입력칸은 비어 있고, 버튼과 직접 입력을 함께 쓴다', (tester) async {
       await openForm(tester);
       expect(sidesField(tester).controller!.text, isEmpty);
-      expect(sidesField(tester).decoration!.hintText, '예: 신랑측, 신부측');
+      expect(sidesField(tester).decoration!.hintText, '예: 신랑측, 신부측 / 상주 이름');
 
       await tester.tap(find.widgetWithText(OutlinedButton, '신부측'));
       await tester.pump();
@@ -315,6 +435,25 @@ void main() {
       await tester.tap(find.widgetWithText(OutlinedButton, '신랑측'));
       await tester.pump();
       expect(sidesField(tester).controller!.text, '양가 어른');
+    });
+
+    testWidgets('식권과 결제 방법을 모두 골라야 접수 시작이 눌린다', (tester) async {
+      await openForm(tester);
+      FilledButton start() => tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, '접수 시작'));
+      expect(start().onPressed, isNull);
+      expect(find.text('1매'), findsNothing);
+
+      await tester.ensureVisible(find.text('식권도 기록'));
+      await tester.tap(find.text('식권도 기록'));
+      await tester.pump();
+      expect(find.text('2매'), findsOneWidget);
+      expect(start().onPressed, isNull);
+
+      await tester.ensureVisible(find.text('현금만'));
+      await tester.tap(find.text('현금만'));
+      await tester.pump();
+      expect(start().onPressed, isNotNull);
     });
 
     testWidgets('다른 종류: 버튼이 없고, 고른 신랑측 · 신부측은 빠진다', (tester) async {

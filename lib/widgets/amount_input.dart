@@ -23,6 +23,26 @@ class ThousandsFormatter extends TextInputFormatter {
 int parseAmount(String text) =>
     int.tryParse(text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 
+/// 만원 단위 입력: 숫자와 소수점 하나만 받는다.
+class ManWonFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    return RegExp(r'^\d*\.?\d{0,4}$').hasMatch(newValue.text)
+        ? newValue
+        : oldValue;
+  }
+}
+
+/// 만원 단위 입력을 원으로 바꾼다 (7 → 70,000, 3.5 → 35,000). 비었거나 0이면 0.
+int parseManWon(String text) {
+  final parts = text.split('.');
+  final whole = int.tryParse(parts.first.isEmpty ? '0' : parts.first);
+  if (whole == null) return 0;
+  final fraction = parts.length > 1 ? parts[1].padRight(4, '0') : '0000';
+  return whole * 10000 + (int.tryParse(fraction) ?? 0);
+}
+
 /// 금액 빠른 버튼 + 직접 입력
 class AmountInput extends StatelessWidget {
   const AmountInput({

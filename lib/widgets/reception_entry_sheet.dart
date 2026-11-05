@@ -11,9 +11,15 @@ import 'common.dart';
 
 /// 접수 항목 한 줄: 이름 / 구분 · 저장 시각 · 식권 · 방법 · 메모 / 금액
 class ReceptionEntryTile extends StatelessWidget {
-  const ReceptionEntryTile(
-      {super.key, required this.entry, required this.onTap, this.padding});
+  const ReceptionEntryTile({
+    super.key,
+    required this.entry,
+    required this.reception,
+    required this.onTap,
+    this.padding,
+  });
   final ReceptionEntry entry;
+  final Reception reception;
   final VoidCallback onTap;
   final EdgeInsets? padding;
 
@@ -22,8 +28,10 @@ class ReceptionEntryTile extends StatelessWidget {
     final sub = [
       if (entry.side != ReceptionDefaults.noSide) entry.side,
       formatTime(entry.createdAt),
-      '식권 ${entry.mealTickets}',
-      ReceptionDefaults.methodLabel(entry.method),
+      if (reception.mealTicketEnabled || entry.mealTickets > 0)
+        '식권 ${entry.mealTickets}',
+      if (reception.methodEnabled || entry.method == ReceptionDefaults.transfer)
+        ReceptionDefaults.methodLabel(entry.method),
       if ((entry.memo ?? '').isNotEmpty) entry.memo!,
     ].join(' · ');
     return InkWell(
@@ -335,8 +343,9 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                       for (final e in results)
                         ReceptionEntryTile(
                           entry: e,
+                          reception: package!.reception,
                           onTap: () => showReceptionEntryForm(context,
-                              entry: e, sides: package?.sides ?? const []),
+                              entry: e, sides: package.sides),
                         ),
                       const SizedBox(height: 20),
                     ],

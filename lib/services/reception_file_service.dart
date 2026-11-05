@@ -41,7 +41,10 @@ class ReceptionFileService {
       for (final side in package.sides)
         if (side != ReceptionDefaults.noSide)
           '- $side ${package.totalsFor(side).count}명 · ${formatWon(package.totalsFor(side).amount)}',
-      '식권 ${totals.mealTickets}장',
+      if (package.showsMealTickets) '식권 ${totals.mealTickets}장',
+      if (r.methodEnabled)
+        '현금 ${formatWon(package.totalsForMethod(ReceptionDefaults.cash).amount)} · '
+            '계좌이체 ${formatWon(package.totalsForMethod(ReceptionDefaults.transfer).amount)}',
       '',
       "전체 명단은 '경조사 장부' 앱에서 장부 파일을 열어 확인하세요.",
       '앱 받기: ${AppConfig.playStoreUrl}',

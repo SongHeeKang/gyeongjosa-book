@@ -23,7 +23,7 @@ class DatabaseHelper {
   factory DatabaseHelper.separateConnection() => DatabaseHelper._(null, false);
 
   static const dbFileName = 'gyeongjosa.db';
-  static const _dbVersion = 4;
+  static const _dbVersion = 5;
 
   final String? _pathOverride;
   final bool _singleInstance;
@@ -160,6 +160,15 @@ class DatabaseHelper {
           'ALTER TABLE events ADD COLUMN person_id INTEGER REFERENCES people(id) ON DELETE SET NULL');
       await db.execute(
           'ALTER TABLE events ADD COLUMN pending_hidden INTEGER NOT NULL DEFAULT 0');
+    },
+    // v5: 접수 장부별 식권 기록 · 기본 매수 · 결제 방법 구분 (예전 접수는 전처럼 모두 켜짐)
+    5: (db) async {
+      await db.execute(
+          'ALTER TABLE receptions ADD COLUMN meal_ticket_enabled INTEGER NOT NULL DEFAULT 1');
+      await db.execute(
+          'ALTER TABLE receptions ADD COLUMN default_meal_tickets INTEGER NOT NULL DEFAULT 1');
+      await db.execute(
+          'ALTER TABLE receptions ADD COLUMN method_enabled INTEGER NOT NULL DEFAULT 1');
     },
   };
 

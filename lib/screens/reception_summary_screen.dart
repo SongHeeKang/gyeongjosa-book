@@ -137,12 +137,28 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                         style: AppText.summaryAmount
                             .copyWith(color: AppColors.primary)),
                     const SizedBox(height: 2),
-                    Text('식권 ${totals.mealTickets}매 · 봉투 금액과 맞춰 보세요',
+                    Text(
+                        package.showsMealTickets
+                            ? '식권 ${totals.mealTickets}매 · 봉투 금액과 맞춰 보세요'
+                            : '봉투 금액과 맞춰 보세요',
                         style: AppText.sub),
+                    if (r.methodEnabled) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                          [
+                            for (final method in const [
+                              ReceptionDefaults.cash,
+                              ReceptionDefaults.transfer,
+                            ])
+                              '${ReceptionDefaults.methodLabel(method)} ${formatWon(package.totalsForMethod(method).amount)}',
+                          ].join(' · '),
+                          style: AppText.sub),
+                    ],
                     if (package.sides.length > 1) ...[
                       const SizedBox(height: 12),
                       for (final side in package.sides)
-                        _sideRow(side, package.totalsFor(side)),
+                        _sideRow(side, package.totalsFor(side),
+                            showMeals: package.showsMealTickets),
                     ],
                     const SizedBox(height: 20),
                     SizedBox(
@@ -188,6 +204,7 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                 for (final e in package.entries)
                   ReceptionEntryTile(
                     entry: e,
+                    reception: r,
                     onTap: () => showReceptionEntryForm(context,
                         entry: e, sides: package.sides),
                   ),
@@ -199,7 +216,8 @@ class ReceptionSummaryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _sideRow(String side, ReceptionTotals t) => Padding(
+  Widget _sideRow(String side, ReceptionTotals t, {required bool showMeals}) =>
+      Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
@@ -207,7 +225,10 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                 child: Text(
                     side == ReceptionDefaults.noSide ? '구분 없음' : side,
                     style: AppText.listName)),
-            Text('${t.count}명 · 식권 ${t.mealTickets}매 · ',
+            Text(
+                showMeals
+                    ? '${t.count}명 · 식권 ${t.mealTickets}매 · '
+                    : '${t.count}명 · ',
                 style: AppText.sub),
             Text(formatWon(t.amount), style: AppText.listAmount),
           ],

@@ -11,6 +11,7 @@ import '../services/pro_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
+import '../widgets/settings_button.dart';
 
 /// 차트 색: 보냄 = 회색, 받음 = 포인트색
 const _sentBar = AppColors.chartSent;
@@ -34,7 +35,10 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     final isPro = ref.watch(isProProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('통계')),
+      appBar: AppBar(
+        title: const Text('통계'),
+        actions: const [SettingsButton(), SettingsButton.trailingGap],
+      ),
       body: ListView(
         // 맨 아래 내용이 떠 있는 [기록하기] 버튼에 가리지 않게
         padding: const EdgeInsets.only(bottom: 96),

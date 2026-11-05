@@ -34,9 +34,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   bool _saving = false;
 
   bool get _isFuneral => _type == '장례';
-
-  static String _defaultSidesFor(String type) =>
-      type == '결혼' ? ReceptionDefaults.weddingSides.join(', ') : '';
+  bool get _isWedding => _type == '결혼';
 
   @override
   void initState() {
@@ -47,7 +45,6 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       _date = event.date;
       if (EventTypes.all.contains(event.type)) _type = event.type;
     }
-    _sides.text = _defaultSidesFor(_type);
     _operator.text =
         ref.read(prefsProvider).getString(PrefKeys.receptionOperator) ?? '';
   }
@@ -62,12 +59,54 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
 
   void _selectType(String type) {
     setState(() {
-      // 직접 고쳐 쓴 구분은 그대로 두고, 기본값일 때만 종류에 맞춰 바꾼다.
-      if (_sides.text.trim() == _defaultSidesFor(_type)) {
-        _sides.text = _defaultSidesFor(type);
+      // 결혼을 벗어나면 신랑측 · 신부측만 빼고, 직접 적은 구분은 그대로 둔다.
+      if (_isWedding && type != '결혼') {
+        _sides.text = _parseSides()
+            .where((s) => !ReceptionDefaults.weddingSides.contains(s))
+            .join(', ');
       }
       _type = type;
     });
+  }
+
+  /// 신랑측 · 신부측 버튼. 입력칸의 내용을 바꾸므로 직접 적은 구분과 함께 쓸 수 있다.
+  void _toggleWeddingSide(String side) {
+    final picked = _parseSides();
+    if (!picked.remove(side)) picked.add(side);
+    const presets = ReceptionDefaults.weddingSides;
+    setState(() => _sides.text = [
+          ...presets.where(picked.contains),
+          ...picked.where((s) => !presets.contains(s)),
+        ].join(', '));
+  }
+
+  Widget _weddingSideButtons() {
+    final picked = _parseSides();
+    return Row(
+      children: [
+        for (final side in ReceptionDefaults.weddingSides) ...[
+          if (side != ReceptionDefaults.weddingSides.first)
+            const SizedBox(width: 8),
+          Expanded(
+            child: SizedBox(
+              height: AppSpacing.receptionButton,
+              child: OutlinedButton(
+                onPressed: () => _toggleWeddingSide(side),
+                style: picked.contains(side)
+                    ? OutlinedButton.styleFrom(
+                        backgroundColor: AppColors.primarySoft,
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(
+                            color: AppColors.primary, width: 1.5),
+                      )
+                    : null,
+                child: Text(side),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   Future<void> _pickDate() async {
@@ -155,11 +194,23 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
             label: Text(formatDate(_date)),
           ),
           const SizedBox(height: 20),
+          if (_isWedding) ...[
+            const FieldLabel('구분'),
+            _weddingSideButtons(),
+            const SizedBox(height: 12),
+          ],
           TextField(
             controller: _sides,
             style: AppText.receptionName,
+            onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              labelText: _isFuneral ? '상주 이름' : '구분',
+              labelText: _isFuneral
+                  ? '상주 이름'
+                  : _isWedding
+                      ? '구분 직접 입력'
+                      : '구분',
+              // 입력칸을 누르기 전에도 예시가 보이도록 제목을 위에 고정한다
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               hintText: _isFuneral ? '예: 홍길동, 홍길순' : '예: 신랑측, 신부측',
               helperText: _isFuneral
                   ? '여러 명이면 쉼표(,)로 나눠 적어 주세요'

@@ -15,7 +15,7 @@ import '../widgets/common.dart';
 import '../widgets/reception_entry_sheet.dart';
 import 'reception_summary_screen.dart';
 
-/// 접수 화면: 이름 입력 → 금액 버튼 탭(바로 저장) → 다음 손님.
+/// 접수 화면: 이름 입력 → 금액 버튼 탭(바로 저장) 또는 금액 입력 후 저장 → 다음 손님.
 /// 인터넷 없이 동작하고, 이 화면에서는 결제 화면을 절대 띄우지 않는다.
 class ReceptionScreen extends ConsumerStatefulWidget {
   const ReceptionScreen({super.key, required this.receptionId});
@@ -29,6 +29,8 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
   final _name = TextEditingController();
   final _nameFocus = FocusNode();
   final _memo = TextEditingController();
+  final _amount = TextEditingController();
+  final _amountFocus = FocusNode();
   String? _side;
   String _method = ReceptionDefaults.cash;
   int _meals = 1;
@@ -48,6 +50,8 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
     _name.dispose();
     _nameFocus.dispose();
     _memo.dispose();
+    _amount.dispose();
+    _amountFocus.dispose();
     super.dispose();
   }
 
@@ -107,6 +111,7 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
       setState(() {
         _name.clear();
         _memo.clear();
+        _amount.clear();
         _meals = 1;
         _method = ReceptionDefaults.cash;
         _showOptions = false;
@@ -122,10 +127,14 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
     }
   }
 
-  Future<void> _enterAmount(Reception reception) async {
-    if (!_checkName()) return;
-    final amount = await showAmountDialog(context);
-    if (amount != null) await _save(reception, amount);
+  /// 금액칸에 적은 금액으로 저장. 이름이 비어 있으면 금액은 그대로 두고 이름칸으로 간다.
+  Future<void> _saveTyped(Reception reception) async {
+    final amount = parseAmount(_amount.text);
+    if (amount <= 0) {
+      _amountFocus.requestFocus();
+      return;
+    }
+    await _save(reception, amount);
   }
 
   Future<void> _undo(ReceptionEntry entry) async {
@@ -252,37 +261,20 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                     const SizedBox(height: 12),
                   ],
                 ],
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _name,
-                        focusNode: _nameFocus,
-                        autofocus: true,
-                        style: AppText.receptionInput,
-                        textInputAction: TextInputAction.done,
-                        onChanged: (_) => setState(() => _nameMissing = false),
-                        // 키보드의 완료를 눌러도 키보드를 닫지 않고 금액을 고르게 한다
-                        onSubmitted: (_) => _nameFocus.requestFocus(),
-                        decoration: InputDecoration(
-                          labelText: '이름',
-                          hintText: '손님 이름',
-                          errorText: _nameMissing ? '이름을 먼저 입력해 주세요' : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      height: AppSpacing.receptionButton,
-                      child: OutlinedButton(
-                        onPressed: () => _enterAmount(reception),
-                        style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12)),
-                        child: const Text('직접 입력'),
-                      ),
-                    ),
-                  ],
+                TextField(
+                  controller: _name,
+                  focusNode: _nameFocus,
+                  autofocus: true,
+                  style: AppText.receptionInput,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (_) => setState(() => _nameMissing = false),
+                  // 키보드의 완료를 눌러도 키보드를 닫지 않고 금액을 고르게 한다
+                  onSubmitted: (_) => _nameFocus.requestFocus(),
+                  decoration: InputDecoration(
+                    labelText: '이름',
+                    hintText: '손님 이름',
+                    errorText: _nameMissing ? '이름을 먼저 입력해 주세요' : null,
+                  ),
                 ),
               ],
             ),
@@ -319,8 +311,73 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                     },
                   ),
           ),
+          _AmountField(
+            controller: _amount,
+            focusNode: _amountFocus,
+            onSave: () => _saveTyped(reception),
+          ),
           _AmountPad(onAmount: (a) => _save(reception, a)),
         ],
+      ),
+    );
+  }
+}
+
+/// 금액 버튼 바로 위의 직접 입력칸 + 저장 버튼. 키보드의 완료를 눌러도 저장된다.
+class _AmountField extends StatelessWidget {
+  const _AmountField({
+    required this.controller,
+    required this.focusNode,
+    required this.onSave,
+  });
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, AppSpacing.page, 4),
+      child: SizedBox(
+        height: AppSpacing.padButton,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                inputFormatters: [ThousandsFormatter()],
+                style: AppText.receptionName,
+                onEditingComplete: () {},
+                onSubmitted: (_) => onSave(),
+                decoration: const InputDecoration(
+                  hintText: '금액 직접 입력',
+                  suffixText: '원',
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 버튼이 포커스를 가져가면 키보드가 닫히므로 포커스를 받지 않게 한다.
+            ExcludeFocus(
+              child: FilledButton(
+                onPressed: onSave,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(72, AppSpacing.padButton),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: AppText.receptionAmount,
+                ),
+                child: const Text('저장'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

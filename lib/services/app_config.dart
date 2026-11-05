@@ -1,5 +1,15 @@
+import 'package:flutter/foundation.dart';
+
 /// 출시 전에 직접 채워 넣어야 하는 값들.
 class AppConfig {
+  /// TODO(출시 전): false로 바꾸세요. true면 받은 사람 누구나 프로를 공짜로 켤 수 있어요.
+  /// true인 동안 'flutter build appbundle'은 일부러 실패한다 (android/app/build.gradle.kts).
+  static const testBuild = true;
+
+  /// 설정 화면의 테스트 도구(isPro 켜기/끄기 등)를 쓸 수 있는지.
+  /// flutter run에서는 항상 쓸 수 있고, APK에서는 [testBuild]가 true일 때만 쓸 수 있다.
+  static const devToolsEnabled = kDebugMode || testBuild;
+
   /// Play 콘솔 일회성 제품 ID
   static const proProductId = 'pro_lifetime';
 

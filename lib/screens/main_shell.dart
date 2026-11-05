@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/providers.dart';
+import '../theme/app_theme.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/common.dart';
 import '../widgets/record_menu_sheet.dart';
@@ -30,14 +32,30 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    // 홈에 기록이 하나도 없을 때만 버튼 바로 위에 화살표를 띄운다
+    final showArrow =
+        _index == 0 && (ref.watch(homeProvider).value?.recent.isEmpty ?? false);
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
       floatingActionButtonLocation: const PillFabLocation(),
       floatingActionButton: keyboardOpen
           ? null
-          : PillActionButton(
-              label: '기록하기',
-              onPressed: () => showRecordMenu(context, ref),
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showArrow)
+                  const IgnorePointer(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Icon(Icons.south,
+                          size: 40, color: AppColors.primary),
+                    ),
+                  ),
+                PillActionButton(
+                  label: '기록하기',
+                  onPressed: () => showRecordMenu(context, ref),
+                ),
+              ],
             ),
       bottomNavigationBar: AppBottomNav(
         currentIndex: _index,

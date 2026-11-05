@@ -23,6 +23,7 @@ import 'package:gyeongjosa/services/format.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:gyeongjosa/widgets/app_bottom_nav.dart';
+import 'package:gyeongjosa/widgets/common.dart';
 import 'package:gyeongjosa/widgets/pro_gate.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:path/path.dart' as p;
@@ -313,7 +314,17 @@ void main() {
     testWidgets('빈 화면 문구', (tester) async {
       await pump(tester, const HomeScreen());
       expect(find.textContaining("'+ 기록하기'를 눌러 첫 기록을 남겨보세요"), findsOneWidget);
-      expect(find.byIcon(Icons.south_east), findsOneWidget);
+
+      // 화살표는 기록하기 버튼 바로 위, 가로 가운데에 있고 홈 탭에서만 보인다
+      await pump(tester, const MainShell());
+      final arrow = find.byIcon(Icons.south);
+      final button = find.byType(PillActionButton);
+      expect(tester.getCenter(arrow).dx, tester.getCenter(button).dx);
+      expect(tester.getBottomLeft(arrow).dy,
+          lessThanOrEqualTo(tester.getTopLeft(button).dy));
+      await tester.tap(find.text('사람'));
+      await tester.pumpAndSettle();
+      expect(arrow, findsNothing);
 
       await pump(tester, const MyEventsScreen());
       expect(find.text('결혼식 · 돌잔치처럼 내가 받는 행사를 만들어 보세요'), findsOneWidget);

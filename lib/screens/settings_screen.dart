@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -222,18 +221,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: const Text('앱 버전'),
               trailing: Text(version, style: AppText.sub),
             ),
-            if (kDebugMode) ..._devTools(pro),
+            if (AppConfig.devToolsEnabled) ..._devTools(pro),
           ],
         ),
       ),
     );
   }
 
-  /// 개발 모드(flutter run)에서만 보이는 테스트 도구
+  /// flutter run과 테스트용 APK에서만 보이는 테스트 도구 ([AppConfig.devToolsEnabled])
   List<Widget> _devTools(ProState pro) => [
         const SizedBox(height: 12),
         const AppDivider(),
-        const SectionTitle('개발 모드 전용'),
+        const SectionTitle('테스트 전용 (출시 전 제거)'),
         SwitchListTile(
           secondary: const Icon(Icons.science_outlined, size: 24),
           title: const Text('isPro 켜기/끄기 (테스트)', style: AppText.listName),

@@ -49,6 +49,18 @@ flutter {
     source = "../.."
 }
 
+// 안전장치: 테스트 도구가 켜진 채로 Play 업로드용 파일(AAB)이 만들어지지 않게 막는다.
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.name == "bundleRelease" }) {
+        val config = rootProject.file("../lib/services/app_config.dart").readText()
+        if (config.contains("testBuild = true")) {
+            throw GradleException(
+                "출시 전 확인: lib/services/app_config.dart의 testBuild를 false로 바꾼 뒤 다시 빌드하세요."
+            )
+        }
+    }
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

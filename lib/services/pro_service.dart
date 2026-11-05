@@ -1,13 +1,13 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app_config.dart';
 import 'settings_service.dart';
 
 class ProState {
   /// Google Play에서 확인된 구매 여부 (기기에 캐시)
   final bool purchased;
 
-  /// 개발 모드 전용 테스트 스위치 (null이면 실제 구매 여부 사용)
+  /// 테스트 도구 전용 스위치 (null이면 실제 구매 여부 사용)
   final bool? devOverride;
 
   const ProState({required this.purchased, this.devOverride});
@@ -21,7 +21,7 @@ class ProNotifier extends Notifier<ProState> {
     final prefs = ref.watch(prefsProvider);
     return ProState(
       purchased: prefs.getBool(PrefKeys.proPurchased) ?? false,
-      devOverride: kDebugMode ? prefs.getBool(PrefKeys.devProOverride) : null,
+      devOverride: AppConfig.devToolsEnabled ? prefs.getBool(PrefKeys.devProOverride) : null,
     );
   }
 
@@ -30,9 +30,9 @@ class ProNotifier extends Notifier<ProState> {
     state = ProState(purchased: value, devOverride: state.devOverride);
   }
 
-  /// 개발 모드에서만 쓰는 isPro 켜기/끄기
+  /// 테스트 도구에서만 쓰는 isPro 켜기/끄기
   Future<void> setDevOverride(bool? value) async {
-    if (!kDebugMode) return;
+    if (!AppConfig.devToolsEnabled) return;
     final prefs = ref.read(prefsProvider);
     if (value == null) {
       await prefs.remove(PrefKeys.devProOverride);

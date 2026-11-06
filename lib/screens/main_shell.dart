@@ -14,7 +14,7 @@ import 'my_events_screen.dart';
 import 'people_screen.dart';
 import 'stats_screen.dart';
 
-/// 하단 탭 4개(홈 · 사람 · 내 행사 · 통계)와 모든 탭 같은 자리의 [+ 기록하기]
+/// 하단 탭 4개(홈 · 사람 · 내 행사 · 통계)와 모든 탭 같은 자리의 기록하기 버튼
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
@@ -66,28 +66,32 @@ class _MainShellState extends ConsumerState<MainShell> {
         _index == 0 && (ref.watch(homeProvider).value?.recent.isEmpty ?? false);
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      floatingActionButtonLocation: const PillFabLocation(),
+      floatingActionButtonLocation: const RecordFabLocation(),
       floatingActionButton: keyboardOpen
           ? null
           // 메뉴가 열려 있으면 같은 자리에 X 버튼이 보이므로 숨긴다
           : Visibility.maintain(
               visible: !_menuOpen,
-              // 안내 화살표까지 함께 뚫어 도움말 문구와 겹치지 않게 한다
-              child: CoachTarget(
-                spot: CoachSpot.recordButton,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (showArrow)
-                      const IgnorePointer(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showArrow)
+                    // 도움말이 떠 있을 때는 도움말 문구와 겹치지 않게 숨긴다
+                    ValueListenableBuilder(
+                      valueListenable: coachOpen,
+                      builder: (_, open, child) =>
+                          Opacity(opacity: open ? 0 : 1, child: child),
+                      child: const IgnorePointer(
                         child: Padding(
                           padding: EdgeInsets.only(bottom: 8),
                           child: Icon(Icons.south,
                               size: 40, color: AppColors.primary),
                         ),
                       ),
-                    PillActionButton(
-                      label: '기록하기',
+                    ),
+                  CoachTarget(
+                    spot: CoachSpot.recordButton,
+                    child: RecordFab(
                       onPressed: () {
                         setState(() => _menuOpen = true);
                         showRecordMenu(context, ref, onClosed: () {
@@ -95,8 +99,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                         });
                       },
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
       bottomNavigationBar: AppBottomNav(

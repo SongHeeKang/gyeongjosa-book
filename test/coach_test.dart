@@ -12,6 +12,7 @@ import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:gyeongjosa/widgets/app_bottom_nav.dart';
 import 'package:gyeongjosa/widgets/coach_mark.dart';
+import 'package:gyeongjosa/widgets/common.dart';
 import 'package:gyeongjosa/widgets/screen_coach.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -234,6 +235,10 @@ void main() {
       final nav = tester.getRect(find.byType(AppBottomNav));
       expect(hint.bottom, lessThanOrEqualTo(ok.top));
       expect(ok.bottom + 8, lessThanOrEqualTo(nav.top));
+      // 점선 구멍이 새 버튼 자리와 정확히 맞는다
+      expect(CoachTarget.rectOf(CoachSpot.recordButton),
+          tester.getRect(find.byType(RecordFab)));
+      expect(tester.getSize(find.byType(RecordFab)), const Size(60, 60));
       expect(find.byIcon(Icons.close), findsNothing);
 
       await tester.tapAt(const Offset(200, 500));
@@ -344,16 +349,18 @@ void main() {
         'coach_seen_recordMenu': true,
       });
       await settle(tester);
-      await tester.tap(find.text('기록하기'));
+      await tester.tap(find.byTooltip('기록하기'));
       await tester.pumpAndSettle();
     }
 
-    testWidgets('카드가 위에서부터 4개 쌓이고, 기록하기 대신 같은 자리에 X가 보인다', (tester) async {
+    testWidgets('카드가 위에서부터 4개 쌓이고, 같은 크기 · 같은 자리에서 아이콘만 X로 바뀐다',
+        (tester) async {
       await pump(tester, const MainShell(),
           prefsValues: {'coach_seen_home': true, 'coach_seen_recordMenu': true});
       await settle(tester);
-      final pill = tester.getRect(find.text('기록하기'));
-      await tester.tap(find.text('기록하기'));
+      final before = tester.getRect(find.byType(RecordFab));
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      await tester.tap(find.byTooltip('기록하기'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
@@ -364,11 +371,9 @@ void main() {
       expect(tops, orderedEquals([...tops]..sort()));
       expect(find.text('종이 장부·계좌이체를 옮겨 적어요'), findsOneWidget);
 
-      expect(find.text('기록하기').hitTestable(), findsNothing);
-      final close = find.bySemanticsLabel('닫기');
-      expect(close, findsWidgets);
-      final x = tester.getRect(find.byIcon(Icons.add).last);
-      expect(x.center.dy, closeTo(pill.center.dy, 8));
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byTooltip('닫기'), findsOneWidget);
+      expect(tester.getRect(find.byType(RecordFab).last), before);
     });
 
     testWidgets('배경을 누르면 닫히고 기록하기 버튼이 돌아온다', (tester) async {
@@ -376,7 +381,8 @@ void main() {
       await tester.tapAt(const Offset(10, 200));
       await tester.pumpAndSettle();
       expect(find.text('보냈어요'), findsNothing);
-      expect(find.text('기록하기').hitTestable(), findsOneWidget);
+      expect(find.byTooltip('기록하기').hitTestable(), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsNothing);
     });
 
     testWidgets('뒤로가기로도 닫힌다', (tester) async {
@@ -388,7 +394,7 @@ void main() {
 
     testWidgets('X를 누르면 닫힌다', (tester) async {
       await open(tester);
-      await tester.tap(find.byIcon(Icons.add).last);
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
       expect(find.text('보냈어요'), findsNothing);
     });
@@ -405,7 +411,7 @@ void main() {
       await pump(tester, const MainShell(),
           prefsValues: {'coach_seen_home': true});
       await settle(tester);
-      await tester.tap(find.text('기록하기'));
+      await tester.tap(find.byTooltip('기록하기'));
       await settle(tester);
       expect(tester.takeException(), isNull);
       // 카드마다 따로 설명하지 않고 하나로 묶는다

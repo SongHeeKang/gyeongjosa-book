@@ -24,7 +24,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       _PersonPicture(),
     ),
     (
-      '+ 버튼 하나면 돼요',
+      '연필 버튼 하나면 돼요',
       '보냈어요 · 일정 추가 · 받은 명단 직접 입력 · 행사장 접수',
       _ButtonPicture(),
     ),
@@ -185,7 +185,7 @@ class _PersonPicture extends StatelessWidget {
   }
 }
 
-/// 2장 그림: + 버튼과 선택지 4개
+/// 2장 그림: 연필 버튼과 선택지 4개
 class _ButtonPicture extends StatelessWidget {
   const _ButtonPicture();
 
@@ -217,7 +217,7 @@ class _ButtonPicture extends StatelessWidget {
           const SizedBox(height: 8),
           IgnorePointer(
             child: ExcludeSemantics(
-              child: PillActionButton(label: '기록하기', onPressed: () {}),
+              child: RecordFab(onPressed: () {}),
             ),
           ),
         ],

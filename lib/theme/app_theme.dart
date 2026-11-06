@@ -17,6 +17,7 @@ class AppColors {
   static const guideChip = Color(0xFFDBEAFE); // 가이드 그림의 칩 바탕
   static const guideChipText = Color(0xFF1E40AF); // 가이드 그림의 칩 글자
   static const success = Color(0xFF16A34A); // 가이드 그림의 초록 체크
+  static const fabShadow = Color(0x4D2563EB); // 기록하기 버튼 그림자 (포인트색 30%)
   static const coachScrim = Color(0xD1000000); // 도움말 검은 막 (불투명도 0.82)
   static const coachSmall = Color(0xB3FFFFFF); // 도움말 맨 아래 작은 안내문
   static const coachLabel = Color(0x99000000); // 도움말 설명 뒤 배경 (불투명도 0.6)

@@ -272,13 +272,13 @@ void main() {
       ];
       expect(labels, ['홈', '사람', '내 행사', '통계']);
 
-      final position = tester.getCenter(find.text('기록하기'));
+      final position = tester.getCenter(find.byType(RecordFab));
       for (final tab in ['사람', '내 행사', '통계', '홈']) {
         await tester.tap(find.descendant(
             of: find.byType(AppBottomNav), matching: find.text(tab)));
         await tester.pumpAndSettle();
-        expect(find.text('기록하기'), findsOneWidget);
-        expect(tester.getCenter(find.text('기록하기')), position);
+        expect(find.byTooltip('기록하기'), findsOneWidget);
+        expect(tester.getCenter(find.byType(RecordFab)), position);
       }
     });
 
@@ -328,7 +328,7 @@ void main() {
 
     testWidgets('기록하기를 누르면 선택지 4개가 보인다', (tester) async {
       await pump(tester, const MainShell());
-      await tester.tap(find.text('기록하기'));
+      await tester.tap(find.byTooltip('기록하기'));
       await tester.pumpAndSettle();
       for (final t in ['보냈어요', '일정 추가', '받은 명단 직접 입력', '행사장 접수']) {
         expect(find.text(t), findsOneWidget);
@@ -346,12 +346,12 @@ void main() {
 
     testWidgets('빈 화면 문구', (tester) async {
       await pump(tester, const HomeScreen());
-      expect(find.textContaining("'+ 기록하기'를 눌러 첫 기록을 남겨보세요"), findsOneWidget);
+      expect(find.textContaining('오른쪽 아래 연필 버튼을 눌러 첫 기록을 남겨보세요'), findsOneWidget);
 
       // 화살표는 기록하기 버튼 바로 위, 가로 가운데에 있고 홈 탭에서만 보인다
       await pump(tester, const MainShell());
       final arrow = find.byIcon(Icons.south);
-      final button = find.byType(PillActionButton);
+      final button = find.byType(RecordFab);
       expect(tester.getCenter(arrow).dx, tester.getCenter(button).dx);
       expect(tester.getBottomLeft(arrow).dy,
           lessThanOrEqualTo(tester.getTopLeft(button).dy));
@@ -384,7 +384,7 @@ void main() {
 
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
-      expect(find.text('+ 버튼 하나면 돼요'), findsOneWidget);
+      expect(find.text('연필 버튼 하나면 돼요'), findsOneWidget);
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
 

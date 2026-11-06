@@ -309,40 +309,61 @@ class EventTile extends StatelessWidget {
   }
 }
 
-/// 오른쪽 아래에 떠 있는 알약 모양 버튼 (높이 52, 모서리 26, 좌우 22)
-class PillActionButton extends StatelessWidget {
-  const PillActionButton({
+/// 오른쪽 아래에 떠 있는 기록하기 버튼: 지름 60 파란 동그라미에 흰 아이콘 (글자 없음).
+/// [icon]이 바뀌면 돌면서 바뀐다 (연필 ↔ X).
+class RecordFab extends StatelessWidget {
+  const RecordFab({
     super.key,
-    required this.label,
     required this.onPressed,
-    this.icon = Icons.add,
+    this.icon = Icons.edit_outlined,
+    this.tooltip = '기록하기',
   });
-  final String label;
-  final IconData icon;
   final VoidCallback onPressed;
+  final IconData icon;
+  final String tooltip;
+
+  static const size = 60.0;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.primary,
-      elevation: 3,
-      shadowColor: AppColors.primary.withValues(alpha: 0.4),
-      borderRadius: BorderRadius.circular(26),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(26),
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        excludeSemantics: true,
         onTap: onPressed,
-        child: SizedBox(
-          height: 52,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: Colors.white, size: 20),
-                const SizedBox(width: 6),
-                Text(label,
-                    style: AppText.button.copyWith(color: Colors.white)),
-              ],
+        child: Container(
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                  color: AppColors.fabShadow,
+                  offset: Offset(0, 4),
+                  blurRadius: 12),
+            ],
+          ),
+          child: Material(
+            color: AppColors.primary,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onPressed,
+              child: Center(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, animation) => RotationTransition(
+                    turns: Tween<double>(begin: 0.75, end: 1).animate(animation),
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+                  child: Icon(icon,
+                      key: ValueKey(icon),
+                      size: 26,
+                      color: AppColors.background),
+                ),
+              ),
             ),
           ),
         ),
@@ -351,9 +372,8 @@ class PillActionButton extends StatelessWidget {
   }
 }
 
-/// 떠 있는 버튼 위치: 하단 메뉴 위 20, 오른쪽 24
-class PillFabLocation extends StandardFabLocation {
-  const PillFabLocation();
+class RecordFabLocation extends StandardFabLocation {
+  const RecordFabLocation();
 
   @override
   double getOffsetX(

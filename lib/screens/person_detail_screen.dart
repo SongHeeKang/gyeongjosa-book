@@ -60,9 +60,8 @@ class PersonDetailScreen extends ConsumerWidget {
               const SizedBox(width: 8),
             ],
           ),
-          floatingActionButtonLocation: const PillFabLocation(),
-          floatingActionButton: PillActionButton(
-            label: '기록하기',
+          floatingActionButtonLocation: const RecordFabLocation(),
+          floatingActionButton: RecordFab(
             onPressed: () => showRecordForm(context, personId: personId),
           ),
           body: ListView(
@@ -93,7 +92,7 @@ class PersonDetailScreen extends ConsumerWidget {
               if (d.records.isEmpty)
                 const EmptyView(
                     icon: Icons.receipt_long,
-                    message: '아직 기록이 없어요.\n[기록하기]를 눌러 기록해 보세요.')
+                    message: '아직 기록이 없어요.\n오른쪽 아래 연필 버튼을 눌러 기록해 보세요.')
               else
                 for (final r in d.records)
                   RecordTile(

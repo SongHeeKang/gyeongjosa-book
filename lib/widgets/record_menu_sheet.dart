@@ -10,12 +10,13 @@ import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import 'coach_mark.dart';
+import 'common.dart';
 import 'person_picker_sheet.dart';
 import 'screen_coach.dart';
 
 enum _RecordAction { sent, schedule, received, reception }
 
-/// [+ 기록하기]: 버튼 위로 카드 4개가 펼쳐지고, 고르면 해당 화면으로 간다.
+/// 기록하기 메뉴: 연필 버튼 위로 카드 4개가 펼쳐지고, 고르면 해당 화면으로 간다.
 /// [onClosed]는 메뉴가 닫힐 때(화면 이동 전에) 불린다.
 Future<void> showRecordMenu(BuildContext context, WidgetRef ref,
     {VoidCallback? onClosed}) async {
@@ -106,10 +107,12 @@ class _RecordMenu extends ConsumerStatefulWidget {
 }
 
 class _RecordMenuState extends ConsumerState<_RecordMenu> {
+  /// 열리면 연필이 돌며 X로, 닫히기 시작하면 다시 연필로 바뀐다.
+  bool _open = false;
+
   static const _cardWidth = 280.0;
   static const _cardHeight = 60.0;
   static const _cardGap = 10.0;
-  static const _closeSize = 56.0;
   static const _stagger = 40.0 / 200.0; // 한 장씩 40ms 차이
 
   static const _cards = [
@@ -154,11 +157,24 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
   @override
   void initState() {
     super.initState();
+    widget.animation.addStatusListener(_onAnimationStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        showCoachOnce(context, ref.read(prefsProvider), CoachScreen.recordMenu);
-      }
+      if (!mounted) return;
+      setState(() => _open = true);
+      showCoachOnce(context, ref.read(prefsProvider), CoachScreen.recordMenu);
     });
+  }
+
+  void _onAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.reverse && mounted) {
+      setState(() => _open = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.animation.removeStatusListener(_onAnimationStatus);
+    super.dispose();
   }
 
   /// 버튼에 가까운 아래 카드부터 차례로 올라온다. 닫을 때는 그 반대.
@@ -249,7 +265,7 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
       children: [
         Positioned(
           right: right,
-          bottom: bottom + _closeSize + 14,
+          bottom: bottom + RecordFab.size + 14,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -265,30 +281,11 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
           bottom: bottom,
           child: CoachTarget(
             spot: CoachSpot.menuClose,
-            child: SizedBox(
-            width: _closeSize,
-            height: _closeSize,
-            child: Material(
-              color: AppColors.primary,
-              shape: const CircleBorder(),
-              elevation: 3,
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => Navigator.of(context).pop(),
-                child: Semantics(
-                  label: '닫기',
-                  button: true,
-                  child: RotationTransition(
-                    // + 가 45도 돌아 X가 된다
-                    turns: Tween<double>(begin: 0, end: 0.125)
-                        .animate(widget.animation),
-                    child: const Icon(Icons.add,
-                        size: 28, color: AppColors.background),
-                  ),
-                ),
-              ),
+            child: RecordFab(
+              icon: _open ? Icons.close : Icons.edit_outlined,
+              tooltip: _open ? '닫기' : '기록하기',
+              onPressed: () => Navigator.of(context).pop(),
             ),
-          ),
           ),
         ),
       ],

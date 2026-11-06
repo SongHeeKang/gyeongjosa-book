@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gyeongjosa/data/database_helper.dart';
+import 'package:gyeongjosa/data/dummy_data.dart';
 import 'package:gyeongjosa/data/providers.dart';
 import 'package:gyeongjosa/data/repository.dart';
 import 'package:gyeongjosa/main.dart';
@@ -142,6 +143,53 @@ void main() {
       await (await databaseFactory.openDatabase(p.join(dir.path, 't.db')))
           .close();
       await dir.delete(recursive: true);
+    });
+
+    test('더미 데이터: 50개씩 들어가고, 끄면 직접 넣은 기록은 남고 더미만 지워진다', () async {
+      final real = await repo.insertPerson(
+          Person(name: '진짜사람', relation: '친구', createdAt: DateTime.now()));
+      final realEvent = await repo.insertEvent(Event(
+          type: '결혼',
+          title: '진짜행사',
+          date: DateTime(2026, 1, 1),
+          isMine: true,
+          notify: false));
+      await repo.insertRecord(GiftRecord(
+          personId: real,
+          eventId: realEvent,
+          direction: '받음',
+          amount: 50000,
+          date: DateTime(2026, 1, 1)));
+      expect(await repo.hasDummyData(), isFalse);
+
+      final now = DateTime(2026, 11, 6);
+      await insertDummyData(repo, now: now);
+      await insertDummyData(repo, now: now); // 두 번 눌러도 늘어나지 않는다
+      expect(await repo.hasDummyData(), isTrue);
+      expect(await repo.countPeople(), 51);
+      expect(await repo.countRecords(), 51);
+      final events = (await repo.eventSummaries()).map((s) => s.event).toList();
+      expect(events.length, 51);
+
+      // 이름은 겹치지 않고, 연도와 월이 고르게 섞여 있다
+      final people = await repo.allPeople();
+      expect(people.map((p) => p.name).toSet().length, 51);
+      final dummy = events.where((e) => e.title != '진짜행사');
+      expect(dummy.map((e) => e.date.year).toSet().length, greaterThanOrEqualTo(5));
+      expect(dummy.map((e) => e.date.month).toSet().length, 12);
+      // 보냄과 받음이 모두 있고, 행사 알림은 울리지 않으며 '얼마 내셨어요?'도 뜨지 않는다
+      final records = await repo.allRecords();
+      expect(records.where((r) => r.direction == '보냄').length, 25);
+      expect(records.where((r) => r.direction == '받음').length, 26);
+      expect(dummy.every((e) => !e.notify), isTrue);
+      expect(await repo.pendingAmountEvents(), isEmpty);
+
+      await repo.deleteDummyData();
+      expect(await repo.hasDummyData(), isFalse);
+      expect(await repo.countPeople(), 1);
+      expect(await repo.countRecords(), 1);
+      expect((await repo.eventSummaries()).single.event.title, '진짜행사');
+      expect((await repo.allPeople()).single.name, '진짜사람');
     });
 
     test('v3 데이터는 최신 버전으로 올려도 그대로 남는다', () async {

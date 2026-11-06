@@ -36,6 +36,12 @@ extension DbRefresh on WidgetRef {
   void refreshData() => read(dbVersionProvider.notifier).bump();
 }
 
+/// 테스트 메뉴의 '더미데이터 추가' 스위치 상태
+final hasDummyDataProvider = FutureProvider<bool>((ref) {
+  ref.watch(dbVersionProvider);
+  return ref.watch(repositoryProvider).hasDummyData();
+});
+
 final peopleSummariesProvider = FutureProvider<List<PersonSummary>>((ref) {
   ref.watch(dbVersionProvider);
   return ref.watch(repositoryProvider).peopleSummaries();

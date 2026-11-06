@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../models/constants.dart';
 import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../models/person.dart';
@@ -342,6 +343,26 @@ class Repository {
   }
 
   Future<void> snapshotTo(String outPath) => _helper.snapshotTo(outPath);
+
+  // ───────────────────────── 테스트 전용 더미 데이터 ─────────────────────────
+
+  Future<bool> hasDummyData() async {
+    final db = await _db;
+    final rows = await db.rawQuery(
+        'SELECT EXISTS(SELECT 1 FROM people WHERE memo = ?) '
+        'OR EXISTS(SELECT 1 FROM events WHERE memo = ?)',
+        [dummyDataMarker, dummyDataMarker]);
+    return Sqflite.firstIntValue(rows) == 1;
+  }
+
+  /// 더미 사람 · 행사만 지운다. 더미 사람의 기록은 함께 지워진다.
+  Future<void> deleteDummyData() async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      await txn.delete('people', where: 'memo = ?', whereArgs: [dummyDataMarker]);
+      await txn.delete('events', where: 'memo = ?', whereArgs: [dummyDataMarker]);
+    });
+  }
 
   Future<int> countReceptionEntries() async {
     final db = await _db;

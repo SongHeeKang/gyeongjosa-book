@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/database_helper.dart';
+import '../data/dummy_data.dart';
 import '../data/providers.dart';
 import '../data/sample_data.dart';
 import '../services/app_config.dart';
@@ -269,6 +270,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               : '테스트 값 사용 중 · 아래 [isPro 테스트 값 해제]로 되돌리기'),
           value: pro.isPro,
           onChanged: (v) => ref.read(proProvider.notifier).setDevOverride(v),
+        ),
+        SwitchListTile(
+          secondary: const Icon(Icons.groups_outlined, size: 24),
+          title: const Text('더미데이터 추가', style: AppText.listName),
+          subtitle: const Text('켜면 사람 · 행사 · 보내고 받은 기록을 50개씩 넣어요. 끄면 이것만 지워요'),
+          value: ref.watch(hasDummyDataProvider).value ?? false,
+          onChanged: (on) => _run(() async {
+            final repo = ref.read(repositoryProvider);
+            if (on) {
+              await insertDummyData(repo);
+            } else {
+              await repo.deleteDummyData();
+            }
+            ref.refreshData();
+            if (mounted) {
+              showSnack(context, on ? '더미 데이터를 넣었어요.' : '더미 데이터를 지웠어요.');
+            }
+          }),
         ),
         ListTile(
           leading: const Icon(Icons.dataset_outlined, size: 24),

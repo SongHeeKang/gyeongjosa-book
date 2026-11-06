@@ -36,6 +36,9 @@ class ReceptionDefaults {
       method == transfer ? '계좌이체' : '현금';
 }
 
+/// 테스트 전용 더미 데이터 표시. 메모에 이 값이 있는 사람 · 행사만 한꺼번에 지운다.
+const dummyDataMarker = '[테스트 더미 데이터]';
+
 class Direction {
   static const sent = '보냄';
   static const received = '받음';

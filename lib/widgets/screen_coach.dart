@@ -12,12 +12,21 @@ enum CoachScreen {
     CoachMark(CoachSpot.homePending, '다녀온 행사는 금액만 누르면 기록돼요'),
     CoachMark(CoachSpot.homeHelp, '이 도움말은 여기서 다시 볼 수 있어요'),
   ]),
-  recordMenu('+ 기록하기', [
-    CoachMark(CoachSpot.menuSent, '내가 낸 축의금·부의금'),
-    CoachMark(CoachSpot.menuSchedule, '청첩장·부고를 받았을 때. 전날 알려드려요'),
-    CoachMark(CoachSpot.menuDirect, '종이 장부·계좌이체로 받은 돈을 옮겨 적어요'),
-    CoachMark(CoachSpot.menuReception, '접수대에서 손님을 바로 받아요'),
-  ]),
+  recordMenu(
+      '기록하기 메뉴',
+      [
+        // 카드마다 설명이 적혀 있으니 하나로 묶어 설명도 하나만 둔다.
+        CoachMark(
+          CoachSpot.menuSent,
+          '하고 싶은 일을 고르세요\n카드마다 무엇을 하는지 적혀 있어요',
+          also: [
+            CoachSpot.menuSchedule,
+            CoachSpot.menuDirect,
+            CoachSpot.menuReception,
+          ],
+        ),
+      ],
+      reveal: CoachReveal(CoachSpot.menuClose, '닫기')),
   people('사람', [
     CoachMark(CoachSpot.peopleSearch, '이름으로 찾아요'),
     CoachMark(CoachSpot.peopleCard, '주고받은 합계가 한눈에. 누르면 전체 기록'),
@@ -39,8 +48,7 @@ enum CoachScreen {
     CoachMark(CoachSpot.statsChart, '보낸 돈과 받은 돈을 비교해요'),
   ]),
   reception('행사장 접수', [
-    CoachMark(CoachSpot.receptionName, '손님 이름을 적고'),
-    CoachMark(CoachSpot.receptionAmounts, '금액을 누르면 바로 저장'),
+    CoachMark(CoachSpot.receptionAmounts, '이름을 적고 금액을 누르면 바로 저장'),
     CoachMark(CoachSpot.receptionRecent, '방금 저장한 손님이 맨 위에'),
     CoachMark(CoachSpot.receptionFinish, '끝나면 혼주에게 보내요'),
   ]),
@@ -49,24 +57,27 @@ enum CoachScreen {
     CoachMark(CoachSpot.quickList, '적은 명단이 쌓여요. 누르면 수정'),
   ]);
 
-  const CoachScreen(this.title, this.marks, {this.auto = true});
+  const CoachScreen(this.title, this.marks, {this.auto = true, this.reveal});
   final String title;
+
+  /// 한 화면에 최대 3개
   final List<CoachMark> marks;
   final bool auto;
+  final CoachReveal? reveal;
 
   String get _prefKey => 'coach_seen_$name';
 }
 
 List<CoachMark> _visibleMarks(CoachScreen screen) => [
       for (final m in screen.marks)
-        if (CoachTarget.rectOf(m.spot) != null) m,
+        if (m.rect != null) m,
     ];
 
 /// 지금 화면에 있는 자리만 골라 도움말을 보여준다. 보여줄 것이 없으면 false.
 Future<bool> showCoach(BuildContext context, CoachScreen screen) async {
   final marks = _visibleMarks(screen);
   if (marks.isEmpty) return false;
-  await showCoachOverlay(context, marks);
+  await showCoachOverlay(context, marks, reveal: screen.reveal);
   return true;
 }
 

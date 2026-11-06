@@ -13,6 +13,7 @@ enum CoachSpot {
   menuSchedule,
   menuDirect,
   menuReception,
+  menuClose,
   peopleSearch,
   peopleCard,
   myEventsCreate,
@@ -69,15 +70,53 @@ class _CoachTargetState extends State<CoachTarget> {
 }
 
 class CoachMark {
-  const CoachMark(this.spot, this.text);
+  const CoachMark(this.spot, this.text, {this.also = const []});
   final CoachSpot spot;
   final String text;
+
+  /// 함께 묶어 점선 하나로 감쌀 자리들 (기록하기 메뉴 카드처럼)
+  final List<CoachSpot> also;
+
+  /// 묶음 전체의 위치. 첫 자리가 아직 없으면 null.
+  Rect? get rect {
+    var result = CoachTarget.rectOf(spot);
+    for (final other in also) {
+      final r = CoachTarget.rectOf(other);
+      if (r != null) result = result?.expandToInclude(r);
+    }
+    return result;
+  }
+}
+
+/// 점선 · 설명 없이 어둡게 덮지 않고 그대로 보여줄 자리와 그 옆의 작은 글씨
+class CoachReveal {
+  const CoachReveal(this.spot, this.label);
+  final CoachSpot spot;
+  final String label;
+}
+
+/// 도움말이 떠 있는지. 뒤 화면의 안내 표시를 잠시 숨길 때 쓴다.
+final coachOpen = ValueNotifier<bool>(false);
+
+/// 문구에서 대상까지 곧게 이은 화살표의 양 끝
+(Offset, Offset) coachArrowEnds(Rect label, Rect hole) {
+  const gap = 5.0;
+  return label.bottom <= hole.top
+      ? (label.bottomCenter, hole.topCenter.translate(0, -gap))
+      : (label.topCenter, hole.bottomCenter.translate(0, gap));
+}
+
+bool _segmentHits(Offset a, Offset b, Rect rect) {
+  for (var t = 0.0; t <= 1; t += 0.05) {
+    if (rect.contains(Offset.lerp(a, b, t)!)) return true;
+  }
+  return false;
 }
 
 /// 문구 자리를 정한다. 문구끼리, 또 뚫린 자리와 겹치지 않고 화면 안에 들어오게 한다.
-/// [holes]와 [sizes]는 같은 순서다. 붙어 있는 대상의 문구가 쌓일 때 가까운 대상의 문구가
-/// 안쪽에 오도록, 화면 위쪽 대상은 아래쪽 것부터, 아래쪽 대상은 위쪽 것부터 자리를 잡는다.
-/// [avoid]는 문구가 피해야 할 자리다.
+/// 곧은 화살표가 다른 자리나 문구를 지나가지 않는 자리를 먼저 찾고, 그런 자리가 없는
+/// 대상(붙어 있는 버튼의 가운데 등)만 마지막에 남은 자리를 쓴다.
+/// [holes]와 [sizes]는 같은 순서다. [avoid]는 문구가 피해야 할 자리다.
 List<Rect> layoutCoachLabels({
   required Size screen,
   required double top,
@@ -90,15 +129,12 @@ List<Rect> layoutCoachLabels({
   const step = 20.0;
   const closest = 10.0; // 대상 사이가 좁을 때 쓰는 가까운 자리
   final placed = <Rect>[];
-  final result = List<Rect>.filled(holes.length, Rect.zero);
+  final arrows = <Rect>[];
+  final result = List<Rect?>.filled(holes.length, null);
+
   bool isLower(Rect h) => h.center.dy > screen.height / 2;
-  final order = [for (var i = 0; i < holes.length; i++) i]..sort((a, b) {
-      final lowerA = isLower(holes[a]);
-      if (lowerA != isLower(holes[b])) return lowerA ? 1 : -1;
-      final byTop = holes[a].top.compareTo(holes[b].top);
-      return lowerA ? byTop : -byTop;
-    });
-  for (final i in order) {
+
+  List<Rect> candidatesFor(int i) {
     final hole = holes[i];
     final size = sizes[i];
     final maxLeft = screen.width - margin - size.width;
@@ -106,22 +142,13 @@ List<Rect> layoutCoachLabels({
         ? margin
         : (hole.center.dx - size.width / 2).clamp(margin, maxLeft);
     Rect at(double y) => Rect.fromLTWH(left, y, size.width, size.height);
-    bool free(Rect r) =>
-        r.top >= top &&
-        r.bottom <= bottom &&
-        !holes.any((h) => h.inflate(4).overlaps(r)) &&
-        !avoid.any((a) => a.overlaps(r)) &&
-        !placed.any((p) => p.inflate(6).overlaps(r));
-
     final above = [
       for (var y = hole.top - step - size.height; y >= top; y -= step) at(y),
       if (hole.top - closest - size.height >= top)
         at(hole.top - closest - size.height),
     ];
     final below = [
-      for (var y = hole.bottom + step;
-          y + size.height <= bottom;
-          y += step)
+      for (var y = hole.bottom + step; y + size.height <= bottom; y += step)
         at(y),
       if (hole.bottom + closest + size.height <= bottom)
         at(hole.bottom + closest),
@@ -130,34 +157,85 @@ List<Rect> layoutCoachLabels({
     for (final list in [above, below]) {
       if (list.length > 2) list.insert(1, list.removeLast());
     }
-    final preferAbove = isLower(hole);
-    final candidates =
-        preferAbove ? [...above, ...below] : [...below, ...above];
-    final label = candidates.where(free).firstOrNull ??
-        (candidates.isNotEmpty
-            ? candidates.first
-            : at((hole.bottom + step).clamp(top, bottom - size.height)));
-    placed.add(label);
-    result[i] = label;
+    return isLower(hole) ? [...above, ...below] : [...below, ...above];
   }
-  return result;
+
+  bool free(Rect r) =>
+      r.top >= top &&
+      r.bottom <= bottom &&
+      !holes.any((h) => h.inflate(4).overlaps(r)) &&
+      !avoid.any((a) => a.overlaps(r)) &&
+      !placed.any((p) => p.inflate(6).overlaps(r)) &&
+      !arrows.any((a) => a.overlaps(r));
+
+  bool directArrow(Rect label, int i) {
+    final (start, end) = coachArrowEnds(label, holes[i]);
+    for (var j = 0; j < holes.length; j++) {
+      if (j != i && _segmentHits(start, end, holes[j])) return false;
+    }
+    return !placed.any((p) => _segmentHits(start, end, p.inflate(2)));
+  }
+
+  void place(int i, Rect label) {
+    result[i] = label;
+    placed.add(label);
+    if (directArrow(label, i)) {
+      final (start, end) = coachArrowEnds(label, holes[i]);
+      arrows.add(Rect.fromPoints(start, end).inflate(2));
+    }
+  }
+
+  // 위쪽 대상은 아래쪽 것부터, 아래쪽 대상은 위쪽 것부터 자리를 잡는다.
+  final order = [for (var i = 0; i < holes.length; i++) i]..sort((a, b) {
+      final lowerA = isLower(holes[a]);
+      if (lowerA != isLower(holes[b])) return lowerA ? 1 : -1;
+      final byTop = holes[a].top.compareTo(holes[b].top);
+      return lowerA ? byTop : -byTop;
+    });
+  for (final i in order) {
+    final label = candidatesFor(i)
+        .where((c) => free(c) && directArrow(c, i))
+        .firstOrNull;
+    if (label != null) place(i, label);
+  }
+  for (final i in order) {
+    if (result[i] != null) continue;
+    final candidates = candidatesFor(i);
+    final hole = holes[i];
+    final size = sizes[i];
+    place(
+        i,
+        candidates.where(free).firstOrNull ??
+            candidates.firstOrNull ??
+            Rect.fromLTWH(
+                margin,
+                (hole.bottom + step)
+                    .clamp(top, (bottom - size.height).clamp(top, bottom)),
+                size.width,
+                size.height));
+  }
+  return [for (final r in result) r!];
 }
 
 /// 화면을 어둡게 하고 [marks]의 자리만 뚫어 설명을 보여준다. 아무 데나 누르면 닫힌다.
-Future<void> showCoachOverlay(BuildContext context, List<CoachMark> marks) {
-  return Navigator.of(context, rootNavigator: true).push(PageRouteBuilder<void>(
+Future<void> showCoachOverlay(BuildContext context, List<CoachMark> marks,
+    {CoachReveal? reveal}) async {
+  coachOpen.value = true;
+  await Navigator.of(context, rootNavigator: true).push(PageRouteBuilder<void>(
     opaque: false,
     transitionDuration: const Duration(milliseconds: 180),
     reverseTransitionDuration: const Duration(milliseconds: 120),
-    pageBuilder: (_, _, _) => _CoachOverlay(marks: marks),
+    pageBuilder: (_, _, _) => _CoachOverlay(marks: marks, reveal: reveal),
     transitionsBuilder: (_, animation, _, child) =>
         FadeTransition(opacity: animation, child: child),
   ));
+  coachOpen.value = false;
 }
 
 class _CoachOverlay extends StatefulWidget {
-  const _CoachOverlay({required this.marks});
+  const _CoachOverlay({required this.marks, this.reveal});
   final List<CoachMark> marks;
+  final CoachReveal? reveal;
 
   @override
   State<_CoachOverlay> createState() => _CoachOverlayState();
@@ -169,8 +247,9 @@ class _CoachOverlayState extends State<_CoachOverlay> {
   static const _tightHolePadding = 2.0; // 대상끼리 붙어 있을 때
   static const _buttonWidth = 120.0;
   static const _buttonHeight = 40.0;
-  static const _footerHeight = 76.0; // 버튼 + 간격 + 작은 안내문
-  static const _footerWidth = 280.0;
+  static const _footerHeight = 66.0; // 작은 안내문 + 간격 + 버튼
+  static const _footerWidth = 230.0;
+  static const _labelPadding = 8.0;
 
   List<Rect?> _rects = const [];
 
@@ -195,8 +274,10 @@ class _CoachOverlayState extends State<_CoachOverlay> {
     });
   }
 
-  List<Rect?> _measure() =>
-      [for (final m in widget.marks) CoachTarget.rectOf(m.spot)];
+  List<Rect?> _measure() => [
+        for (final m in widget.marks) m.rect,
+        if (widget.reveal != null) CoachTarget.rectOf(widget.reveal!.spot),
+      ];
 
   /// 실제로 그릴 글자 스타일로 재서, 글자가 잘리지 않을 자리를 잡는다.
   Size _measureText(String text, TextStyle style, TextScaler scaler, double max) {
@@ -243,14 +324,22 @@ class _CoachOverlayState extends State<_CoachOverlay> {
       for (final t in targets) t.inflate(padding).intersect(area),
     ];
 
-    // 버튼은 맨 아래 가운데. 그 자리에 뚫린 곳이 있으면 가장 넓은 빈 곳의 가운데로 옮긴다.
-    final safeBottom = screen.height - media.padding.bottom - 12;
-    var footerTop = safeBottom - _footerHeight;
-    final footerBand = Rect.fromLTWH(
-        (screen.width - _footerWidth) / 2, footerTop, _footerWidth, _footerHeight);
-    final footerMoved = holes.any((h) => h.overlaps(footerBand));
+    final reveal = widget.reveal;
+    final revealRect = reveal == null ? null : _rects.last;
+
+    // 안내문과 버튼은 하단 탭보다 위에 둔다. 그 자리에 뚫린 곳이 있으면 왼쪽으로 붙여 보고,
+    // 그래도 겹치면 가장 넓은 빈 곳의 가운데로 옮긴다.
+    final blocked = [...holes, ?revealRect];
+    final safeBottom = screen.height - media.padding.bottom;
+    var footerTop =
+        safeBottom - AppSpacing.bottomNav - 16 - _footerHeight;
+    Rect footerAt(double left) =>
+        Rect.fromLTWH(left, footerTop, _footerWidth, _footerHeight);
+    var footer = footerAt((screen.width - _footerWidth) / 2);
+    if (blocked.any(footer.overlaps)) footer = footerAt(AppSpacing.page);
+    final footerMoved = blocked.any(footer.overlaps);
     if (footerMoved) {
-      final sorted = [...holes]..sort((x, y) => x.top.compareTo(y.top));
+      final sorted = [...blocked]..sort((x, y) => x.top.compareTo(y.top));
       var gapTop = media.padding.top;
       var bestTop = gapTop;
       var bestHeight = 0.0;
@@ -262,20 +351,24 @@ class _CoachOverlayState extends State<_CoachOverlay> {
         if (h.bottom > gapTop) gapTop = h.bottom;
       }
       footerTop = bestTop + (bestHeight - _footerHeight) / 2;
+      footer = footerAt((screen.width - _footerWidth) / 2);
     }
-    final footer = Rect.fromLTWH(
-        (screen.width - _footerWidth) / 2, footerTop, _footerWidth, _footerHeight);
 
-    final labelMax = _labelMaxWidth.clamp(0.0, screen.width - 32);
+    final labelMax =
+        _labelMaxWidth.clamp(0.0, screen.width - 32) - _labelPadding * 2;
     final labels = layoutCoachLabels(
       screen: screen,
       top: media.padding.top + 8,
-      bottom: footerMoved ? safeBottom : footerTop - 8,
-      avoid: [footer.inflate(8)],
+      bottom: safeBottom,
+      avoid: [
+        footer.inflate(8),
+        if (revealRect != null) revealRect.inflate(8),
+      ],
       holes: holes,
       sizes: [
         for (final t in texts)
-          _measureText(t, AppText.coach, media.textScaler, labelMax),
+          _measureText(t, AppText.coach, media.textScaler, labelMax) +
+              const Offset(_labelPadding * 2, _labelPadding * 2),
       ],
     );
 
@@ -288,23 +381,38 @@ class _CoachOverlayState extends State<_CoachOverlay> {
           children: [
             Positioned.fill(
               child: CustomPaint(
-                  painter: _CoachPainter(holes: holes, labels: labels)),
+                  painter: _CoachPainter(
+                      holes: holes, labels: labels, reveal: revealRect)),
             ),
             for (var i = 0; i < labels.length; i++)
               Positioned.fromRect(
                 rect: labels[i],
-                child: Text(texts[i],
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.visible,
-                    style: AppText.coach),
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.coachLabel,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(texts[i],
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.visible,
+                      style: AppText.coach),
+                ),
               ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: footerTop,
+            if (reveal != null && revealRect != null)
+              Positioned(
+                right: screen.width - revealRect.left + 10,
+                top: revealRect.center.dy - 10,
+                child: Text(reveal.label, style: AppText.coachClose),
+              ),
+            Positioned.fromRect(
+              rect: footer,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Text('오른쪽 위 ? 버튼으로 다시 볼 수 있어요',
+                      style: AppText.coachSmall, maxLines: 1),
+                  const SizedBox(height: 8),
                   SizedBox(
                     width: _buttonWidth,
                     height: _buttonHeight,
@@ -320,9 +428,6 @@ class _CoachOverlayState extends State<_CoachOverlay> {
                       child: const Text('알겠어요'),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text('오른쪽 위 ? 버튼으로 다시 볼 수 있어요',
-                      style: AppText.coachSmall),
                 ],
               ),
             ),
@@ -334,9 +439,10 @@ class _CoachOverlayState extends State<_CoachOverlay> {
 }
 
 class _CoachPainter extends CustomPainter {
-  _CoachPainter({required this.holes, required this.labels});
+  _CoachPainter({required this.holes, required this.labels, this.reveal});
   final List<Rect> holes;
   final List<Rect> labels;
+  final Rect? reveal;
 
   static const _radius = Radius.circular(12);
 
@@ -349,6 +455,8 @@ class _CoachPainter extends CustomPainter {
     for (final h in holes) {
       canvas.drawRRect(RRect.fromRectAndRadius(h, _radius), clear);
     }
+    final shown = reveal;
+    if (shown != null) canvas.drawOval(shown, clear);
     canvas.restore();
 
     final border = Paint()
@@ -380,11 +488,11 @@ class _CoachPainter extends CustomPainter {
     }
   }
 
-  bool _crossesOtherHole(Offset a, Offset b, int self) {
+  bool _crossesOthers(Offset a, Offset b, int self) {
     for (var i = 0; i < holes.length; i++) {
       if (i == self) continue;
-      for (var t = 0.0; t <= 1; t += 0.05) {
-        if (holes[i].contains(Offset.lerp(a, b, t)!)) return true;
+      if (_segmentHits(a, b, holes[i]) || _segmentHits(a, b, labels[i])) {
+        return true;
       }
     }
     return false;
@@ -394,14 +502,10 @@ class _CoachPainter extends CustomPainter {
     const gap = 5.0;
     final label = labels[i];
     final hole = holes[i];
-    final isAbove = label.bottom <= hole.top;
-    var start = isAbove ? label.bottomCenter : label.topCenter;
-    var end = isAbove
-        ? hole.topCenter.translate(0, -gap)
-        : hole.bottomCenter.translate(0, gap);
+    var (start, end) = coachArrowEnds(label, hole);
     final path = Path();
     final Offset tangent;
-    if (_crossesOtherHole(start, end, i)) {
+    if (_crossesOthers(start, end, i)) {
       // 다른 자리를 가로지르게 되면 문구와 대상들의 왼쪽 빈 곳으로 돌아서 들어간다.
       start = label.centerLeft.translate(-4, 0);
       end = hole.centerLeft.translate(-gap, 0);
@@ -438,5 +542,5 @@ class _CoachPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CoachPainter old) =>
-      old.holes != holes || old.labels != labels;
+      old.holes != holes || old.labels != labels || old.reveal != reveal;
 }

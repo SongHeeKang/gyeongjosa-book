@@ -55,7 +55,8 @@ class HelpScreen extends ConsumerWidget {
                 for (final m in screen.marks)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: Text('· ${m.text}', style: AppText.body),
+                    child: Text('· ${m.text.replaceAll('\n', ' / ')}',
+                        style: AppText.body),
                   ),
               ],
             ),

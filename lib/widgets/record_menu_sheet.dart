@@ -263,7 +263,9 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
         Positioned(
           right: right,
           bottom: bottom,
-          child: SizedBox(
+          child: CoachTarget(
+            spot: CoachSpot.menuClose,
+            child: SizedBox(
             width: _closeSize,
             height: _closeSize,
             child: Material(
@@ -286,6 +288,7 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
                 ),
               ),
             ),
+          ),
           ),
         ),
       ],

@@ -19,6 +19,7 @@ class AppColors {
   static const success = Color(0xFF16A34A); // 가이드 그림의 초록 체크
   static const coachScrim = Color(0xD1000000); // 도움말 검은 막 (불투명도 0.82)
   static const coachSmall = Color(0xB3FFFFFF); // 도움말 맨 아래 작은 안내문
+  static const coachLabel = Color(0x99000000); // 도움말 설명 뒤 배경 (불투명도 0.6)
   static const menuScrim = Color(0x4D000000); // 기록하기 메뉴 뒤 배경 (불투명도 0.3)
   static const menuSent = Color(0xFFEF4444); // 기록하기 메뉴 아이콘 타일
   static const menuSentSoft = Color(0xFFFEE2E2);
@@ -41,6 +42,7 @@ class AppSpacing {
   static const padButtonTight = 38.0; // 키보드를 뺀 공간이 아주 작은 폰의 금액 버튼 높이
   static const receptionTightBody = 320.0; // 이보다 공간이 작으면 접수 화면을 줄인다
   static const receptionButton = 56.0; // 접수 화면 그 밖의 버튼 높이
+  static const bottomNav = 76.0; // 하단 메뉴 높이
   static const recentLine = 28.0; // 접수 화면 '최근 저장' 한 줄 높이
 }
 
@@ -95,6 +97,8 @@ class AppText {
       color: AppColors.background);
   static const coachSmall = TextStyle(
       fontFamily: fontFamily, fontSize: 12, color: AppColors.coachSmall);
+  static const coachClose = TextStyle(
+      fontFamily: fontFamily, fontSize: 13, color: AppColors.background);
 
   // 기록하기 메뉴
   static const menuTitle = TextStyle(

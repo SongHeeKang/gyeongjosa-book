@@ -112,8 +112,6 @@ void main() {
       ];
       final labels = layout(holes);
       expectClean(labels, holes);
-      // 첫 카드의 문구가 가장 가깝다
-      expect(labels[0].bottom, greaterThan(labels[1].bottom));
     });
 
     test('대상 사이가 좁으면 멀리 밀리지 않고 그 사이에 들어간다', () {
@@ -132,7 +130,7 @@ void main() {
       expect(labels[0].bottom, lessThanOrEqualTo(216));
     });
 
-    test('화면 위쪽에 붙은 버튼 3개는 가까운 버튼의 문구가 안쪽에 온다', () {
+    test('붙어 있는 버튼 3개는 첫째 위, 셋째 아래, 가운데는 남은 자리에 놓고 겹치지 않는다', () {
       const holes = [
         Rect.fromLTWH(24, 250, 363, 56),
         Rect.fromLTWH(24, 310, 363, 56),
@@ -140,8 +138,30 @@ void main() {
       ];
       final labels = layout(holes);
       expectClean(labels, holes);
-      expect(labels[2].top, lessThan(labels[1].top));
-      expect(labels[1].top, lessThan(labels[0].top));
+      expect(labels[0].bottom, lessThanOrEqualTo(holes[0].top));
+      expect(labels[2].top, greaterThanOrEqualTo(holes[2].bottom));
+      expect(labels[1].top, greaterThanOrEqualTo(labels[2].bottom));
+    });
+
+    test('곧은 화살표는 짧고, 다른 문구나 자리를 지나가지 않는다', () {
+      const holes = [
+        Rect.fromLTWH(80, 300, 300, 60), // 묶음 하나, 첫째
+        Rect.fromLTWH(320, 40, 48, 48),
+        Rect.fromLTWH(300, 760, 70, 70),
+      ];
+      final labels = layout(holes);
+      for (var i = 0; i < holes.length; i++) {
+        final (start, end) = coachArrowEnds(labels[i], holes[i]);
+        expect((end - start).distance, lessThanOrEqualTo(80));
+        for (var j = 0; j < holes.length; j++) {
+          if (j == i) continue;
+          for (var t = 0.0; t <= 1; t += 0.1) {
+            final p = Offset.lerp(start, end, t)!;
+            expect(holes[j].contains(p), isFalse);
+            expect(labels[j].contains(p), isFalse);
+          }
+        }
+      }
     });
 
     test('피해야 할 자리에는 문구를 놓지 않는다', () {
@@ -208,6 +228,12 @@ void main() {
       expect(find.text(homeText), findsOneWidget);
       expect(find.text('알겠어요'), findsOneWidget);
       expect(find.text('오른쪽 위 ? 버튼으로 다시 볼 수 있어요'), findsOneWidget);
+      // 안내문이 버튼 위에, 둘 다 하단 탭보다 위에
+      final hint = tester.getRect(find.text('오른쪽 위 ? 버튼으로 다시 볼 수 있어요'));
+      final ok = tester.getRect(find.text('알겠어요'));
+      final nav = tester.getRect(find.byType(AppBottomNav));
+      expect(hint.bottom, lessThanOrEqualTo(ok.top));
+      expect(ok.bottom + 8, lessThanOrEqualTo(nav.top));
       expect(find.byIcon(Icons.close), findsNothing);
 
       await tester.tapAt(const Offset(200, 500));
@@ -258,13 +284,13 @@ void main() {
       expect(prefs.getBool('coach_seen_home'), isNull);
       expect(prefs.getBool('coach_seen_stats'), isNull);
       for (final s in CoachScreen.values) {
-        expect(s.marks.length, inInclusiveRange(2, 4), reason: s.title);
+        expect(s.marks.length, inInclusiveRange(1, 3), reason: s.title);
       }
     });
   });
 
   group('행사장 접수 도움말', () {
-    const text = '금액을 누르면 바로 저장';
+    const text = '이름을 적고 금액을 누르면 바로 저장';
     testWidgets('첫 저장 전에 뜨고 최근 저장 자리까지 가리킨다', (tester) async {
       await pump(tester, const ReceptionScreen(receptionId: 'r1'));
       await settle(tester);
@@ -382,9 +408,20 @@ void main() {
       await tester.tap(find.text('기록하기'));
       await settle(tester);
       expect(tester.takeException(), isNull);
-      expect(find.text('내가 낸 축의금·부의금'), findsOneWidget);
-      expect(find.text('종이 장부·계좌이체로 받은 돈을 옮겨 적어요'), findsOneWidget);
-      expect(CoachTarget.rectOf(CoachSpot.menuDirect), isNotNull);
+      // 카드마다 따로 설명하지 않고 하나로 묶는다
+      expect(find.text('하고 싶은 일을 고르세요\n카드마다 무엇을 하는지 적혀 있어요'),
+          findsOneWidget);
+      expect(find.text('내가 낸 축의금·부의금'), findsNothing);
+      expect(find.text('닫기'), findsOneWidget);
+      final group = CoachScreen.recordMenu.marks.single.rect!;
+      for (final card in ['보냈어요', '행사장 접수']) {
+        expect(group.contains(tester.getCenter(find.text(card))), isTrue);
+      }
+      // 설명은 묶음 바로 위에 있다
+      final label = tester.getRect(find.text(
+          '하고 싶은 일을 고르세요\n카드마다 무엇을 하는지 적혀 있어요'));
+      expect(label.bottom, lessThan(group.top));
+      expect(group.top - label.bottom, lessThanOrEqualTo(80));
 
       await tester.tap(find.text('알겠어요'));
       await settle(tester);

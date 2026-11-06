@@ -15,6 +15,9 @@ class PersonNameField extends StatelessWidget {
     this.hintText,
     this.helperText,
     this.autofocus = false,
+    this.errorText,
+    this.onEditingComplete,
+    this.optionsMaxHeight = 280,
   });
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -24,6 +27,13 @@ class PersonNameField extends StatelessWidget {
   final String? hintText;
   final String? helperText;
   final bool autofocus;
+  final String? errorText;
+
+  /// 키보드의 다음을 눌렀을 때
+  final VoidCallback? onEditingComplete;
+
+  /// 자동완성 목록 최대 높이. 아래 버튼을 가리지 않게 줄일 때 쓴다.
+  final double optionsMaxHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -44,10 +54,12 @@ class PersonNameField extends StatelessWidget {
         textInputAction: TextInputAction.next,
         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
         onChanged: (_) => onChanged(),
+        onEditingComplete: onEditingComplete,
         decoration: InputDecoration(
           labelText: '이름',
           hintText: hintText,
           helperText: helperText,
+          errorText: errorText,
         ),
       ),
       optionsViewBuilder: (context, onSelected, options) => Align(
@@ -58,7 +70,7 @@ class PersonNameField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-                maxHeight: 280,
+                maxHeight: optionsMaxHeight,
                 maxWidth:
                     MediaQuery.of(context).size.width - AppSpacing.page * 2),
             child: ListView(

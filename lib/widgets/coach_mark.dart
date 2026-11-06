@@ -249,6 +249,7 @@ class _CoachOverlayState extends State<_CoachOverlay> {
   static const _buttonHeight = 40.0;
   static const _footerHeight = 66.0; // 작은 안내문 + 간격 + 버튼
   static const _footerWidth = 230.0;
+  static const _footerRoom = 160.0; // 옮길 때 위아래 설명을 위해 남길 높이
   static const _labelPadding = 8.0;
 
   List<Rect?> _rects = const [];
@@ -343,9 +344,12 @@ class _CoachOverlayState extends State<_CoachOverlay> {
       var gapTop = media.padding.top;
       var bestTop = gapTop;
       var bestHeight = 0.0;
+      // 설명이 들어갈 여유가 있는 빈 곳 중 가장 아래를 쓴다. 없으면 가장 넓은 곳.
       for (final h in [...sorted, Rect.fromLTWH(0, safeBottom, 0, 0)]) {
-        if (h.top - gapTop > bestHeight) {
-          bestHeight = h.top - gapTop;
+        final height = h.top - gapTop;
+        final roomy = height >= _footerHeight + _footerRoom;
+        if (roomy || (height > bestHeight && bestHeight < _footerHeight + _footerRoom)) {
+          bestHeight = height;
           bestTop = gapTop;
         }
         if (h.bottom > gapTop) gapTop = h.bottom;

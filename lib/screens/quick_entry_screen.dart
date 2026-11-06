@@ -10,6 +10,7 @@ import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/amount_input.dart';
+import '../widgets/amount_pad.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/person_name_field.dart';
@@ -28,18 +29,24 @@ class QuickEntryScreen extends ConsumerStatefulWidget {
 }
 
 class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
-  static const _quickAmounts = [30000, 50000, 100000, 200000];
+  /// 키보드 위 고정 영역과 제목을 뺀, 자동완성 목록에 쓸 수 있는 높이 계산용
+  static const _fixedAreaHeight = 360.0;
 
   final _name = TextEditingController();
   final _nameFocus = FocusNode();
   final _amount = TextEditingController();
+  final _amountFocus = FocusNode();
   late String _relation;
   String _method = Methods.all.first;
   Person? _selected; // 자동완성에서 고른 기존 사람
   bool _saving = false;
+  bool _nameMissing = false;
 
   /// 이번에 입력한 내역 (최신이 위)
   final _session = <GiftRecord>[];
+
+  /// 내역별 저장 시각 (최근 저장 줄에 보여준다)
+  final _savedAt = <int, DateTime>{};
 
   String get _direction =>
       widget.event.isMine ? Direction.received : Direction.sent;
@@ -62,18 +69,20 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     _name.dispose();
     _nameFocus.dispose();
     _amount.dispose();
+    _amountFocus.dispose();
     super.dispose();
   }
 
   Future<void> _save(int amount) async {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      showSnack(context, '이름을 먼저 입력해 주세요.');
+      // 적어 둔 금액은 그대로 두고 이름부터 받는다
+      setState(() => _nameMissing = true);
       _nameFocus.requestFocus();
       return;
     }
     if (amount <= 0) {
-      showSnack(context, '금액 버튼을 누르거나 금액을 입력해 주세요.');
+      _amountFocus.requestFocus();
       return;
     }
     if (_saving) return;
@@ -114,6 +123,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       ref.refreshData();
 
       // 3) 다음 이름으로
+      _savedAt[recordId] = DateTime.now();
       setState(() {
         _session.insert(
           0,
@@ -181,6 +191,54 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final detail = ref.watch(eventDetailProvider(widget.event.id!)).value;
     final people = ref.watch(allPeopleProvider).value ?? const <Person>[];
     final hasName = _name.text.trim().isNotEmpty;
+    // 키보드가 열려 있으면 바쁜 때: 제목을 줄이고 내역 대신 최근 저장 줄만 보여준다.
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final tight = isAmountAreaTight(context);
+    final media = MediaQuery.of(context);
+    final optionsMax = (media.size.height -
+            media.viewInsets.bottom -
+            media.padding.vertical -
+            _fixedAreaHeight)
+        .clamp(72.0, 280.0);
+
+    final relationChips = <Widget>[
+      if (_selected == null) ...[
+        const SizedBox(height: 12),
+        const FieldLabel('새 사람 관계'),
+        ChoiceChips(
+          options: Relations.all,
+          selected: _relation,
+          onSelected: (v) {
+            setState(() => _relation = v);
+            ref.read(prefsProvider).setString(PrefKeys.quickEntryRelation, v);
+          },
+        ),
+      ],
+      const SizedBox(height: 12),
+      const FieldLabel('방법'),
+      ChoiceChips(
+        options: Methods.all,
+        selected: _method,
+        onSelected: (v) => setState(() => _method = v),
+      ),
+    ];
+
+    Widget recent(int lines) => RecentSavedList(
+          items: [
+            for (final r in _session.take(lines + 1))
+              RecentSavedItem(
+                id: r.id!,
+                name: r.personName ?? '',
+                amount: r.amount,
+                savedAt: _savedAt[r.id] ?? DateTime.now(),
+              ),
+          ],
+          lines: lines,
+          warn: _session.isNotEmpty &&
+              _session.where((r) => r.personId == _session.first.personId).length >
+                  1,
+          onUndo: _session.isEmpty ? () {} : () => _undo(_session.first),
+        );
 
     return Scaffold(
       appBar: AppBar(
@@ -193,140 +251,131 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
               onPressed: () => Navigator.pop(context), child: const Text('완료')),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page, 0, AppSpacing.page, 32),
-        children: [
-          AutoCoach(
-            prefs: ref.read(prefsProvider),
-            screen: CoachScreen.quickEntry,
-            onClosed: _nameFocus.requestFocus,
-          ),
-          Text(widget.event.title, style: AppText.sectionTitle),
-          if (detail != null)
+      body: SafeArea(
+        top: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AutoCoach(
+              prefs: ref.read(prefsProvider),
+              screen: CoachScreen.quickEntry,
+              onClosed: _nameFocus.requestFocus,
+            ),
             Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${widget.event.isMine ? '받은' : '보낸'} 사람 ${detail.mainRecords.length}명 · ${formatWon(detail.total)}',
-                style: AppText.listAmount.copyWith(
-                    color: AppColors.amount(!widget.event.isMine)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!keyboardOpen)
+                    Text(widget.event.title, style: AppText.sectionTitle),
+                  if (detail != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        '${widget.event.isMine ? '받은' : '보낸'} 사람 ${detail.mainRecords.length}명 · ${formatWon(detail.total)}',
+                        style: AppText.listAmount.copyWith(
+                            color: AppColors.amount(!widget.event.isMine)),
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  PersonNameField(
+                    controller: _name,
+                    focusNode: _nameFocus,
+                    people: people,
+                    autofocus: true,
+                    hintText: '봉투에 적힌 이름',
+                    helperText: _selected != null
+                        ? '기존 사람(${_selected!.relation})에 연결돼요'
+                        : (hasName ? '처음 보는 이름이면 새로 등록돼요' : null),
+                    errorText: _nameMissing ? '이름을 먼저 입력해 주세요' : null,
+                    optionsMaxHeight: optionsMax,
+                    onEditingComplete: _amountFocus.requestFocus,
+                    onSelected: (p) => setState(() => _selected = p),
+                    onChanged: () => setState(() => _nameMissing = false),
+                  ),
+                ],
               ),
             ),
-          const SizedBox(height: 16),
-          PersonNameField(
-            controller: _name,
-            focusNode: _nameFocus,
-            people: people,
-            autofocus: true,
-            hintText: '봉투에 적힌 이름',
-            helperText: _selected != null
-                ? '기존 사람(${_selected!.relation})에 연결돼요'
-                : (hasName ? '처음 보는 이름이면 새로 등록돼요' : null),
-            onSelected: (p) => setState(() => _selected = p),
-            onChanged: () => setState(() {}),
-          ),
-          if (_selected == null) ...[
-            const SizedBox(height: 12),
-            const FieldLabel('새 사람 관계'),
-            ChoiceChips(
-              options: Relations.all,
-              selected: _relation,
-              onSelected: (v) {
-                setState(() => _relation = v);
-                ref.read(prefsProvider).setString(PrefKeys.quickEntryRelation, v);
-              },
+            Expanded(
+              child: keyboardOpen
+                  ? LayoutBuilder(
+                      builder: (_, constraints) => ListView(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.page),
+                        children: [
+                          if (_session.isNotEmpty)
+                            recent(((constraints.maxHeight -
+                                        RecentSavedList.warningHeight) /
+                                    AppSpacing.recentLine)
+                                .floor()
+                                .clamp(1, 3)),
+                          ...relationChips,
+                          // 도움말을 띄우면 키보드가 닫히면서 아래 명단이 나타난다
+                          const CoachTarget(
+                              spot: CoachSpot.quickList,
+                              child: SizedBox.shrink()),
+                        ],
+                      ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.page, 0, AppSpacing.page, 12),
+                      children: [
+                        if (_session.isNotEmpty) recent(1),
+                        ...relationChips,
+                        const SizedBox(height: 12),
+                        const AppDivider(),
+                        CoachTarget(
+                          spot: CoachSpot.quickList,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 20, bottom: 4),
+                                child: Text(
+                                    _session.isEmpty
+                                        ? '적은 명단이 여기에 쌓여요'
+                                        : '방금 입력한 ${_session.length}건',
+                                    style: _session.isEmpty
+                                        ? AppText.sub
+                                        : AppText.sectionTitle),
+                              ),
+                              for (final r in _session)
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(r.personName ?? ''),
+                                  subtitle: Text(
+                                      signedWon(r.amount, isSent: r.isSent)),
+                                  onTap: () => _edit(r),
+                                  trailing: TextButton(
+                                    onPressed: () => _undo(r),
+                                    child: const Text('취소'),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            AmountField(
+              controller: _amount,
+              focusNode: _amountFocus,
+              onSave: () => _save(parseAmount(_amount.text)),
+              tight: tight,
+            ),
+            CoachTarget(
+              spot: CoachSpot.quickAmounts,
+              child: AmountPad(
+                onAmount: _save,
+                buttonHeight:
+                    tight ? AppSpacing.padButtonTight : AppSpacing.padButton,
+              ),
             ),
           ],
-          const SizedBox(height: 16),
-          const FieldLabel('금액을 누르면 바로 저장돼요'),
-          CoachTarget(
-            spot: CoachSpot.quickAmounts,
-            child: GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 2.6,
-              children: [
-                for (final a in _quickAmounts)
-                  FilledButton(
-                    onPressed: _saving ? null : () => _save(a),
-                    style: FilledButton.styleFrom(
-                      textStyle: const TextStyle(
-                          fontFamily: AppText.fontFamily,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700),
-                    ),
-                    child: Text('${formatManWon(a)}원'),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _amount,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [ThousandsFormatter()],
-                  style: const TextStyle(fontSize: 17),
-                  decoration: const InputDecoration(
-                      labelText: '다른 금액', suffixText: '원'),
-                  onSubmitted: (t) => _save(parseAmount(t)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 52,
-                child: OutlinedButton(
-                  onPressed:
-                      _saving ? null : () => _save(parseAmount(_amount.text)),
-                  child: const Text('저장'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ChoiceChips(
-            options: Methods.all,
-            selected: _method,
-            onSelected: (v) => setState(() => _method = v),
-          ),
-          const SizedBox(height: 12),
-          const AppDivider(),
-          CoachTarget(
-            spot: CoachSpot.quickList,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 20, bottom: 4),
-                  child: Text(
-                      _session.isEmpty
-                          ? '적은 명단이 여기에 쌓여요'
-                          : '방금 입력한 ${_session.length}건',
-                      style: _session.isEmpty
-                          ? AppText.sub
-                          : AppText.sectionTitle),
-                ),
-                for (final r in _session)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(r.personName ?? ''),
-                    subtitle: Text(signedWon(r.amount, isSent: r.isSent)),
-                    onTap: () => _edit(r),
-                    trailing: TextButton(
-                      onPressed: () => _undo(r),
-                      child: const Text('취소'),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -83,11 +83,15 @@ class AppText {
       fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.error);
 
   // 화면별 도움말
+  // 자리를 잴 때와 그릴 때 글자 폭이 같도록 주변 스타일을 물려받지 않는다.
   static const coach = TextStyle(
+      inherit: false,
       fontFamily: fontFamily,
       fontSize: 15,
       fontWeight: FontWeight.w500,
       height: 1.4,
+      letterSpacing: 0,
+      decoration: TextDecoration.none,
       color: AppColors.background);
   static const coachSmall = TextStyle(
       fontFamily: fontFamily, fontSize: 12, color: AppColors.coachSmall);

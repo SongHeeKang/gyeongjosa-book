@@ -241,18 +241,24 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
         AppSpacing.receptionTightBody;
 
     // 저장 전에도 도움말이 가리킬 수 있게 비어 있으면 한 줄 자리를 잡아 둔다.
-    Widget recentSaved(int lines) => CoachTarget(
-          spot: CoachSpot.receptionRecent,
-          child: entries.isEmpty && !duplicate
-              ? const SizedBox(height: AppSpacing.recentLine)
-              : _RecentSaved(
-                  reception: reception,
-                  entries: entries,
-                  lines: lines,
-                  duplicateTyped: duplicate,
-                  onUndo: () => _undo(entries.first),
-                ),
-        );
+    Widget recentSaved(int lines) => entries.isEmpty && !duplicate
+        ? const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: CoachTarget(
+              spot: CoachSpot.receptionRecent,
+              child: SizedBox(height: AppSpacing.recentLine),
+            ),
+          )
+        : CoachTarget(
+            spot: CoachSpot.receptionRecent,
+            child: _RecentSaved(
+              reception: reception,
+              entries: entries,
+              lines: lines,
+              duplicateTyped: duplicate,
+              onUndo: () => _undo(entries.first),
+            ),
+          );
 
     return SafeArea(
       top: false,

@@ -75,18 +75,30 @@ class CoachMark {
 }
 
 /// 문구 자리를 정한다. 문구끼리, 또 뚫린 자리와 겹치지 않고 화면 안에 들어오게 한다.
-/// [holes]와 [sizes]는 같은 순서이고, 앞의 문구부터 대상에 가까운 자리를 차지한다.
+/// [holes]와 [sizes]는 같은 순서다. 붙어 있는 대상의 문구가 쌓일 때 가까운 대상의 문구가
+/// 안쪽에 오도록, 화면 위쪽 대상은 아래쪽 것부터, 아래쪽 대상은 위쪽 것부터 자리를 잡는다.
+/// [avoid]는 문구가 피해야 할 자리다.
 List<Rect> layoutCoachLabels({
   required Size screen,
   required double top,
   required double bottom,
   required List<Rect> holes,
   required List<Size> sizes,
+  List<Rect> avoid = const [],
 }) {
   const margin = 16.0;
   const step = 20.0;
+  const closest = 10.0; // 대상 사이가 좁을 때 쓰는 가까운 자리
   final placed = <Rect>[];
-  for (var i = 0; i < holes.length; i++) {
+  final result = List<Rect>.filled(holes.length, Rect.zero);
+  bool isLower(Rect h) => h.center.dy > screen.height / 2;
+  final order = [for (var i = 0; i < holes.length; i++) i]..sort((a, b) {
+      final lowerA = isLower(holes[a]);
+      if (lowerA != isLower(holes[b])) return lowerA ? 1 : -1;
+      final byTop = holes[a].top.compareTo(holes[b].top);
+      return lowerA ? byTop : -byTop;
+    });
+  for (final i in order) {
     final hole = holes[i];
     final size = sizes[i];
     final maxLeft = screen.width - margin - size.width;
@@ -98,26 +110,37 @@ List<Rect> layoutCoachLabels({
         r.top >= top &&
         r.bottom <= bottom &&
         !holes.any((h) => h.inflate(4).overlaps(r)) &&
+        !avoid.any((a) => a.overlaps(r)) &&
         !placed.any((p) => p.inflate(6).overlaps(r));
 
     final above = [
       for (var y = hole.top - step - size.height; y >= top; y -= step) at(y),
+      if (hole.top - closest - size.height >= top)
+        at(hole.top - closest - size.height),
     ];
     final below = [
       for (var y = hole.bottom + step;
           y + size.height <= bottom;
           y += step)
         at(y),
+      if (hole.bottom + closest + size.height <= bottom)
+        at(hole.bottom + closest),
     ];
-    final preferAbove = hole.center.dy > screen.height / 2;
+    // 넉넉한 자리부터 보되, 멀리 밀려나기 전에 가까운 자리를 먼저 쓴다.
+    for (final list in [above, below]) {
+      if (list.length > 2) list.insert(1, list.removeLast());
+    }
+    final preferAbove = isLower(hole);
     final candidates =
         preferAbove ? [...above, ...below] : [...below, ...above];
-    placed.add(candidates.where(free).firstOrNull ??
+    final label = candidates.where(free).firstOrNull ??
         (candidates.isNotEmpty
             ? candidates.first
-            : at((hole.bottom + step).clamp(top, bottom - size.height))));
+            : at((hole.bottom + step).clamp(top, bottom - size.height)));
+    placed.add(label);
+    result[i] = label;
   }
-  return placed;
+  return result;
 }
 
 /// 화면을 어둡게 하고 [marks]의 자리만 뚫어 설명을 보여준다. 아무 데나 누르면 닫힌다.
@@ -141,10 +164,13 @@ class _CoachOverlay extends StatefulWidget {
 }
 
 class _CoachOverlayState extends State<_CoachOverlay> {
-  static const _labelMaxWidth = 260.0;
+  static const _labelMaxWidth = 300.0;
+  static const _holePadding = 6.0;
+  static const _tightHolePadding = 2.0; // 대상끼리 붙어 있을 때
   static const _buttonWidth = 120.0;
   static const _buttonHeight = 40.0;
   static const _footerHeight = 76.0; // 버튼 + 간격 + 작은 안내문
+  static const _footerWidth = 280.0;
 
   List<Rect?> _rects = const [];
 
@@ -172,14 +198,15 @@ class _CoachOverlayState extends State<_CoachOverlay> {
   List<Rect?> _measure() =>
       [for (final m in widget.marks) CoachTarget.rectOf(m.spot)];
 
-  Size _measureText(String text, TextScaler scaler) {
+  /// 실제로 그릴 글자 스타일로 재서, 글자가 잘리지 않을 자리를 잡는다.
+  Size _measureText(String text, TextStyle style, TextScaler scaler, double max) {
     final painter = TextPainter(
-      text: TextSpan(text: text, style: AppText.coach),
+      text: TextSpan(text: text, style: style),
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
       textScaler: scaler,
-    )..layout(maxWidth: _labelMaxWidth);
-    final size = Size(painter.width + 2, painter.height + 2);
+    )..layout(maxWidth: max);
+    final size = Size(painter.width + 6, painter.height + 4);
     painter.dispose();
     return size;
   }
@@ -192,33 +219,64 @@ class _CoachOverlayState extends State<_CoachOverlay> {
     final area = Offset.zero & screen;
 
     final texts = <String>[];
-    final holes = <Rect>[];
+    final targets = <Rect>[];
     for (var i = 0; i < widget.marks.length; i++) {
       final rect = _rects[i];
       if (rect == null || !rect.overlaps(area)) continue;
       texts.add(widget.marks[i].text);
-      holes.add(rect.inflate(6).intersect(area));
+      targets.add(rect);
     }
-
-    // 버튼은 맨 아래 가운데. 그 자리에 뚫린 곳이 있으면 그 위로 올린다.
-    var footerTop = screen.height - media.padding.bottom - 12 - _footerHeight;
-    final buttonX = Rect.fromCenter(
-        center: Offset(screen.width / 2, footerTop),
-        width: _buttonWidth,
-        height: 1);
-    for (final h in holes) {
-      final overlapsX = h.left < buttonX.right && h.right > buttonX.left;
-      if (overlapsX && h.bottom > footerTop) {
-        footerTop = h.top - _footerHeight - 8;
+    bool overlapWhen(double padding) {
+      for (var i = 0; i < targets.length; i++) {
+        for (var j = i + 1; j < targets.length; j++) {
+          if (targets[i].inflate(padding).overlaps(targets[j].inflate(padding))) {
+            return true;
+          }
+        }
       }
+      return false;
     }
 
+    final padding =
+        overlapWhen(_holePadding) ? _tightHolePadding : _holePadding;
+    final holes = [
+      for (final t in targets) t.inflate(padding).intersect(area),
+    ];
+
+    // 버튼은 맨 아래 가운데. 그 자리에 뚫린 곳이 있으면 가장 넓은 빈 곳의 가운데로 옮긴다.
+    final safeBottom = screen.height - media.padding.bottom - 12;
+    var footerTop = safeBottom - _footerHeight;
+    final footerBand = Rect.fromLTWH(
+        (screen.width - _footerWidth) / 2, footerTop, _footerWidth, _footerHeight);
+    final footerMoved = holes.any((h) => h.overlaps(footerBand));
+    if (footerMoved) {
+      final sorted = [...holes]..sort((x, y) => x.top.compareTo(y.top));
+      var gapTop = media.padding.top;
+      var bestTop = gapTop;
+      var bestHeight = 0.0;
+      for (final h in [...sorted, Rect.fromLTWH(0, safeBottom, 0, 0)]) {
+        if (h.top - gapTop > bestHeight) {
+          bestHeight = h.top - gapTop;
+          bestTop = gapTop;
+        }
+        if (h.bottom > gapTop) gapTop = h.bottom;
+      }
+      footerTop = bestTop + (bestHeight - _footerHeight) / 2;
+    }
+    final footer = Rect.fromLTWH(
+        (screen.width - _footerWidth) / 2, footerTop, _footerWidth, _footerHeight);
+
+    final labelMax = _labelMaxWidth.clamp(0.0, screen.width - 32);
     final labels = layoutCoachLabels(
       screen: screen,
       top: media.padding.top + 8,
-      bottom: footerTop - 8,
+      bottom: footerMoved ? safeBottom : footerTop - 8,
+      avoid: [footer.inflate(8)],
       holes: holes,
-      sizes: [for (final t in texts) _measureText(t, media.textScaler)],
+      sizes: [
+        for (final t in texts)
+          _measureText(t, AppText.coach, media.textScaler, labelMax),
+      ],
     );
 
     return Material(
@@ -236,7 +294,9 @@ class _CoachOverlayState extends State<_CoachOverlay> {
               Positioned.fromRect(
                 rect: labels[i],
                 child: Text(texts[i],
-                    textAlign: TextAlign.center, style: AppText.coach),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.visible,
+                    style: AppText.coach),
               ),
             Positioned(
               left: 0,
@@ -339,30 +399,35 @@ class _CoachPainter extends CustomPainter {
     var end = isAbove
         ? hole.topCenter.translate(0, -gap)
         : hole.bottomCenter.translate(0, gap);
-    late Offset control;
+    final path = Path();
+    final Offset tangent;
     if (_crossesOtherHole(start, end, i)) {
-      // 다른 자리를 가로지르면 옆으로 돌아서 왼쪽 가운데를 가리킨다.
-      start = isAbove
-          ? label.bottomLeft.translate(8, 0)
-          : label.topLeft.translate(8, 0);
+      // 다른 자리를 가로지르게 되면 문구와 대상들의 왼쪽 빈 곳으로 돌아서 들어간다.
+      start = label.centerLeft.translate(-4, 0);
       end = hole.centerLeft.translate(-gap, 0);
-      control = Offset(end.dx - 26, end.dy - (isAbove ? 34 : -34));
+      final leftmost = [...labels.map((l) => l.left), ...holes.map((h) => h.left)]
+          .reduce((a, b) => a < b ? a : b);
+      final lane = (leftmost - 14 - i * 7).clamp(6.0, end.dx);
+      path
+        ..moveTo(start.dx, start.dy)
+        ..cubicTo(lane, start.dy, lane, end.dy, end.dx, end.dy);
+      tangent = Offset(end.dx - lane, 0);
     } else {
       final mid = Offset.lerp(start, end, 0.5)!;
       final direction = end - start;
       final normal = direction.distance == 0
           ? Offset.zero
           : Offset(-direction.dy, direction.dx) / direction.distance;
-      control = mid + normal * 14;
+      // 짧은 화살표는 덜 휘게 해서 꼬여 보이지 않게 한다
+      final control = mid + normal * (direction.distance * 0.2).clamp(0.0, 14.0);
+      path
+        ..moveTo(start.dx, start.dy)
+        ..quadraticBezierTo(control.dx, control.dy, end.dx, end.dy);
+      tangent = end - control;
     }
-    canvas.drawPath(
-        Path()
-          ..moveTo(start.dx, start.dy)
-          ..quadraticBezierTo(control.dx, control.dy, end.dx, end.dy),
-        paint);
+    canvas.drawPath(path, paint);
 
     // 화살촉: 끝에서 곡선이 들어오는 방향을 기준으로 양쪽 두 줄
-    final tangent = end - control;
     if (tangent.distance == 0) return;
     final unit = tangent / tangent.distance;
     final side = Offset(-unit.dy, unit.dx);

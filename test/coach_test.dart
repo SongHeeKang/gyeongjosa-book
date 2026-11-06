@@ -116,6 +116,48 @@ void main() {
       expect(labels[0].bottom, greaterThan(labels[1].bottom));
     });
 
+    test('대상 사이가 좁으면 멀리 밀리지 않고 그 사이에 들어간다', () {
+      const holes = [
+        Rect.fromLTWH(20, 100, 370, 60),
+        Rect.fromLTWH(0, 216, 411, 70),
+      ];
+      final labels = layoutCoachLabels(
+        screen: screen,
+        top: 30,
+        bottom: 800,
+        holes: holes,
+        sizes: const [Size(120, 24), Size(240, 44)],
+      );
+      expect(labels[0].top, greaterThanOrEqualTo(160));
+      expect(labels[0].bottom, lessThanOrEqualTo(216));
+    });
+
+    test('화면 위쪽에 붙은 버튼 3개는 가까운 버튼의 문구가 안쪽에 온다', () {
+      const holes = [
+        Rect.fromLTWH(24, 250, 363, 56),
+        Rect.fromLTWH(24, 310, 363, 56),
+        Rect.fromLTWH(24, 370, 363, 56),
+      ];
+      final labels = layout(holes);
+      expectClean(labels, holes);
+      expect(labels[2].top, lessThan(labels[1].top));
+      expect(labels[1].top, lessThan(labels[0].top));
+    });
+
+    test('피해야 할 자리에는 문구를 놓지 않는다', () {
+      const holes = [Rect.fromLTWH(24, 700, 363, 100)];
+      const blocked = Rect.fromLTWH(60, 560, 280, 130);
+      final label = layoutCoachLabels(
+        screen: screen,
+        top: 30,
+        bottom: 860,
+        holes: holes,
+        sizes: const [Size(240, 44)],
+        avoid: const [blocked],
+      ).single;
+      expect(label.overlaps(blocked), isFalse);
+    });
+
     test('큰 대상 위아래에 자리가 없어도 화면 안에 놓는다', () {
       const holes = [Rect.fromLTWH(0, 30, 411, 770)];
       final label = layout(holes).single;

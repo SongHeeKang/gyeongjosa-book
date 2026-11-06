@@ -72,20 +72,21 @@ class _MainShellState extends ConsumerState<MainShell> {
           // 메뉴가 열려 있으면 같은 자리에 X 버튼이 보이므로 숨긴다
           : Visibility.maintain(
               visible: !_menuOpen,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (showArrow)
-                    const IgnorePointer(
-                      child: Padding(
-                        padding: EdgeInsets.only(bottom: 8),
-                        child: Icon(Icons.south,
-                            size: 40, color: AppColors.primary),
+              // 안내 화살표까지 함께 뚫어 도움말 문구와 겹치지 않게 한다
+              child: CoachTarget(
+                spot: CoachSpot.recordButton,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showArrow)
+                      const IgnorePointer(
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: Icon(Icons.south,
+                              size: 40, color: AppColors.primary),
+                        ),
                       ),
-                    ),
-                  CoachTarget(
-                    spot: CoachSpot.recordButton,
-                    child: PillActionButton(
+                    PillActionButton(
                       label: '기록하기',
                       onPressed: () {
                         setState(() => _menuOpen = true);
@@ -94,8 +95,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                         });
                       },
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
       bottomNavigationBar: AppBottomNav(

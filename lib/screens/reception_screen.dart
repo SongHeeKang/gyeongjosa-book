@@ -11,8 +11,10 @@ import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/amount_input.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/reception_entry_sheet.dart';
+import '../widgets/screen_coach.dart';
 import 'reception_summary_screen.dart';
 
 /// 접수 화면: 이름 입력 → 금액 버튼 탭(바로 저장) 또는 금액 입력 후 저장 → 다음 손님.
@@ -39,6 +41,7 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
   bool _transfer = false;
   bool _saving = false;
   bool _nameMissing = false;
+  bool _coachChecked = false;
 
   @override
   void initState() {
@@ -63,6 +66,14 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
       // 화면 켜짐 유지에 실패해도 접수는 계속할 수 있어야 한다.
       debugPrint('화면 켜짐 유지 실패: $e');
     }
+  }
+
+  /// 도움말은 접수를 시작한 직후 첫 저장 전에만 자동으로 띄운다.
+  Future<void> _showFirstCoach() async {
+    if (!mounted) return;
+    final shown = await showCoachOnce(
+        context, ref.read(prefsProvider), CoachScreen.reception);
+    if (shown && mounted) _nameFocus.requestFocus();
   }
 
   String _currentSide(Reception reception) {
@@ -177,6 +188,12 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
   Widget build(BuildContext context) {
     final package =
         ref.watch(receptionPackageProvider(widget.receptionId)).value;
+    if (package != null && !_coachChecked) {
+      _coachChecked = true;
+      if (package.entries.isEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _showFirstCoach());
+      }
+    }
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -192,7 +209,10 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
               onPressed: () => showReceptionSearch(context,
                   receptionId: widget.receptionId),
             ),
-            TextButton(onPressed: _finish, child: const Text('접수 마치기')),
+            CoachTarget(
+              spot: CoachSpot.receptionFinish,
+              child: TextButton(onPressed: _finish, child: const Text('접수 마치기')),
+            ),
             const SizedBox(width: 8),
           ],
         ),
@@ -220,12 +240,18 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
             kToolbarHeight <
         AppSpacing.receptionTightBody;
 
-    Widget recentSaved(int lines) => _RecentSaved(
-          reception: reception,
-          entries: entries,
-          lines: lines,
-          duplicateTyped: duplicate,
-          onUndo: () => _undo(entries.first),
+    // 저장 전에도 도움말이 가리킬 수 있게 비어 있으면 한 줄 자리를 잡아 둔다.
+    Widget recentSaved(int lines) => CoachTarget(
+          spot: CoachSpot.receptionRecent,
+          child: entries.isEmpty && !duplicate
+              ? const SizedBox(height: AppSpacing.recentLine)
+              : _RecentSaved(
+                  reception: reception,
+                  entries: entries,
+                  lines: lines,
+                  duplicateTyped: duplicate,
+                  onUndo: () => _undo(entries.first),
+                ),
         );
 
     return SafeArea(
@@ -244,11 +270,13 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                     side: side,
                     onSide: (v) => _selectSide(reception, v),
                     onToggleMeals: () => _toggleMeals(reception),
+                    onHelpClosed: _nameFocus.requestFocus,
                   )
                 else ...[
                   _StatusHeader(
                     package: package,
                     onToggleMeals: () => _toggleMeals(reception),
+                    onHelpClosed: _nameFocus.requestFocus,
                   ),
                   const SizedBox(height: 12),
                   if (reception.sides.length > 1) ...[
@@ -260,19 +288,22 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                     const SizedBox(height: 12),
                   ],
                 ],
-                TextField(
-                  controller: _name,
-                  focusNode: _nameFocus,
-                  autofocus: true,
-                  style: AppText.receptionInput,
-                  textInputAction: TextInputAction.next,
-                  onChanged: (_) => setState(() => _nameMissing = false),
-                  // 키보드의 다음을 누르면 금액칸으로 간다
-                  onEditingComplete: _amountFocus.requestFocus,
-                  decoration: InputDecoration(
-                    labelText: '이름',
-                    hintText: '손님 이름',
-                    errorText: _nameMissing ? '이름을 먼저 입력해 주세요' : null,
+                CoachTarget(
+                  spot: CoachSpot.receptionName,
+                  child: TextField(
+                    controller: _name,
+                    focusNode: _nameFocus,
+                    autofocus: true,
+                    style: AppText.receptionInput,
+                    textInputAction: TextInputAction.next,
+                    onChanged: (_) => setState(() => _nameMissing = false),
+                    // 키보드의 다음을 누르면 금액칸으로 간다
+                    onEditingComplete: _amountFocus.requestFocus,
+                    decoration: InputDecoration(
+                      labelText: '이름',
+                      hintText: '손님 이름',
+                      errorText: _nameMissing ? '이름을 먼저 입력해 주세요' : null,
+                    ),
                   ),
                 ),
               ],
@@ -286,12 +317,11 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.page),
                       children: [
-                        if (entries.isNotEmpty || duplicate)
-                          recentSaved(((constraints.maxHeight -
-                                      _RecentSaved.warningHeight) /
-                                  AppSpacing.recentLine)
-                              .floor()
-                              .clamp(1, 3)),
+                        recentSaved(((constraints.maxHeight -
+                                    _RecentSaved.warningHeight) /
+                                AppSpacing.recentLine)
+                            .floor()
+                            .clamp(1, 3)),
                       ],
                     ),
                   )
@@ -305,8 +335,7 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              if (entries.isNotEmpty || duplicate)
-                                recentSaved(1),
+                              recentSaved(1),
                               if (entries.isNotEmpty) const AppDivider(),
                             ],
                           ),
@@ -334,9 +363,13 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
             onTransfer: () => setState(() => _transfer = !_transfer),
             tight: tight,
           ),
-          _AmountPad(
-            onAmount: (a) => _save(reception, a),
-            buttonHeight: tight ? AppSpacing.padButtonTight : AppSpacing.padButton,
+          CoachTarget(
+            spot: CoachSpot.receptionAmounts,
+            child: _AmountPad(
+              onAmount: (a) => _save(reception, a),
+              buttonHeight:
+                  tight ? AppSpacing.padButtonTight : AppSpacing.padButton,
+            ),
           ),
         ],
       ),
@@ -772,11 +805,13 @@ class _CompactStatus extends StatelessWidget {
     required this.side,
     required this.onSide,
     required this.onToggleMeals,
+    required this.onHelpClosed,
   });
   final ReceptionPackage package;
   final String side;
   final ValueChanged<String> onSide;
   final VoidCallback onToggleMeals;
+  final VoidCallback onHelpClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -818,6 +853,10 @@ class _CompactStatus extends StatelessWidget {
                   ),
               ],
             ),
+          HelpButton(
+              screen: CoachScreen.reception,
+              size: 20,
+              onClosed: onHelpClosed),
         ],
       ),
     );
@@ -843,9 +882,14 @@ class _MealToggle extends StatelessWidget {
 
 /// 맨 위 현황: 행사 이름, 총 인원 · 총액, 구분별 소계
 class _StatusHeader extends StatelessWidget {
-  const _StatusHeader({required this.package, required this.onToggleMeals});
+  const _StatusHeader({
+    required this.package,
+    required this.onToggleMeals,
+    required this.onHelpClosed,
+  });
   final ReceptionPackage package;
   final VoidCallback onToggleMeals;
+  final VoidCallback onHelpClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -865,6 +909,10 @@ class _StatusHeader extends StatelessWidget {
             _MealToggle(
                 enabled: package.reception.mealTicketEnabled,
                 onTap: onToggleMeals),
+            HelpButton(
+                screen: CoachScreen.reception,
+                size: 20,
+                onClosed: onHelpClosed),
           ],
         ),
         const SizedBox(height: 4),

@@ -10,6 +10,8 @@ import '../services/pro_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/person_form_sheet.dart';
+import '../widgets/coach_mark.dart';
+import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 import 'person_detail_screen.dart';
 
@@ -65,6 +67,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
               ),
             ),
           TextButton(onPressed: _add, child: const Text('사람 추가')),
+          const HelpButton(screen: CoachScreen.people),
           const SettingsButton(),
           SettingsButton.trailingGap,
         ],
@@ -74,7 +77,9 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.page, 4, AppSpacing.page, 4),
-            child: TextField(
+            child: CoachTarget(
+              spot: CoachSpot.peopleSearch,
+              child: TextField(
               controller: _search,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
@@ -87,6 +92,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                         onPressed: () => setState(_search.clear),
                       ),
               ),
+            ),
             ),
           ),
           SizedBox(
@@ -130,7 +136,11 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                   itemCount: list.length,
                   separatorBuilder: (_, _) =>
                       const AppDivider(indent: AppSpacing.page),
-                  itemBuilder: (_, i) => _PersonRow(summary: list[i]),
+                  itemBuilder: (_, i) => i == 0
+                      ? CoachTarget(
+                          spot: CoachSpot.peopleCard,
+                          child: _PersonRow(summary: list[i]))
+                      : _PersonRow(summary: list[i]),
                 );
               },
             ),

@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../services/format.dart';
 import '../services/notification_service.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/record_form_sheet.dart';
+import '../widgets/screen_coach.dart';
 import 'event_form_screen.dart';
 import 'quick_entry_screen.dart';
 import 'reception_form_screen.dart';
@@ -47,6 +50,7 @@ class EventDetailScreen extends ConsumerWidget {
           appBar: AppBar(
             title: Text(e.title),
             actions: [
+              if (e.isMine) const HelpButton(screen: CoachScreen.eventDetail),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: AppColors.icon),
                 onSelected: (v) {
@@ -121,30 +125,42 @@ class EventDetailScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (e.isMine) ...[
-                      FilledButton.icon(
-                        onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    ReceptionFormScreen(event: e))),
-                        icon: const Icon(Icons.edit_note),
-                        label: const Text('행사장 접수'),
+                      AutoCoach(
+                          prefs: ref.read(prefsProvider),
+                          screen: CoachScreen.eventDetail),
+                      CoachTarget(
+                        spot: CoachSpot.eventReception,
+                        child: FilledButton.icon(
+                          onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      ReceptionFormScreen(event: e))),
+                          icon: const Icon(Icons.edit_note),
+                          label: const Text('행사장 접수'),
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                                builder: (_) => QuickEntryScreen(event: e))),
-                        icon: const Icon(Icons.bolt, size: 20),
-                        label: const Text('받은 돈 정리'),
+                      CoachTarget(
+                        spot: CoachSpot.eventDirect,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                  builder: (_) => QuickEntryScreen(event: e))),
+                          icon: const Icon(Icons.bolt, size: 20),
+                          label: const Text('받은 명단 직접 입력'),
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () =>
-                            pickAndOpenImport(context, eventId: e.id),
-                        icon: const Icon(Icons.file_download_outlined),
-                        label: const Text('장부 가져오기'),
+                      CoachTarget(
+                        spot: CoachSpot.eventImport,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              pickAndOpenImport(context, eventId: e.id),
+                          icon: const Icon(Icons.file_download_outlined),
+                          label: const Text('장부 가져오기'),
+                        ),
                       ),
                     ] else
                       FilledButton.icon(
@@ -165,7 +181,7 @@ class EventDetailScreen extends ConsumerWidget {
                 EmptyView(
                     icon: Icons.list_alt,
                     message: e.isMine
-                        ? '[받은 돈 정리]로 축의금 봉투를\n한 장씩 빠르게 입력해 보세요.'
+                        ? '[받은 명단 직접 입력]으로 축의금 봉투를\n한 장씩 빠르게 입력해 보세요.'
                         : '아직 기록이 없어요.')
               else
                 for (final r in d.records)

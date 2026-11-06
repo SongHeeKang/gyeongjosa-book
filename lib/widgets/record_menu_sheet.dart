@@ -7,19 +7,31 @@ import '../screens/event_form_screen.dart';
 import '../screens/quick_entry_screen.dart';
 import '../screens/reception_form_screen.dart';
 import '../services/format.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import 'coach_mark.dart';
 import 'person_picker_sheet.dart';
+import 'screen_coach.dart';
 
 enum _RecordAction { sent, schedule, received, reception }
 
-/// [+ 기록하기]: 큰 선택지 4개를 고르면 해당 화면으로 간다.
-Future<void> showRecordMenu(BuildContext context, WidgetRef ref) async {
-  final action = await showModalBottomSheet<_RecordAction>(
-    context: context,
-    useSafeArea: true,
-    showDragHandle: true,
-    builder: (_) => const _RecordMenuSheet(),
-  );
+/// [+ 기록하기]: 버튼 위로 카드 4개가 펼쳐지고, 고르면 해당 화면으로 간다.
+/// [onClosed]는 메뉴가 닫힐 때(화면 이동 전에) 불린다.
+Future<void> showRecordMenu(BuildContext context, WidgetRef ref,
+    {VoidCallback? onClosed}) async {
+  final buttonRect = CoachTarget.rectOf(CoachSpot.recordButton);
+  final action = await Navigator.of(context, rootNavigator: true)
+      .push(PageRouteBuilder<_RecordAction>(
+    opaque: false,
+    barrierDismissible: true,
+    barrierLabel: '닫기',
+    barrierColor: AppColors.menuScrim,
+    transitionDuration: _menuDuration,
+    reverseTransitionDuration: _menuDuration,
+    pageBuilder: (_, animation, _) =>
+        _RecordMenu(animation: animation, buttonRect: buttonRect),
+  ));
+  onClosed?.call();
   if (action == null || !context.mounted) return;
   switch (action) {
     case _RecordAction.sent:
@@ -37,7 +49,7 @@ Future<void> showRecordMenu(BuildContext context, WidgetRef ref) async {
   }
 }
 
-/// [받은 돈 정리]: 내 행사를 고르고(없으면 바로 만들고) 연속 입력으로 간다.
+/// [받은 명단 직접 입력]: 내 행사를 고르고(없으면 바로 만들고) 연속 입력으로 간다.
 Future<void> _startReceivedEntry(BuildContext context, WidgetRef ref) async {
   final repo = ref.read(repositoryProvider);
   final mine = await repo.myEvents();
@@ -80,35 +92,203 @@ class _EventPick {
   const _EventPick(this.event);
 }
 
-class _RecordMenuSheet extends StatelessWidget {
-  const _RecordMenuSheet();
+const _menuDuration = Duration(milliseconds: 200);
+
+class _RecordMenu extends ConsumerStatefulWidget {
+  const _RecordMenu({required this.animation, required this.buttonRect});
+  final Animation<double> animation;
+
+  /// 기록하기 버튼 자리. X 버튼을 같은 자리에 놓는다.
+  final Rect? buttonRect;
+
+  @override
+  ConsumerState<_RecordMenu> createState() => _RecordMenuState();
+}
+
+class _RecordMenuState extends ConsumerState<_RecordMenu> {
+  static const _cardWidth = 280.0;
+  static const _cardHeight = 60.0;
+  static const _cardGap = 10.0;
+  static const _closeSize = 56.0;
+  static const _stagger = 40.0 / 200.0; // 한 장씩 40ms 차이
+
+  static const _cards = [
+    (
+      _RecordAction.sent,
+      CoachSpot.menuSent,
+      Icons.card_giftcard,
+      '보냈어요',
+      '축의금·부의금을 냈어요',
+      AppColors.menuSent,
+      AppColors.menuSentSoft,
+    ),
+    (
+      _RecordAction.schedule,
+      CoachSpot.menuSchedule,
+      Icons.event_outlined,
+      '일정 추가',
+      '청첩장·부고를 받았어요',
+      AppColors.menuSchedule,
+      AppColors.menuScheduleSoft,
+    ),
+    (
+      _RecordAction.received,
+      CoachSpot.menuDirect,
+      Icons.playlist_add,
+      '받은 명단 직접 입력',
+      '종이 장부·계좌이체를 옮겨 적어요',
+      AppColors.menuDirect,
+      AppColors.menuDirectSoft,
+    ),
+    (
+      _RecordAction.reception,
+      CoachSpot.menuReception,
+      Icons.assignment_outlined,
+      '행사장 접수',
+      '접수대에서 바로 받아요',
+      AppColors.menuReception,
+      AppColors.menuReceptionSoft,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        showCoachOnce(context, ref.read(prefsProvider), CoachScreen.recordMenu);
+      }
+    });
+  }
+
+  /// 버튼에 가까운 아래 카드부터 차례로 올라온다. 닫을 때는 그 반대.
+  Widget _appear(int index, Widget child) {
+    final fromBottom = _cards.length - 1 - index;
+    final start = (fromBottom * _stagger).clamp(0.0, 0.6);
+    final progress = CurvedAnimation(
+      parent: widget.animation,
+      curve: Interval(start, (start + 0.4).clamp(0.0, 1.0), curve: Curves.easeOut),
+    );
+    return AnimatedBuilder(
+      animation: progress,
+      child: child,
+      builder: (_, child) => Opacity(
+        opacity: progress.value,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - progress.value)),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _card(
+      (_RecordAction, CoachSpot, IconData, String, String, Color, Color) c) {
+    final (action, spot, icon, title, sub, color, soft) = c;
+    return CoachTarget(
+      spot: spot,
+      child: SizedBox(
+        width: _cardWidth,
+        height: _cardHeight,
+        child: Material(
+          color: AppColors.background,
+          elevation: 2,
+          shadowColor: AppColors.menuScrim,
+          borderRadius: BorderRadius.circular(30),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => Navigator.of(context).pop(action),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 10, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: AppText.menuTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        Text(sub,
+                            style: AppText.sub,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                        color: soft, borderRadius: BorderRadius.circular(12)),
+                    child: Icon(icon, size: 22, color: color),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    Widget item(_RecordAction action, IconData icon, String title, String sub) =>
-        ListTile(
-          minTileHeight: 72,
-          leading: Icon(icon, size: 28, color: AppColors.primary),
-          title: Text(title, style: AppText.sectionTitle),
-          subtitle: Text(sub),
-          onTap: () => Navigator.pop(context, action),
-        );
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          item(_RecordAction.sent, Icons.card_giftcard, '보냈어요',
-              '축의금 · 부의금을 냈어요'),
-          item(_RecordAction.schedule, Icons.event_outlined, '일정 추가',
-              '청첩장 · 부고를 받았어요'),
-          item(_RecordAction.received, Icons.playlist_add, '받은 돈 정리',
-              '내 행사 명단을 적어요'),
-          item(_RecordAction.reception, Icons.edit_note, '행사장 접수',
-              '접수대에서 바로 받아요'),
-          const SizedBox(height: 12),
-        ],
-      ),
+    final media = MediaQuery.of(context);
+    // 기록하기 버튼의 오른쪽 아래를 기준으로 같은 자리에 놓는다.
+    final rect = widget.buttonRect;
+    final right =
+        rect == null ? AppSpacing.page : media.size.width - rect.right;
+    final bottom = rect == null
+        ? media.padding.bottom + 96
+        : media.size.height - rect.bottom;
+    return Stack(
+      children: [
+        Positioned(
+          right: right,
+          bottom: bottom + _closeSize + 14,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _cards.length; i++) ...[
+                if (i > 0) const SizedBox(height: _cardGap),
+                _appear(i, _card(_cards[i])),
+              ],
+            ],
+          ),
+        ),
+        Positioned(
+          right: right,
+          bottom: bottom,
+          child: SizedBox(
+            width: _closeSize,
+            height: _closeSize,
+            child: Material(
+              color: AppColors.primary,
+              shape: const CircleBorder(),
+              elevation: 3,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => Navigator.of(context).pop(),
+                child: Semantics(
+                  label: '닫기',
+                  button: true,
+                  child: RotationTransition(
+                    // + 가 45도 돌아 X가 된다
+                    turns: Tween<double>(begin: 0, end: 0.125)
+                        .animate(widget.animation),
+                    child: const Icon(Icons.add,
+                        size: 28, color: AppColors.background),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

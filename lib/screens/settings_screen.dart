@@ -18,7 +18,8 @@ import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
-import 'onboarding_screen.dart';
+import '../widgets/screen_coach.dart';
+import 'help_screen.dart';
 import 'restore_prompt.dart';
 
 final _appVersionProvider = FutureProvider<String>((ref) async {
@@ -195,11 +196,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ListTile(
               leading: const Icon(Icons.help_outline, size: 24),
               title: const Text('사용 방법'),
-              subtitle: const Text('첫 실행 가이드를 다시 봐요'),
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                      builder: (_) => const OnboardingScreen(replay: true))),
+              subtitle: const Text('가이드와 화면별 도움말을 다시 봐요'),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute<void>(builder: (_) => const HelpScreen())),
             ),
             ListTile(
               leading: const Icon(Icons.privacy_tip_outlined, size: 24),
@@ -293,9 +292,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ListTile(
           leading: const Icon(Icons.replay_circle_filled_outlined, size: 24),
           title: const Text('가이드 다시 보기 초기화'),
-          subtitle: const Text('앱을 다시 켜면 첫 실행 가이드가 보여요'),
+          subtitle: const Text('앱을 다시 켜면 첫 실행 가이드와 화면별 도움말이 보여요'),
           onTap: () async {
             await ref.read(onboardingSeenProvider.notifier).reset();
+            await resetCoachMarks(ref.read(prefsProvider));
             if (mounted) showSnack(context, '앱을 다시 켜면 가이드가 보여요.');
           },
         ),

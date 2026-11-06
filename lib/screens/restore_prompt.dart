@@ -47,7 +47,7 @@ class _RestorePromptGateState extends ConsumerState<RestorePromptGate> {
         builder: (_) => const _RestoreDialog(),
       );
     }
-    await prefs.setBool(PrefKeys.restorePromptDone, true);
+    await ref.read(restorePromptDoneProvider.notifier).markDone();
   }
 
   @override

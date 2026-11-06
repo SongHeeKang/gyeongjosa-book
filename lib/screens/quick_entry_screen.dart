@@ -10,9 +10,12 @@ import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/amount_input.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/person_name_field.dart';
 import '../widgets/pro_gate.dart';
+import '../widgets/record_form_sheet.dart';
+import '../widgets/screen_coach.dart';
 
 /// 빠른 연속 입력: 이름 → 금액 버튼 탭(바로 저장) → 다음 이름.
 /// 축의금 봉투 100개를 빠르게 입력하는 게 목표.
@@ -142,6 +145,37 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     if (mounted) showSnack(context, '${r.personName} 내역을 지웠어요.');
   }
 
+  /// 방금 적은 항목 수정. 끝나면 고친 내용을 목록에 맞춘다.
+  Future<void> _edit(GiftRecord r) async {
+    await showRecordForm(context,
+        personId: r.personId, existing: r, event: widget.event);
+    final records =
+        await ref.read(repositoryProvider).recordsForPerson(r.personId);
+    if (!mounted) return;
+    final index = _session.indexWhere((s) => s.id == r.id);
+    if (index < 0) return;
+    final saved = records.where((s) => s.id == r.id).firstOrNull;
+    setState(() {
+      if (saved == null) {
+        _session.removeAt(index);
+      } else {
+        // 이름 옆의 '(새로 등록)' 표시는 그대로 둔다
+        _session[index] = GiftRecord(
+          id: saved.id,
+          personId: saved.personId,
+          eventId: saved.eventId,
+          direction: saved.direction,
+          amount: saved.amount,
+          method: saved.method,
+          date: saved.date,
+          memo: saved.memo,
+          eventType: saved.eventType,
+          personName: r.personName,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final detail = ref.watch(eventDetailProvider(widget.event.id!)).value;
@@ -150,8 +184,11 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.event.isMine ? '받은 돈 정리' : '빠른 연속 입력'),
+        title: Text(widget.event.isMine ? '받은 명단 직접 입력' : '빠른 연속 입력'),
         actions: [
+          HelpButton(
+              screen: CoachScreen.quickEntry,
+              onClosed: _nameFocus.requestFocus),
           TextButton(
               onPressed: () => Navigator.pop(context), child: const Text('완료')),
         ],
@@ -160,6 +197,11 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, 0, AppSpacing.page, 32),
         children: [
+          AutoCoach(
+            prefs: ref.read(prefsProvider),
+            screen: CoachScreen.quickEntry,
+            onClosed: _nameFocus.requestFocus,
+          ),
           Text(widget.event.title, style: AppText.sectionTitle),
           if (detail != null)
             Padding(
@@ -197,26 +239,29 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           ],
           const SizedBox(height: 16),
           const FieldLabel('금액을 누르면 바로 저장돼요'),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 2.6,
-            children: [
-              for (final a in _quickAmounts)
-                FilledButton(
-                  onPressed: _saving ? null : () => _save(a),
-                  style: FilledButton.styleFrom(
-                    textStyle: const TextStyle(
-                        fontFamily: AppText.fontFamily,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700),
+          CoachTarget(
+            spot: CoachSpot.quickAmounts,
+            child: GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 2.6,
+              children: [
+                for (final a in _quickAmounts)
+                  FilledButton(
+                    onPressed: _saving ? null : () => _save(a),
+                    style: FilledButton.styleFrom(
+                      textStyle: const TextStyle(
+                          fontFamily: AppText.fontFamily,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    child: Text('${formatManWon(a)}원'),
                   ),
-                  child: Text('${formatManWon(a)}원'),
-                ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -250,24 +295,37 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
             selected: _method,
             onSelected: (v) => setState(() => _method = v),
           ),
-          if (_session.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const AppDivider(),
-            Padding(
-              padding: const EdgeInsets.only(top: 20, bottom: 4),
-              child: Text('방금 입력한 ${_session.length}건', style: AppText.sectionTitle),
-            ),
-            for (final r in _session)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(r.personName ?? ''),
-                subtitle: Text(signedWon(r.amount, isSent: r.isSent)),
-                trailing: TextButton(
-                  onPressed: () => _undo(r),
-                  child: const Text('취소'),
+          const SizedBox(height: 12),
+          const AppDivider(),
+          CoachTarget(
+            spot: CoachSpot.quickList,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 20, bottom: 4),
+                  child: Text(
+                      _session.isEmpty
+                          ? '적은 명단이 여기에 쌓여요'
+                          : '방금 입력한 ${_session.length}건',
+                      style: _session.isEmpty
+                          ? AppText.sub
+                          : AppText.sectionTitle),
                 ),
-              ),
-          ],
+                for (final r in _session)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(r.personName ?? ''),
+                    subtitle: Text(signedWon(r.amount, isSent: r.isSent)),
+                    onTap: () => _edit(r),
+                    trailing: TextButton(
+                      onPressed: () => _undo(r),
+                      child: const Text('취소'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );

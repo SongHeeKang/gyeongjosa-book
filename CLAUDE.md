@@ -20,6 +20,7 @@
 - 이미 입력한 기록의 보기·수정·삭제는 한도와 상관없이 항상 허용.
 - **Google Play 업로드 전 필수:** 설정의 테스트 도구(isPro 켜기/끄기 등)를 없앤다. `lib/services/app_config.dart`의 `testBuild`를 `false`로 바꾸면 APK·AAB에서 사라진다. 사용자가 출시·AAB·Play Console 업로드를 언급하면 먼저 이 작업을 하자고 요청할 것. `testBuild`가 `true`이면 `flutter build appbundle`은 일부러 실패한다.
 - Google 드라이브 백업용 OAuth 클라이언트는 'gyeongjosa-book debug'만 등록돼 있다. 8단계 빌드가 끝나면 업로드 키 SHA-1을 알려주고 'gyeongjosa-book upload' 추가를, 첫 AAB 업로드 뒤에는 Play Console 앱 무결성 → 앱 서명 키 인증서 SHA-1로 'gyeongjosa-book play' 추가를 안내한다.
+- 화면별 도움말: 내용은 `lib/widgets/screen_coach.dart`의 `CoachScreen`, 모양은 `coach_mark.dart`. 새 자리는 `CoachTarget`으로 감싼다. 자동 표시는 화면별로 한 번이고, 접수 화면은 첫 저장 전에만 띄운다.
 - 안드로이드 설정의 '데이터 삭제'는 `manageSpaceActivity`로 안내 화면(`lib/screens/manage_space_screen.dart`)을 연다. 앱 본체와 다른 Flutter 엔진에서 돌므로 DB는 `DatabaseHelper.separateConnection()`으로 연다.
 - 자동 백업: 기록이 바뀌면(`dbVersionProvider`) 5초 뒤 Download/경조사장부/에 저장한다(`lib/services/auto_backup_service.dart`, `DownloadBackup.kt`). 빈 장부로는 백업하지 않고, 이번 앱 데이터에서 만든 파일만 덮어쓴다. Android 10 이상에서만 동작한다.
 - 인앱 상품 ID: `pro_lifetime` (일회성 제품, 4,900원).

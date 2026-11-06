@@ -43,6 +43,22 @@ class OnboardingSeenNotifier extends Notifier<bool> {
 final onboardingSeenProvider =
     NotifierProvider<OnboardingSeenNotifier, bool>(OnboardingSeenNotifier.new);
 
+/// 첫 실행 때 이전 백업을 불러올지 묻는 단계가 끝났는지. 끝난 뒤에 화면별 도움말을 띄운다.
+class RestorePromptDoneNotifier extends Notifier<bool> {
+  @override
+  bool build() =>
+      ref.read(prefsProvider).getBool(PrefKeys.restorePromptDone) ?? false;
+
+  Future<void> markDone() async {
+    await ref.read(prefsProvider).setBool(PrefKeys.restorePromptDone, true);
+    state = true;
+  }
+}
+
+final restorePromptDoneProvider =
+    NotifierProvider<RestorePromptDoneNotifier, bool>(
+        RestorePromptDoneNotifier.new);
+
 /// 마지막 수동 백업 시각
 class LastBackupNotifier extends Notifier<DateTime?> {
   @override

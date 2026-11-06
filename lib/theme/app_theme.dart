@@ -17,6 +17,17 @@ class AppColors {
   static const guideChip = Color(0xFFDBEAFE); // 가이드 그림의 칩 바탕
   static const guideChipText = Color(0xFF1E40AF); // 가이드 그림의 칩 글자
   static const success = Color(0xFF16A34A); // 가이드 그림의 초록 체크
+  static const coachScrim = Color(0xD1000000); // 도움말 검은 막 (불투명도 0.82)
+  static const coachSmall = Color(0xB3FFFFFF); // 도움말 맨 아래 작은 안내문
+  static const menuScrim = Color(0x4D000000); // 기록하기 메뉴 뒤 배경 (불투명도 0.3)
+  static const menuSent = Color(0xFFEF4444); // 기록하기 메뉴 아이콘 타일
+  static const menuSentSoft = Color(0xFFFEE2E2);
+  static const menuSchedule = primary;
+  static const menuScheduleSoft = guideChip;
+  static const menuDirect = success;
+  static const menuDirectSoft = Color(0xFFDCFCE7);
+  static const menuReception = Color(0xFFEA580C);
+  static const menuReceptionSoft = Color(0xFFFFEDD5);
 
   /// 받은 돈 = 포인트색, 보낸 돈 = 기본 글자색
   static Color amount(bool isSent) => isSent ? text : primary;
@@ -70,6 +81,20 @@ class AppText {
       fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.text);
   static const warning = TextStyle(
       fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.error);
+
+  // 화면별 도움말
+  static const coach = TextStyle(
+      fontFamily: fontFamily,
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      height: 1.4,
+      color: AppColors.background);
+  static const coachSmall = TextStyle(
+      fontFamily: fontFamily, fontSize: 12, color: AppColors.coachSmall);
+
+  // 기록하기 메뉴
+  static const menuTitle = TextStyle(
+      fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.text);
 
   // 첫 실행 가이드
   static const guideTitle = TextStyle(

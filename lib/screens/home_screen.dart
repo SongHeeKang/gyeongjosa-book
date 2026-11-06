@@ -5,8 +5,10 @@ import '../data/providers.dart';
 import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/pending_amount_section.dart';
+import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 import 'all_records_screen.dart';
 import 'all_schedules_screen.dart';
@@ -25,6 +27,10 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('경조사 장부'),
         actions: [
+          const CoachTarget(
+            spot: CoachSpot.homeHelp,
+            child: HelpButton(screen: CoachScreen.home),
+          ),
           const SettingsButton(),
           SettingsButton.trailingGap,
         ],
@@ -48,7 +54,10 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.section),
             const AppDivider(),
             if (data.pending.isNotEmpty)
-              PendingAmountSection(events: data.pending),
+              CoachTarget(
+                spot: CoachSpot.homePending,
+                child: PendingAmountSection(events: data.pending),
+              ),
             if (data.scheduleCount > 0) ...[
               SectionTitle(
                 '다가오는 일정',

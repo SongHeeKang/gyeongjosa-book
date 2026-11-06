@@ -6,6 +6,8 @@ import '../models/reception.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/coach_mark.dart';
+import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 import 'event_detail_screen.dart';
 import 'event_form_screen.dart';
@@ -34,11 +36,15 @@ class MyEventsScreen extends ConsumerWidget {
         actions: [
           // 비어 있을 때는 화면 가운데 버튼 하나만 보여준다
           if (hasMine) ...[
-            TextButton(
-              onPressed: () => _create(context),
-              child: const Text('내 행사 만들기'),
+            CoachTarget(
+              spot: CoachSpot.myEventsCreate,
+              child: TextButton(
+                onPressed: () => _create(context),
+                child: const Text('내 행사 만들기'),
+              ),
             ),
           ],
+          const HelpButton(screen: CoachScreen.myEvents),
           const SettingsButton(),
           SettingsButton.trailingGap,
         ],
@@ -53,22 +59,28 @@ class MyEventsScreen extends ConsumerWidget {
                 EmptyView(
                   icon: Icons.celebration_outlined,
                   message: '결혼식 · 돌잔치처럼 내가 받는 행사를 만들어 보세요',
-                  action: FilledButton(
-                    onPressed: () => _create(context),
-                    child: const Text('내 행사 만들기'),
+                  action: CoachTarget(
+                    spot: CoachSpot.myEventsCreate,
+                    child: FilledButton(
+                      onPressed: () => _create(context),
+                      child: const Text('내 행사 만들기'),
+                    ),
                   ),
                 )
               else
-                for (final s in mine)
-                  EventTile(
-                    event: s.event,
-                    subtitle:
-                        '${formatDate(s.event.date)} · 받은 사람 ${s.count}명 · ${formatWon(s.total)}',
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (_) =>
-                                EventDetailScreen(eventId: s.event.id!))),
+                for (final (i, s) in mine.indexed)
+                  _firstTarget(
+                    i,
+                    EventTile(
+                      event: s.event,
+                      subtitle:
+                          '${formatDate(s.event.date)} · 받은 사람 ${s.count}명 · ${formatWon(s.total)}',
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  EventDetailScreen(eventId: s.event.id!))),
+                    ),
                   ),
               if (receptions.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.section - 6),
@@ -83,6 +95,11 @@ class MyEventsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  /// 도움말이 첫 번째 행사를 가리킬 수 있게 한다.
+  Widget _firstTarget(int index, Widget child) => index == 0
+      ? CoachTarget(spot: CoachSpot.myEventsFirst, child: child)
+      : child;
 
   Widget _receptionRow(BuildContext context, ReceptionSummary s) {
     final r = s.reception;

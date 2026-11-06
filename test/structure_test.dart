@@ -330,7 +330,7 @@ void main() {
       await pump(tester, const MainShell());
       await tester.tap(find.text('기록하기'));
       await tester.pumpAndSettle();
-      for (final t in ['보냈어요', '일정 추가', '받은 돈 정리', '행사장 접수']) {
+      for (final t in ['보냈어요', '일정 추가', '받은 명단 직접 입력', '행사장 접수']) {
         expect(find.text(t), findsOneWidget);
       }
       await tester.tapAt(const Offset(10, 10));

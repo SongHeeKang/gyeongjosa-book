@@ -25,7 +25,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     ),
     (
       '+ 버튼 하나면 돼요',
-      '보냈어요 · 일정 추가 · 받은 돈 정리 · 행사장 접수',
+      '보냈어요 · 일정 추가 · 받은 명단 직접 입력 · 행사장 접수',
       _ButtonPicture(),
     ),
     (
@@ -194,8 +194,8 @@ class _ButtonPicture extends StatelessWidget {
     const items = [
       (Icons.card_giftcard, '보냈어요'),
       (Icons.event_outlined, '일정 추가'),
-      (Icons.playlist_add, '받은 돈 정리'),
-      (Icons.edit_note, '행사장 접수'),
+      (Icons.playlist_add, '받은 명단 직접 입력'),
+      (Icons.assignment_outlined, '행사장 접수'),
     ];
     return SizedBox(
       width: 280,

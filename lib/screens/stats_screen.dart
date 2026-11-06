@@ -9,8 +9,10 @@ import '../models/constants.dart';
 import '../services/format.dart';
 import '../services/pro_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
+import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 
 /// 차트 색: 보냄 = 회색, 받음 = 포인트색
@@ -37,27 +39,38 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('통계'),
-        actions: const [SettingsButton(), SettingsButton.trailingGap],
+        actions: const [
+          HelpButton(screen: CoachScreen.stats),
+          SettingsButton(),
+          SettingsButton.trailingGap,
+        ],
       ),
       body: ListView(
         // 맨 아래 내용이 떠 있는 [기록하기] 버튼에 가리지 않게
         padding: const EdgeInsets.only(bottom: 96),
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                iconSize: 28,
-                onPressed: years.first < _year ? () => setState(() => _year--) : null,
-                icon: const Icon(Icons.chevron_left),
+          Center(
+            child: CoachTarget(
+              spot: CoachSpot.statsPeriod,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    iconSize: 28,
+                    onPressed:
+                        years.first < _year ? () => setState(() => _year--) : null,
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Text('$_year년', style: AppText.appTitle),
+                  IconButton(
+                    iconSize: 28,
+                    onPressed:
+                        _year < years.last ? () => setState(() => _year++) : null,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
               ),
-              Text('$_year년', style: AppText.appTitle),
-              IconButton(
-                iconSize: 28,
-                onPressed: _year < years.last ? () => setState(() => _year++) : null,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
+            ),
           ),
           AsyncBody(
             value: monthly,
@@ -75,12 +88,15 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                   const SizedBox(height: AppSpacing.section),
                   const AppDivider(),
                   const SectionTitle('월별 보냄 · 받음', trailing: _Legend()),
-                  _ChartCard(
-                    child: _GroupedBarChart(
-                      labels: [for (final r in rows) '${r.month}'],
-                      sent: [for (final r in rows) r.sent],
-                      received: [for (final r in rows) r.received],
-                      labelSuffix: '월',
+                  CoachTarget(
+                    spot: CoachSpot.statsChart,
+                    child: _ChartCard(
+                      child: _GroupedBarChart(
+                        labels: [for (final r in rows) '${r.month}'],
+                        sent: [for (final r in rows) r.sent],
+                        received: [for (final r in rows) r.received],
+                        labelSuffix: '월',
+                      ),
                     ),
                   ),
                 ],

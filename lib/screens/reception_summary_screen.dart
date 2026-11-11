@@ -5,66 +5,25 @@ import '../data/providers.dart';
 import '../models/constants.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
-import '../services/reception_file_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/reception_entry_sheet.dart';
 import 'reception_import_screen.dart';
 import 'reception_screen.dart';
+import 'reception_send_screen.dart';
 
 /// 접수 마치기: 구분별 요약, 장부 보내기, 내 장부로 옮기기
 class ReceptionSummaryScreen extends ConsumerWidget {
   const ReceptionSummaryScreen({super.key, required this.receptionId});
   final String receptionId;
 
-  /// 장부 보내기: 요약 메시지 또는 장부 파일 중 하나를 고른다.
-  Future<void> _share(BuildContext context, ReceptionPackage package) async {
-    final asFile = await showModalBottomSheet<bool>(
-      context: context,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (ctx) => SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TestId('send_summary', child: ListTile(
-              minTileHeight: 72,
-              leading: const Icon(Icons.chat_bubble_outline,
-                  size: 28, color: AppColors.primary),
-              title: const Text('요약 메시지', style: AppText.sectionTitle),
-              subtitle: const Text('인원 · 총액만 글자로 보내요. 앱이 없어도 읽을 수 있어요'),
-              onTap: () => Navigator.pop(ctx, false),
-            )),
-            TestId('send_file', child: ListTile(
-              minTileHeight: 72,
-              leading: const Icon(Icons.insert_drive_file_outlined,
-                  size: 28, color: AppColors.primary),
-              title: const Text('장부 파일', style: AppText.sectionTitle),
-              subtitle: const Text('전체 명단을 파일로 보내요. 받는 분이 앱에서 가져와요'),
-              onTap: () => Navigator.pop(ctx, true),
-            )),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-    if (asFile == null || !context.mounted) return;
-    try {
-      if (!asFile) {
-        await ReceptionFileService.shareSummary(package);
-        return;
-      }
-      final ok = await confirmDialog(context,
-          title: '장부 파일 보내기',
-          message: '문자는 파일이 안 갈 수 있어요. 카카오톡이나 메일을 권장해요',
-          okText: '파일 보내기');
-      if (ok) await ReceptionFileService.share(package);
-    } catch (e) {
-      if (context.mounted) showSnack(context, '장부를 보내지 못했어요: $e');
-    }
-  }
+  /// 장부 보내기: 받는 사람에게 무엇이 보이는지 보여주는 화면에서 고른다.
+  Future<void> _share(BuildContext context, ReceptionPackage package) =>
+      Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+              builder: (_) => ReceptionSendScreen(package: package)));
 
   Future<void> _reopen(BuildContext context, WidgetRef ref) async {
     await ref

@@ -19,6 +19,10 @@ class GiftRecord {
   /// 받은 장부를 가져올 때 동명이인이 의심되어 확인이 필요한 내역
   final bool needsReview;
 
+  /// 행사장 접수에서 온 기록의 구분(신랑측 등) · 식권 매수. 없으면 null.
+  final String? side;
+  final int? mealTickets;
+
   // 조회 시 함께 가져오는 표시용 값
   final String? personName;
   final String? personRelation;
@@ -35,6 +39,8 @@ class GiftRecord {
     this.memo,
     this.eventType,
     this.needsReview = false,
+    this.side,
+    this.mealTickets,
     this.personName,
     this.personRelation,
     this.eventTitle,
@@ -53,6 +59,8 @@ class GiftRecord {
         memo: m['memo'] as String?,
         eventType: (m['ev_type'] as String?) ?? (m['event_type'] as String?),
         needsReview: (m['needs_review'] as int? ?? 0) == 1,
+        side: m['side'] as String?,
+        mealTickets: m['meal_tickets'] as int?,
         personName: m['person_name'] as String?,
         personRelation: m['person_relation'] as String?,
         eventTitle: m['event_title'] as String?,
@@ -69,6 +77,8 @@ class GiftRecord {
         'memo': memo,
         'event_type': eventType,
         'needs_review': needsReview ? 1 : 0,
+        'side': side,
+        'meal_tickets': mealTickets,
       };
 
   /// 화면에 보여줄 행사 이름 (예: "결혼 · 철수 결혼식")

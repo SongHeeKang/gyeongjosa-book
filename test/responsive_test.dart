@@ -23,6 +23,7 @@ import 'package:gyeongjosa/screens/quick_entry_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
 import 'package:gyeongjosa/screens/reception_import_screen.dart';
 import 'package:gyeongjosa/screens/reception_screen.dart';
+import 'package:gyeongjosa/screens/reception_send_screen.dart';
 import 'package:gyeongjosa/screens/reception_summary_screen.dart';
 import 'package:gyeongjosa/screens/settings_screen.dart';
 import 'package:gyeongjosa/services/format.dart';
@@ -263,6 +264,9 @@ final _cases = <_Case>[
   }, keyboard: true),
   _Case('행사장 접수 중', (_) => const ReceptionScreen(receptionId: 'r1'), keyboard: true),
   _Case('접수 요약', (_) => const ReceptionSummaryScreen(receptionId: 'r1')),
+  _Case('장부 보내기', (r) => ReceptionSendScreen(package: r.package)),
+  _Case('장부 보내기 (요약 메시지)', (r) => ReceptionSendScreen(package: r.package),
+      open: (t) => _tapText(t, '요약 메시지')),
   _Case('받은 장부 가져오기', (r) => ReceptionImportScreen(package: r.package)),
   _Case('받은 명단 직접 입력', (r) => QuickEntryScreen(event: r.myEvent), keyboard: true),
   _Case(

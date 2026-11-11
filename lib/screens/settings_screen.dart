@@ -100,12 +100,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
     await _run(() async {
-      final records = await ref.read(repositoryProvider).allRecords();
-      if (records.isEmpty) {
+      final repo = ref.read(repositoryProvider);
+      final records = await repo.allRecords();
+      // 내 행사로 아직 옮기지 않은 접수 장부도 함께 넣는다
+      final receptions = [
+        for (final s in await repo.receptionSummaries())
+          if (!s.reception.imported) await repo.getReceptionPackage(s.reception.id),
+      ].nonNulls.where((p) => p.entries.isNotEmpty).toList();
+      if (records.isEmpty && receptions.isEmpty) {
         if (mounted) showSnack(context, '내보낼 내역이 없어요.');
         return;
       }
-      await CsvService.exportAndShare(records);
+      await CsvService.exportAndShare(
+          records: records, events: await repo.allEvents(), receptions: receptions);
     });
   }
 

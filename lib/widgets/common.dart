@@ -227,7 +227,9 @@ class RecordTile extends StatelessWidget {
     final sub = <String>[
       formatDotDate(record.date),
       if (showPerson && record.eventLabel.isNotEmpty) record.eventLabel,
+      if ((record.side ?? '').isNotEmpty) record.side!,
       record.method,
+      if ((record.mealTickets ?? 0) > 1) '식권 ${record.mealTickets}매',
       if ((record.memo ?? '').isNotEmpty) record.memo!,
     ].join(' · ');
     return InkWell(

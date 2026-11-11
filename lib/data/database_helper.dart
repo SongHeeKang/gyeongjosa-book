@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../models/constants.dart';
+
 /// 기기 안 SQLite DB를 열고, 버전이 바뀌면 기존 데이터를 지키면서 구조만 업그레이드한다.
 ///
 /// 새 기능 때문에 테이블 구조를 바꿀 때는:
@@ -23,7 +25,7 @@ class DatabaseHelper {
   factory DatabaseHelper.separateConnection() => DatabaseHelper._(null, false);
 
   static const dbFileName = 'gyeongjosa.db';
-  static const _dbVersion = 5;
+  static const _dbVersion = 6;
 
   final String? _pathOverride;
   final bool _singleInstance;
@@ -170,6 +172,12 @@ class DatabaseHelper {
       await db.execute(
           'ALTER TABLE receptions ADD COLUMN method_enabled INTEGER NOT NULL DEFAULT 1');
     },
+    // v6: 받은 기록의 구분 · 식권 (CSV 내보내기에서 씀). 기존 기록은 빈 값.
+    6: (db) async {
+      await db.execute('ALTER TABLE records ADD COLUMN side TEXT');
+      await db.execute('ALTER TABLE records ADD COLUMN meal_tickets INTEGER');
+      await _fillImportedSides(db);
+    },
   };
 
   /// DB를 닫지 않고 지금 내용을 파일 하나로 복사한다. 복사하는 동안 다른 저장은 잠깐 기다린다.
@@ -181,6 +189,51 @@ class DatabaseHelper {
     await db.transaction((_) async {
       await File(source).copy(outPath);
     });
+  }
+
+  /// v6: 이미 가져온 기록 중 원래 접수 장부가 남아 있는 것은 그 항목(uuid)을 찾아
+  /// 구분 · 식권을 채운다. 예전에는 구분 · 식권을 메모 글자에 섞어 저장했으므로,
+  /// 메모가 그때 모양 그대로인 기록만 고치고 메모는 원래 메모로 되돌린다.
+  /// 사용자가 메모를 고친 기록이나 장부가 지워진 기록은 건드리지 않는다.
+  static Future<void> _fillImportedSides(Database db) async {
+    final tables = (await db.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"))
+        .map((r) => r['name'])
+        .toSet();
+    if (!tables.containsAll(['imported_entries', 'reception_entries'])) return;
+    final entries = await db.rawQuery('''
+      SELECT en.name, en.amount, en.side, en.meal_tickets, en.memo
+      FROM imported_entries ie
+      JOIN reception_entries en ON en.id = ie.entry_id
+    ''');
+    for (final e in entries) {
+      final side = e['side'] as String? ?? '';
+      final meals = e['meal_tickets'] as int? ?? 0;
+      final memo = (e['memo'] as String? ?? '').trim();
+      final hasSide = side.isNotEmpty && side != ReceptionDefaults.noSide;
+      final oldMemo = [
+        if (hasSide) side,
+        if (meals > 1) '식권 $meals매',
+        if (memo.isNotEmpty) memo,
+      ].join(' · ');
+      await db.rawUpdate('''
+        UPDATE records SET side = ?, meal_tickets = ?, memo = ?
+        WHERE id = (
+          SELECT r.id FROM records r JOIN people p ON p.id = r.person_id
+          WHERE p.name = ? AND r.amount = ? AND r.direction = '받음'
+            AND r.side IS NULL AND r.meal_tickets IS NULL
+            AND COALESCE(r.memo, '') = ?
+          ORDER BY r.id LIMIT 1
+        )
+      ''', [
+        hasSide ? side : null,
+        meals,
+        memo.isEmpty ? null : memo,
+        e['name'],
+        e['amount'],
+        oldMemo,
+      ]);
+    }
   }
 
   /// 복원을 위해 DB를 닫는다.

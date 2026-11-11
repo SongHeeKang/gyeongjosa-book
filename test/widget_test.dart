@@ -54,8 +54,8 @@ void main() {
     });
   });
 
-  test('CSV는 UTF-8 BOM으로 시작하고 한글 헤더를 가진다', () {
-    final csv = CsvService.buildCsv([
+  test('CSV는 UTF-8 BOM으로 시작하고, 쉼표가 든 값은 큰따옴표로 감싼다', () {
+    final csv = CsvService.buildCsv(records: [
       GiftRecord(
         personId: 1,
         direction: '받음',
@@ -66,10 +66,10 @@ void main() {
         personRelation: '친구',
         memo: '봉투, 꽃',
       ),
-    ]);
+    ], events: const []);
     expect(csv.startsWith('﻿'), isTrue);
-    expect(csv, contains('이름,관계,보냄/받음,금액,행사,날짜,메모'));
-    expect(csv, contains('김철수,친구,받음,50000,결혼,2026-05-02,"봉투, 꽃"'));
+    expect(csv, contains('번호,이름,관계,구분,금액,결제 방법,식권,메모,날짜'));
+    expect(csv, contains('1,김철수,친구,,50000,현금,,"봉투, 꽃",2026-05-02'));
   });
 
   test('알림은 행사 전날 오전 9시', () {

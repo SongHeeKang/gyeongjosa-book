@@ -429,7 +429,10 @@ class Repository {
             newPeople[name] ??
             (newPeople[name] = await txn.insert(
                 'people', Person(name: name, createdAt: DateTime.now()).toMap()..remove('id')));
-        final memo = entry.recordMemo;
+        // 구분 · 식권은 따로 저장하고, 메모에는 접수 때 적은 메모만 넣는다.
+        final memo = (entry.memo ?? '').trim();
+        final hasSide =
+            entry.side.isNotEmpty && entry.side != ReceptionDefaults.noSide;
         await txn.insert('records', {
           'person_id': personId,
           'event_id': targetId,
@@ -439,6 +442,8 @@ class Repository {
           'date': event['date'],
           'memo': memo.isEmpty ? null : memo,
           'needs_review': item.needsReview ? 1 : 0,
+          'side': hasSide ? entry.side : null,
+          'meal_tickets': entry.mealTickets,
         });
         await txn.insert(
             'imported_entries', {'entry_id': entry.id, 'imported_at': now});

@@ -116,6 +116,9 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
       memo: _memo.text.trim().isEmpty ? null : _memo.text.trim(),
       eventType: eventId == null ? _eventType : null,
       needsReview: widget.existing?.needsReview ?? false,
+      // 수정할 때 접수에서 온 구분 · 식권은 그대로 둔다
+      side: widget.existing?.side,
+      mealTickets: widget.existing?.mealTickets,
     );
     if (widget.existing == null) {
       await repo.insertRecord(record);

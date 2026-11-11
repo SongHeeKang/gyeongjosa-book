@@ -5,6 +5,7 @@ import '../data/providers.dart';
 import '../models/constants.dart';
 import '../models/person.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import 'common.dart';
 import 'person_form_sheet.dart';
 import 'record_form_sheet.dart';
@@ -81,22 +82,22 @@ class _PersonPickerSheetState extends ConsumerState<_PersonPickerSheet> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-              child: TextField(
+              child: TestId('picker_search', child: TextField(
                 controller: _search,
                 onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
                   hintText: '이름 검색',
                   prefixIcon: Icon(Icons.search, color: AppColors.icon),
                 ),
-              ),
+              )),
             ),
             const SizedBox(height: 8),
-            ListTile(
+            TestId('btn_new_person', child: ListTile(
               leading: const Icon(Icons.person_add_alt, color: AppColors.primary),
               title: Text('새 사람 추가',
                   style: AppText.listName.copyWith(color: AppColors.primary)),
               onTap: () => Navigator.pop(context, const _Pick.addNew()),
-            ),
+            )),
             const AppDivider(),
             Expanded(
               child: list.isEmpty

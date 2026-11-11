@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
@@ -91,13 +92,16 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                   CoachTarget(
                     spot: CoachSpot.recordButton,
-                    child: RecordFab(
+                    child: TestId(
+                      'btn_record',
+                      child: RecordFab(
                       onPressed: () {
                         setState(() => _menuOpen = true);
                         showRecordMenu(context, ref, onClosed: () {
                           if (mounted) setState(() => _menuOpen = false);
                         });
                       },
+                    ),
                     ),
                   ),
                 ],

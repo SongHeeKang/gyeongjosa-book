@@ -5,6 +5,7 @@ import '../data/providers.dart';
 import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/pending_amount_section.dart';
@@ -50,22 +51,25 @@ class HomeScreen extends ConsumerWidget {
               received: data.received,
               sentCount: data.sentCount,
               receivedCount: data.receivedCount,
+              sentId: 'home_sent_total',
+              receivedId: 'home_received_total',
             ),
             const SizedBox(height: AppSpacing.section),
             const AppDivider(),
             if (data.pending.isNotEmpty)
               CoachTarget(
                 spot: CoachSpot.homePending,
-                child: PendingAmountSection(events: data.pending),
+                child: TestId('ask_card',
+                    child: PendingAmountSection(events: data.pending)),
               ),
             if (data.scheduleCount > 0) ...[
               SectionTitle(
                 '다가오는 일정',
-                trailing: LinkText('전체 보기',
+                trailing: TestId('btn_all_schedules', child: LinkText('전체 보기',
                     onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute<void>(
-                            builder: (_) => const AllSchedulesScreen()))),
+                            builder: (_) => const AllSchedulesScreen())))),
               ),
               if (data.upcoming.isEmpty)
                 const EmptyView(
@@ -92,16 +96,19 @@ class HomeScreen extends ConsumerWidget {
               '최근 기록',
               trailing: data.recent.isEmpty
                   ? null
-                  : LinkText('전체 보기',
+                  : TestId('btn_all_records', child: LinkText('전체 보기',
                       onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute<void>(
-                              builder: (_) => const AllRecordsScreen()))),
+                              builder: (_) => const AllRecordsScreen())))),
             ),
             if (data.recent.isEmpty)
-              const EmptyView(
-                icon: Icons.receipt_long,
-                message: '아직 기록이 없어요.\n오른쪽 아래 연필 버튼을 눌러 첫 기록을 남겨보세요',
+              const TestId(
+                'home_empty',
+                child: EmptyView(
+                  icon: Icons.receipt_long,
+                  message: '아직 기록이 없어요.\n오른쪽 아래 연필 버튼을 눌러 첫 기록을 남겨보세요',
+                ),
               )
             else
               for (final r in data.recent)
@@ -135,7 +142,7 @@ class _BackupBanner extends ConsumerWidget {
       dismissedAt: ref.watch(bannerDismissProvider),
     );
     if (!show) return const SizedBox.shrink();
-    return Padding(
+    return TestId('backup_banner', child: Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, AppSpacing.page, 8),
       child: Material(
         color: AppColors.primarySoft,
@@ -169,6 +176,6 @@ class _BackupBanner extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }

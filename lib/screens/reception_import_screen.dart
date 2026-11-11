@@ -11,6 +11,7 @@ import '../services/pro_service.dart';
 import '../services/reception_file_service.dart';
 import '../services/reception_import.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
 import 'event_detail_screen.dart';
@@ -219,9 +220,9 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
                     '${formatDate(r.date)}${r.operatorName.isEmpty ? '' : ' · 접수 ${r.operatorName}'}',
                     style: AppText.sub),
                 const SizedBox(height: 16),
-                Text('${totals.count}명 · ${formatWon(totals.amount)}',
+                TestId('import_preview_total', child: Text('${totals.count}명 · ${formatWon(totals.amount)}',
                     style: AppText.summaryAmount
-                        .copyWith(color: AppColors.primary)),
+                        .copyWith(color: AppColors.primary))),
                 if (plan != null && plan.alreadyImported > 0) ...[
                   const SizedBox(height: 8),
                   Text('이미 가져온 ${plan.alreadyImported}명은 다시 저장하지 않아요.',
@@ -267,12 +268,12 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
                 AppSpacing.page, 20, AppSpacing.page, 32),
             child: SizedBox(
               height: AppSpacing.receptionButton,
-              child: FilledButton(
+              child: TestId('btn_import_confirm', child: FilledButton(
                 onPressed: hasWork && !_working ? _import : null,
                 child: Text(plan == null || hasWork
                     ? '${plan?.remaining ?? totals.count}명 가져오기'
                     : '모두 가져왔어요'),
-              ),
+              )),
             ),
           ),
         ],

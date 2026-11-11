@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import 'coach_mark.dart';
 
 /// 화면별 도움말 내용. [auto]면 그 화면에 처음 들어갈 때 한 번 자동으로 보여준다.
@@ -122,7 +123,9 @@ class HelpButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExcludeFocus(
-      child: IconButton(
+      child: TestId(
+        'btn_help',
+        child: IconButton(
         tooltip: '도움말',
         iconSize: size,
         constraints: size == null
@@ -135,6 +138,7 @@ class HelpButton extends StatelessWidget {
           await showCoach(context, screen);
           onClosed?.call();
         },
+      ),
       ),
     );
   }

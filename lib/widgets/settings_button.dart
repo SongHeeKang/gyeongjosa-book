@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 
 /// 모든 탭 오른쪽 위 같은 자리의 설정 아이콘
 class SettingsButton extends StatelessWidget {
@@ -12,11 +13,14 @@ class SettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: '설정',
-      icon: const Icon(Icons.settings_outlined),
-      onPressed: () => Navigator.push(context,
-          MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
+    return TestId(
+      'btn_settings',
+      child: IconButton(
+        tooltip: '설정',
+        icon: const Icon(Icons.settings_outlined),
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
+      ),
     );
   }
 }

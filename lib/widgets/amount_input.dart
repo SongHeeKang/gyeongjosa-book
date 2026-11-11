@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../services/format.dart';
 import '../theme/app_theme.dart';
+import 'test_id.dart';
 
 /// 입력 중에 50,000 처럼 쉼표를 넣어준다.
 class ThousandsFormatter extends TextInputFormatter {
@@ -68,7 +69,7 @@ class AmountInput extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        TextField(
+        TestId('input_amount', child: TextField(
           controller: controller,
           focusNode: focusNode,
           keyboardType: TextInputType.number,
@@ -80,7 +81,7 @@ class AmountInput extends StatelessWidget {
           ),
           onChanged: (_) => onChanged?.call(),
           onSubmitted: onSubmitted,
-        ),
+        )),
       ],
     );
   }
@@ -100,10 +101,14 @@ class ChoiceChips extends StatelessWidget {
     required this.options,
     required this.selected,
     required this.onSelected,
+    this.testIdPrefix,
   });
   final List<String> options;
   final String? selected;
   final ValueChanged<String> onSelected;
+
+  /// 자동화 테스트용 식별자 앞부분. 칩마다 '<앞부분>_<선택지>'가 붙는다.
+  final String? testIdPrefix;
 
   @override
   Widget build(BuildContext context) {
@@ -112,15 +117,22 @@ class ChoiceChips extends StatelessWidget {
       runSpacing: 4,
       children: [
         for (final o in options)
-          ChoiceChip(
-            showCheckmark: false,
-            label: Text(o),
-            selected: o == selected,
-            onSelected: (_) => onSelected(o),
+          _withId(
+            o,
+            ChoiceChip(
+              showCheckmark: false,
+              label: Text(o),
+              selected: o == selected,
+              onSelected: (_) => onSelected(o),
+            ),
           ),
       ],
     );
   }
+
+  Widget _withId(String option, Widget chip) => testIdPrefix == null
+      ? chip
+      : TestId('${testIdPrefix}_$option', child: chip);
 }
 
 /// 금액 직접 입력 창. 입력한 금액을 돌려주고, 취소하면 null.

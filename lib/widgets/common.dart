@@ -5,6 +5,7 @@ import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 
 /// 받은 돈은 '+50,000원', 보낸 돈은 '−50,000원'
 String signedWon(int amount, {required bool isSent}) =>
@@ -110,18 +111,27 @@ class SummaryColumn extends StatelessWidget {
     required this.amount,
     this.count,
     this.highlight = false,
+    this.testId,
   });
   final String label;
   final int amount;
   final int? count;
+
+  /// 자동화 테스트용 식별자
+  final String? testId;
 
   /// true면 금액을 포인트색으로 (받은 돈)
   final bool highlight;
 
   @override
   Widget build(BuildContext context) {
+    final column = _column();
     return Expanded(
-      child: Column(
+        child: testId == null ? column : TestId(testId!, child: column));
+  }
+
+  Widget _column() {
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: AppText.label),
@@ -138,7 +148,6 @@ class SummaryColumn extends StatelessWidget {
             Text('$count건', style: AppText.sub),
           ],
         ],
-      ),
     );
   }
 }
@@ -153,6 +162,8 @@ class SummaryRow extends StatelessWidget {
     this.receivedCount,
     this.sentLabel = '보낸 마음',
     this.receivedLabel = '받은 마음',
+    this.sentId,
+    this.receivedId,
   });
   final int sent;
   final int received;
@@ -161,19 +172,28 @@ class SummaryRow extends StatelessWidget {
   final String sentLabel;
   final String receivedLabel;
 
+  /// 자동화 테스트용 식별자 (보낸 쪽, 받은 쪽)
+  final String? sentId;
+  final String? receivedId;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
       child: Row(
         children: [
-          SummaryColumn(label: sentLabel, amount: sent, count: sentCount),
+          SummaryColumn(
+              label: sentLabel,
+              amount: sent,
+              count: sentCount,
+              testId: sentId),
           const SizedBox(width: 16),
           SummaryColumn(
               label: receivedLabel,
               amount: received,
               count: receivedCount,
-              highlight: true),
+              highlight: true,
+              testId: receivedId),
         ],
       ),
     );

@@ -9,6 +9,7 @@ import '../services/format.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/common.dart';
 import '../widgets/person_name_field.dart';
@@ -190,7 +191,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             const SizedBox(height: 20),
           ],
           if (isSchedule) ...[
-            PersonNameField(
+            TestId('input_name', child: PersonNameField(
               controller: _name,
               focusNode: _nameFocus,
               people: people,
@@ -200,11 +201,12 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                   : (hasName ? '처음 보는 이름이면 새로 등록돼요' : null),
               onSelected: (p) => setState(() => _selected = p),
               onChanged: () => setState(() {}),
-            ),
+            )),
             const SizedBox(height: 20),
             if (_selected == null) ...[
               const FieldLabel('관계'),
               ChoiceChips(
+                testIdPrefix: 'select_relation',
                 options: Relations.all,
                 selected: _relation,
                 onSelected: (v) => setState(() => _relation = v),
@@ -214,41 +216,42 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           ],
           const FieldLabel('종류'),
           ChoiceChips(
+            testIdPrefix: 'select_event_type',
             options: EventTypes.all,
             selected: _type,
             onSelected: (v) => setState(() => _type = v),
           ),
           const SizedBox(height: 20),
           if (!isSchedule) ...[
-            TextField(
+            TestId('input_event_title', child: TextField(
               controller: _title,
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
               decoration: InputDecoration(
                 labelText: '행사 이름',
                 hintText: _isMine ? '예: 우리 결혼식' : '예: 김철수 결혼식',
               ),
-            ),
+            )),
             const SizedBox(height: 20),
           ],
-          OutlinedButton.icon(
+          TestId('input_date', child: OutlinedButton.icon(
             onPressed: _pickDate,
             icon: const Icon(Icons.calendar_today),
             label: Text(formatDate(_date)),
-          ),
+          )),
           const SizedBox(height: 20),
-          TextField(
+          TestId('input_place', child: TextField(
             controller: _place,
             decoration: const InputDecoration(labelText: '장소 (선택)'),
-          ),
+          )),
           if (!isSchedule) ...[
             const SizedBox(height: 16),
-            TextField(
+            TestId('input_memo', child: TextField(
               controller: _memo,
               decoration: const InputDecoration(labelText: '메모 (선택)'),
-            ),
+            )),
           ],
           const SizedBox(height: 12),
-          SwitchListTile(
+          TestId('switch_notify', child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('전날 오전 9시 알림', style: AppText.listName),
             subtitle: Text(reminderPast
@@ -256,12 +259,12 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                 : '${formatShortDate(reminder)} 오전 9시쯤 알려드려요'),
             value: _notify,
             onChanged: _onNotifyChanged,
-          ),
+          )),
           const SizedBox(height: 20),
-          FilledButton(
+          TestId('btn_save', child: FilledButton(
             onPressed: _saving ? null : _onSavePressed,
             child: const Text('저장'),
-          ),
+          )),
         ],
       ),
     );

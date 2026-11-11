@@ -6,6 +6,7 @@ import '../data/providers.dart';
 import '../models/constants.dart';
 import '../models/person.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import 'amount_input.dart';
 import 'common.dart';
 import 'pro_gate.dart';
@@ -123,39 +124,40 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
                 style: AppText.appTitle),
             const SizedBox(height: 16),
             if (widget.existing == null) ...[
-              OutlinedButton.icon(
+              TestId('btn_pick_contact', child: OutlinedButton.icon(
                 onPressed: _pickContact,
                 icon: const Icon(Icons.contacts),
                 label: const Text('연락처에서 가져오기'),
-              ),
+              )),
               const SizedBox(height: 16),
             ],
-            TextField(
+            TestId('input_name', child: TextField(
               controller: _name,
               autofocus: widget.existing == null,
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
               decoration: const InputDecoration(labelText: '이름'),
-            ),
+            )),
             const SizedBox(height: 16),
             const FieldLabel('관계'),
             ChoiceChips(
+              testIdPrefix: 'select_relation',
               options: Relations.all,
               selected: _relation,
               onSelected: (v) => setState(() => _relation = v),
             ),
             const SizedBox(height: 16),
-            TextField(
+            TestId('input_phone', child: TextField(
               controller: _phone,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(labelText: '전화번호 (선택)'),
-            ),
+            )),
             const SizedBox(height: 16),
-            TextField(
+            TestId('input_memo', child: TextField(
               controller: _memo,
               decoration: const InputDecoration(labelText: '메모 (선택)'),
-            ),
+            )),
             const SizedBox(height: 24),
-            FilledButton(onPressed: _save, child: const Text('저장')),
+            TestId('btn_save', child: FilledButton(onPressed: _save, child: const Text('저장'))),
           ],
         ),
       ),

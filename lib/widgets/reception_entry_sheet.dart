@@ -6,6 +6,7 @@ import '../models/constants.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import 'amount_input.dart';
 import 'common.dart';
 
@@ -155,20 +156,20 @@ class _EntryFormSheetState extends ConsumerState<_EntryFormSheet> {
           children: [
             const Text('항목 수정', style: AppText.appTitle),
             const SizedBox(height: 16),
-            TextField(
+            TestId('entry_edit_name', child: TextField(
               controller: _name,
               style: AppText.receptionName,
               decoration: const InputDecoration(labelText: '이름'),
-            ),
+            )),
             const SizedBox(height: 16),
-            TextField(
+            TestId('entry_edit_amount', child: TextField(
               controller: _amount,
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsFormatter()],
               style: AppText.receptionName,
               decoration:
                   const InputDecoration(labelText: '금액', suffixText: '원'),
-            ),
+            )),
             if (sides.length > 1) ...[
               const SizedBox(height: 16),
               const FieldLabel('구분'),
@@ -189,14 +190,14 @@ class _EntryFormSheetState extends ConsumerState<_EntryFormSheet> {
             const SizedBox(height: 20),
             SizedBox(
               height: AppSpacing.receptionButton,
-              child: FilledButton(onPressed: _save, child: const Text('저장')),
+              child: TestId('entry_edit_save', child: FilledButton(onPressed: _save, child: const Text('저장'))),
             ),
             const SizedBox(height: 8),
-            TextButton(
+            TestId('entry_edit_delete', child: TextButton(
               onPressed: _delete,
               style: TextButton.styleFrom(foregroundColor: AppColors.error),
               child: const Text('이 항목 삭제'),
-            ),
+            )),
           ],
         ),
       ),
@@ -259,10 +260,10 @@ class ReceptionOptions extends StatelessWidget {
           onSelectionChanged: (s) => onMethod(s.first),
         ),
         const SizedBox(height: 12),
-        TextField(
+        TestId('entry_edit_memo', child: TextField(
           controller: memo,
           decoration: const InputDecoration(labelText: '메모 (선택)'),
-        ),
+        )),
       ],
     );
   }
@@ -318,7 +319,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.page, 0, AppSpacing.page, 12),
-            child: TextField(
+            child: TestId('entry_search_input', child: TextField(
               controller: _query,
               autofocus: true,
               style: AppText.receptionName,
@@ -327,7 +328,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                 labelText: '이름 검색',
                 prefixIcon: Icon(Icons.search),
               ),
-            ),
+            )),
           ),
           Flexible(
             child: results.isEmpty

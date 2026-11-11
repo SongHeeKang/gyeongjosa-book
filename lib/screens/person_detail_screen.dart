@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/person_form_sheet.dart';
 import '../widgets/record_form_sheet.dart';
@@ -46,7 +47,7 @@ class PersonDetailScreen extends ConsumerWidget {
           appBar: AppBar(
             title: Text(p.name),
             actions: [
-              PopupMenuButton<String>(
+              TestId('person_menu', child: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: AppColors.icon),
                 onSelected: (v) {
                   if (v == 'edit') showPersonForm(context, ref, existing: p);
@@ -56,13 +57,16 @@ class PersonDetailScreen extends ConsumerWidget {
                   PopupMenuItem(value: 'edit', child: Text('정보 수정')),
                   PopupMenuItem(value: 'delete', child: Text('삭제')),
                 ],
-              ),
+              )),
               const SizedBox(width: 8),
             ],
           ),
           floatingActionButtonLocation: const RecordFabLocation(),
-          floatingActionButton: RecordFab(
-            onPressed: () => showRecordForm(context, personId: personId),
+          floatingActionButton: TestId(
+            'btn_add_record',
+            child: RecordFab(
+              onPressed: () => showRecordForm(context, personId: personId),
+            ),
           ),
           body: ListView(
             children: [
@@ -71,7 +75,11 @@ class PersonDetailScreen extends ConsumerWidget {
                     AppSpacing.page, 0, AppSpacing.page, 16),
                 child: Text(info, style: AppText.sub),
               ),
-              SummaryRow(sent: d.sentTotal, received: d.receivedTotal),
+              SummaryRow(
+                  sent: d.sentTotal,
+                  received: d.receivedTotal,
+                  sentId: 'person_sent_total',
+                  receivedId: 'person_received_total'),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                     AppSpacing.page, 16, AppSpacing.page, 0),

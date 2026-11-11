@@ -17,6 +17,7 @@ import '../services/pro_service.dart';
 import '../services/purchase_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
 import '../widgets/screen_coach.dart';
@@ -135,7 +136,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
             if (_working) const LinearProgressIndicator(),
             const SectionTitle('백업 · 복원'),
-            ListTile(
+            TestId('btn_backup_file', child: ListTile(
               leading: const Icon(Icons.cloud_upload_outlined, size: 24),
               title: const Text('백업 파일 만들기'),
               subtitle: Text(lastBackup == null
@@ -143,13 +144,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   : '마지막 백업: ${formatDate(lastBackup)}'),
               isThreeLine: lastBackup == null,
               onTap: _makeBackup,
-            ),
-            ListTile(
+            )),
+            TestId('btn_restore_file', child: ListTile(
               leading: const Icon(Icons.restore, size: 24),
               title: const Text('백업에서 복원'),
               subtitle: const Text('새 폰에서 백업 파일을 골라 불러와요'),
               onTap: _restore,
-            ),
+            )),
             _autoBackupTile(),
             const ListTile(
               leading: Icon(Icons.info_outline, size: 24),
@@ -160,7 +161,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             const AppDivider(),
             const SectionTitle('내보내기'),
-            ListTile(
+            TestId('btn_csv_export', child: ListTile(
               leading: const Icon(Icons.table_view, size: 24),
               title: Row(children: [
                 const Text('엑셀(CSV)로 내보내기'),
@@ -168,7 +169,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ]),
               subtitle: const Text('이름, 관계, 보냄/받음, 금액, 행사, 날짜, 메모'),
               onTap: _exportCsv,
-            ),
+            )),
             const SizedBox(height: 12),
             const AppDivider(),
             const SectionTitle('프로'),
@@ -183,24 +184,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   : '${purchase.priceText} · 한 번 결제로 평생 사용'),
               onTap: pro.isPro ? null : () => showPaywall(context, ref),
             ),
-            ListTile(
+            TestId('btn_restore_purchase', child: ListTile(
               leading: const Icon(Icons.replay, size: 24),
               title: const Text('구매 복원'),
               subtitle: const Text('폰을 바꿨다면 눌러 주세요'),
               onTap: purchase.busy
                   ? null
                   : () => ref.read(purchaseProvider.notifier).restore(),
-            ),
+            )),
             const SizedBox(height: 12),
             const AppDivider(),
             const SectionTitle('기타'),
-            ListTile(
+            TestId('btn_help_menu', child: ListTile(
               leading: const Icon(Icons.help_outline, size: 24),
               title: const Text('사용 방법'),
               subtitle: const Text('가이드와 화면별 도움말을 다시 봐요'),
               onTap: () => Navigator.push(context,
                   MaterialPageRoute<void>(builder: (_) => const HelpScreen())),
-            ),
+            )),
             ListTile(
               leading: const Icon(Icons.privacy_tip_outlined, size: 24),
               title: const Text('개인정보처리방침'),
@@ -244,7 +245,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } else {
       status = '마지막 자동 백업: ${formatShortDate(last)} ${formatTime(last)}';
     }
-    return SwitchListTile(
+    return TestId('switch_auto_backup', child: SwitchListTile(
       secondary: const Icon(Icons.save_alt, size: 24),
       title: const Text('자동 백업', style: AppText.listName),
       subtitle: Text('$status\n'
@@ -254,15 +255,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       onChanged: supported
           ? (v) => ref.read(autoBackupProvider.notifier).setEnabled(v)
           : null,
-    );
+    ));
   }
 
   /// flutter run과 테스트용 APK에서만 보이는 테스트 도구 ([AppConfig.devToolsEnabled])
   List<Widget> _devTools(ProState pro) => [
         const SizedBox(height: 12),
         const AppDivider(),
-        const SectionTitle('테스트 전용 (출시 전 제거)'),
-        SwitchListTile(
+        TestId('test_menu', child: const SectionTitle('테스트 전용 (출시 전 제거)')),
+        TestId('test_ispro', child: SwitchListTile(
           secondary: const Icon(Icons.science_outlined, size: 24),
           title: const Text('isPro 켜기/끄기 (테스트)', style: AppText.listName),
           subtitle: Text(pro.devOverride == null
@@ -270,8 +271,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               : '테스트 값 사용 중 · 아래 [isPro 테스트 값 해제]로 되돌리기'),
           value: pro.isPro,
           onChanged: (v) => ref.read(proProvider.notifier).setDevOverride(v),
-        ),
-        SwitchListTile(
+        )),
+        TestId('test_dummy_data', child: SwitchListTile(
           secondary: const Icon(Icons.groups_outlined, size: 24),
           title: const Text('더미데이터 추가', style: AppText.listName),
           subtitle: const Text('켜면 사람 · 행사 · 보내고 받은 기록을 50개씩 넣어요. 끄면 이것만 지워요'),
@@ -288,8 +289,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               showSnack(context, on ? '더미 데이터를 넣었어요.' : '더미 데이터를 지웠어요.');
             }
           }),
-        ),
-        ListTile(
+        )),
+        TestId('test_sample_data', child: ListTile(
           leading: const Icon(Icons.dataset_outlined, size: 24),
           title: const Text('샘플 데이터 넣기'),
           subtitle: const Text('사람 5명, 내역 10개'),
@@ -298,8 +299,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ref.refreshData();
             if (mounted) showSnack(context, '샘플 데이터를 넣었어요.');
           }),
-        ),
-        ListTile(
+        )),
+        TestId('test_notify', child: ListTile(
           leading: const Icon(Icons.notifications_active_outlined, size: 24),
           title: const Text('알림 테스트 (지금 바로)'),
           onTap: () async {
@@ -307,8 +308,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 .ensurePermission(context, ref.read(prefsProvider));
             await NotificationService.instance.showTest();
           },
-        ),
-        ListTile(
+        )),
+        TestId('test_reset_guide', child: ListTile(
           leading: const Icon(Icons.replay_circle_filled_outlined, size: 24),
           title: const Text('가이드 다시 보기 초기화'),
           subtitle: const Text('앱을 다시 켜면 첫 실행 가이드와 화면별 도움말이 보여요'),
@@ -317,7 +318,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             await resetCoachMarks(ref.read(prefsProvider));
             if (mounted) showSnack(context, '앱을 다시 켜면 가이드가 보여요.');
           },
-        ),
+        )),
         ListTile(
           leading: const Icon(Icons.restart_alt, size: 24),
           title: const Text('isPro 테스트 값 해제'),

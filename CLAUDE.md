@@ -24,6 +24,7 @@
 - 행사장 접수와 받은 명단 직접 입력의 금액칸 · 금액 버튼 · 최근 저장은 `lib/widgets/amount_pad.dart`의 공통 위젯을 쓴다. 식권 · 계좌 칩과 구분은 접수에만 있다.
 - 안드로이드 설정의 '데이터 삭제'는 `manageSpaceActivity`로 안내 화면(`lib/screens/manage_space_screen.dart`)을 연다. 앱 본체와 다른 Flutter 엔진에서 돌므로 DB는 `DatabaseHelper.separateConnection()`으로 연다.
 - 자동 백업: 기록이 바뀌면(`dbVersionProvider`) 5초 뒤 Download/경조사장부/에 저장한다(`lib/services/auto_backup_service.dart`, `DownloadBackup.kt`). 빈 장부로는 백업하지 않고, 이번 앱 데이터에서 만든 파일만 덮어쓴다. Android 10 이상에서만 동작한다.
+- 자동화 테스트는 이 저장소 밖의 별도 프로젝트(AutoTest: Python + behave + Appium + Allure)에 있다. 주요 위젯은 `lib/widgets/test_id.dart`의 `TestId('이름', child: ...)`로 감싸 resource-id를 붙인다. 화면을 고칠 때 이 식별자를 지우거나 이름을 바꾸지 않는다(바꾸면 README 표와 시나리오도 함께 고친다). 자동화용 APK는 debug 빌드.
 - 인앱 상품 ID: `pro_lifetime` (일회성 제품, 4,900원).
 - 알림은 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle)만 사용.
 

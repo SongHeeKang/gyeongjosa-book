@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/constants.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
+import 'test_id.dart';
 import 'amount_input.dart';
 
 /// 행사장 접수와 받은 명단 직접 입력이 함께 쓰는 금액 입력 묶음.
@@ -89,8 +90,9 @@ class AmountField extends StatelessWidget {
     onMeals?.call(value == 4 && current >= 4 ? current + 1 : value);
   }
 
-  Widget _chip(String label, bool selected, VoidCallback onTap, double width) {
-    return SizedBox(
+  Widget _chip(String testId, String label, bool selected, VoidCallback onTap,
+      double width) {
+    return TestId(testId, selected: selected, child: SizedBox(
       width: width,
       height: AppSpacing.padButton,
       child: OutlinedButton(
@@ -111,7 +113,7 @@ class AmountField extends StatelessWidget {
         ),
         child: Text(label),
       ),
-    );
+    ));
   }
 
   Widget _chips(double chipWidth) {
@@ -126,6 +128,7 @@ class AmountField extends StatelessWidget {
             for (var count = 0; count <= 4; count++) ...[
               if (count > 0) const SizedBox(width: _chipGap),
               _chip(
+                count < 4 ? 'chip_meal_$count' : 'chip_meal_more',
                 count < 4 ? '$count' : (current > 4 ? '$current' : '4+'),
                 count < 4 ? current == count : current >= 4,
                 () => _pickMeals(count),
@@ -136,7 +139,8 @@ class AmountField extends StatelessWidget {
           if (current != null && paying != null)
             const SizedBox(width: _transferGap),
           if (paying != null)
-            _chip('계좌', paying, () => onTransfer?.call(), _transferWidth),
+            _chip('chip_account', '계좌', paying, () => onTransfer?.call(),
+                _transferWidth),
         ],
       ),
     );
@@ -144,7 +148,7 @@ class AmountField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final field = TextField(
+    final field = TestId('input_amount_pad', child: TextField(
       controller: controller,
       focusNode: focusNode,
       keyboardType: TextInputType.number,
@@ -158,7 +162,7 @@ class AmountField extends StatelessWidget {
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       ),
-    );
+    ));
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, AppSpacing.page, 0),
       child: LayoutBuilder(builder: (context, constraints) {
@@ -208,11 +212,11 @@ class AmountField extends StatelessWidget {
                         valueListenable: controller,
                         builder: (_, value, _) {
                           final amount = parseAmount(value.text);
-                          return Text(
+                          return TestId('amount_hint', child: Text(
                               amount > 0 ? formatReadableWon(amount) : '',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppText.sub);
+                              style: AppText.sub));
                         },
                       ),
                     ),
@@ -245,7 +249,7 @@ class AmountPad extends StatelessWidget {
     const perRow = 4;
     const amounts = ReceptionDefaults.amounts;
     Widget button(int amount) => Expanded(
-          child: FilledButton(
+          child: TestId('amount_$amount', child: FilledButton(
             onPressed: () {
               HapticFeedback.lightImpact();
               onAmount(amount);
@@ -258,7 +262,7 @@ class AmountPad extends StatelessWidget {
               textStyle: AppText.receptionAmount,
             ),
             child: Text(formatManWon(amount)),
-          ),
+          )),
         );
     // 버튼이 포커스를 가져가면 키보드가 닫히므로 포커스를 받지 않게 한다.
     return ExcludeFocus(
@@ -376,7 +380,8 @@ class _RecentSavedListState extends State<RecentSavedList>
         if (warn)
           const SizedBox(
             height: RecentSavedList.warningHeight,
-            child: Text('같은 이름이 있어요', style: AppText.warning),
+            child: TestId('recent_warning',
+                child: Text('같은 이름이 있어요', style: AppText.warning)),
           ),
         if (latest != null)
           Row(
@@ -404,7 +409,7 @@ class _RecentSavedListState extends State<RecentSavedList>
                               children: [
                                 for (final (i, e)
                                     in entries.take(count).indexed)
-                                  _line(
+                                  TestId('recent_item_$i', child: _line(
                                     e,
                                     latest: i == 0,
                                     background: i == 0
@@ -413,7 +418,7 @@ class _RecentSavedListState extends State<RecentSavedList>
                                             AppColors.primarySoft.withValues(alpha: 0),
                                             _controller.value)
                                         : null,
-                                  ),
+                                  )),
                               ],
                             ),
                           ),
@@ -427,7 +432,7 @@ class _RecentSavedListState extends State<RecentSavedList>
               SizedBox(
                 height: 44,
                 child: ExcludeFocus(
-                  child: TextButton(
+                  child: TestId('recent_undo', child: TextButton(
                     onPressed: widget.onUndo,
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -436,7 +441,7 @@ class _RecentSavedListState extends State<RecentSavedList>
                       alignment: Alignment.topCenter,
                     ),
                     child: const Text('되돌리기'),
-                  ),
+                  )),
                 ),
               ),
             ],

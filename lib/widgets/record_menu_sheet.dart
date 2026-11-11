@@ -9,6 +9,7 @@ import '../screens/reception_form_screen.dart';
 import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import 'coach_mark.dart';
 import 'common.dart';
 import 'person_picker_sheet.dart';
@@ -201,7 +202,13 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
   Widget _card(
       (_RecordAction, CoachSpot, IconData, String, String, Color, Color) c) {
     final (action, spot, icon, title, sub, color, soft) = c;
-    return CoachTarget(
+    final testId = switch (action) {
+      _RecordAction.sent => 'menu_sent',
+      _RecordAction.schedule => 'menu_schedule',
+      _RecordAction.received => 'menu_received',
+      _RecordAction.reception => 'menu_reception',
+    };
+    return TestId(testId, child: CoachTarget(
       spot: spot,
       child: SizedBox(
         width: _cardWidth,
@@ -248,7 +255,7 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   @override
@@ -281,11 +288,11 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
           bottom: bottom,
           child: CoachTarget(
             spot: CoachSpot.menuClose,
-            child: RecordFab(
+            child: TestId('menu_close', child: RecordFab(
               icon: _open ? Icons.close : Icons.edit_outlined,
               tooltip: _open ? '닫기' : '기록하기',
               onPressed: () => Navigator.of(context).pop(),
-            ),
+            )),
           ),
         ),
       ],

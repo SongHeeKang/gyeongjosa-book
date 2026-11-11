@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/screen_coach.dart';
 import 'onboarding_screen.dart';
@@ -18,7 +19,7 @@ class HelpScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          ListTile(
+          TestId('help_guide', child: ListTile(
             leading: const Icon(Icons.menu_book_outlined, size: 24),
             title: const Text('처음 4장 가이드'),
             subtitle: const Text('앱을 처음 열 때 본 안내를 다시 봐요'),
@@ -26,8 +27,8 @@ class HelpScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute<void>(
                     builder: (_) => const OnboardingScreen(replay: true))),
-          ),
-          ListTile(
+          )),
+          TestId('btn_reset_coach', child: ListTile(
             leading: const Icon(Icons.restart_alt, size: 24),
             title: const Text('도움말 처음부터 다시 보기'),
             subtitle: const Text('각 화면에 다시 들어가면 도움말이 떠요'),
@@ -37,7 +38,7 @@ class HelpScreen extends ConsumerWidget {
                 showSnack(context, '각 화면에 다시 들어가면 도움말이 보여요.');
               }
             },
-          ),
+          )),
           const SizedBox(height: 12),
           const AppDivider(),
           const SectionTitle('화면별 도움말'),

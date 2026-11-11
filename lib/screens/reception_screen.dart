@@ -9,6 +9,7 @@ import '../models/reception.dart';
 import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/amount_pad.dart';
 import '../widgets/coach_mark.dart';
@@ -225,15 +226,15 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
         appBar: AppBar(
           title: const Text('접수 중'),
           actions: [
-            IconButton(
+            TestId('entry_search', child: IconButton(
               tooltip: '이름 검색',
               icon: const Icon(Icons.search),
               onPressed: () => showReceptionSearch(context,
                   receptionId: widget.receptionId),
-            ),
+            )),
             CoachTarget(
               spot: CoachSpot.receptionFinish,
-              child: TextButton(onPressed: _finish, child: const Text('접수 마치기')),
+              child: TestId('btn_finish', child: TextButton(onPressed: _finish, child: const Text('접수 마치기'))),
             ),
             const SizedBox(width: 8),
           ],
@@ -291,32 +292,32 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (keyboardOpen)
-                  _CompactStatus(
+                  TestId('reception_status', child: _CompactStatus(
                     package: package,
                     side: side,
                     onSide: (v) => _selectSide(reception, v),
                     onToggleMeals: () => _toggleMeals(reception),
                     onHelpClosed: _nameFocus.requestFocus,
-                  )
+                  ))
                 else ...[
-                  _StatusHeader(
+                  TestId('reception_status', child: _StatusHeader(
                     package: package,
                     onToggleMeals: () => _toggleMeals(reception),
                     onHelpClosed: _nameFocus.requestFocus,
-                  ),
+                  )),
                   const SizedBox(height: 12),
                   if (reception.sides.length > 1) ...[
-                    _SideToggle(
+                    TestId('toggle_side', child: _SideToggle(
                       sides: reception.sides,
                       selected: side,
                       onSelected: (v) => _selectSide(reception, v),
-                    ),
+                    )),
                     const SizedBox(height: 12),
                   ],
                 ],
                 CoachTarget(
                   spot: CoachSpot.receptionName,
-                  child: TextField(
+                  child: TestId('input_guest_name', child: TextField(
                     controller: _name,
                     focusNode: _nameFocus,
                     autofocus: true,
@@ -330,7 +331,7 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                       hintText: '손님 이름',
                       errorText: _nameMissing ? '이름을 먼저 입력해 주세요' : null,
                     ),
-                  ),
+                  )),
                 ),
               ],
             ),
@@ -351,7 +352,7 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
+                : TestId('entry_list', child: ListView.builder(
                     itemCount: entries.length + 1,
                     itemBuilder: (_, i) {
                       if (i == 0) {
@@ -368,14 +369,14 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                         );
                       }
                       final e = entries[i - 1];
-                      return ReceptionEntryTile(
+                      return TestId('entry_item_${i - 1}', child: ReceptionEntryTile(
                         entry: e,
                         reception: reception,
                         onTap: () => showReceptionEntryForm(context,
                             entry: e, sides: package.sides),
-                      );
+                      ));
                     },
-                  ),
+                  )),
           ),
           AmountField(
             controller: _amount,
@@ -477,10 +478,10 @@ class _MealToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExcludeFocus(
-      child: TextButton(
+      child: TestId('toggle_meal', child: TextButton(
         onPressed: onTap,
         child: Text(enabled ? '식권 끄기' : '식권 켜기'),
-      ),
+      )),
     );
   }
 }

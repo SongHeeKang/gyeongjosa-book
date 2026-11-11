@@ -7,6 +7,7 @@ import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import 'amount_input.dart';
 import 'common.dart';
 import 'pro_gate.dart';
@@ -217,41 +218,43 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
               )
             else
               ChoiceChips(
+                testIdPrefix: 'select_event_type',
                 options: EventTypes.all,
                 selected: _eventType,
                 onSelected: (v) => setState(() => _eventType = v),
               ),
             const SizedBox(height: 20),
             const FieldLabel('날짜'),
-            OutlinedButton.icon(
+            TestId('input_date', child: OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(Icons.calendar_today),
               label: Text(formatDate(_date)),
-            ),
+            )),
             const SizedBox(height: 20),
             const FieldLabel('방법'),
             ChoiceChips(
+              testIdPrefix: 'select_method',
               options: Methods.all,
               selected: _method,
               onSelected: (v) => setState(() => _method = v),
             ),
             const SizedBox(height: 20),
-            TextField(
+            TestId('input_memo', child: TextField(
               controller: _memo,
               decoration: const InputDecoration(labelText: '메모 (선택)'),
-            ),
+            )),
             const SizedBox(height: 24),
-            FilledButton(
+            TestId('btn_save', child: FilledButton(
               onPressed: _saving ? null : _save,
               child: const Text('저장'),
-            ),
+            )),
             if (widget.existing != null) ...[
               const SizedBox(height: 8),
-              TextButton(
+              TestId('btn_delete_record', child: TextButton(
                 onPressed: _delete,
                 style: TextButton.styleFrom(foregroundColor: AppColors.error),
                 child: const Text('이 내역 삭제'),
-              ),
+              )),
             ],
           ],
         ),

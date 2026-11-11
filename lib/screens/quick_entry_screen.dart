@@ -9,6 +9,7 @@ import '../models/person.dart';
 import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/amount_pad.dart';
 import '../widgets/coach_mark.dart';
@@ -247,8 +248,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           HelpButton(
               screen: CoachScreen.quickEntry,
               onClosed: _nameFocus.requestFocus),
-          TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('완료')),
+          TestId('btn_done', child: TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text('완료'))),
         ],
       ),
       body: SafeArea(
@@ -279,7 +280,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                       ),
                     ),
                   const SizedBox(height: 4),
-                  PersonNameField(
+                  TestId('input_guest_name', child: PersonNameField(
                     controller: _name,
                     focusNode: _nameFocus,
                     people: people,
@@ -293,7 +294,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                     onEditingComplete: _amountFocus.requestFocus,
                     onSelected: (p) => setState(() => _selected = p),
                     onChanged: () => setState(() => _nameMissing = false),
-                  ),
+                  )),
                 ],
               ),
             ),

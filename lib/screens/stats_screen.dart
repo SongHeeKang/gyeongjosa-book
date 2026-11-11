@@ -9,6 +9,7 @@ import '../models/constants.dart';
 import '../services/format.dart';
 import '../services/pro_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
@@ -80,24 +81,24 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               return Column(
                 children: [
                   const SizedBox(height: 8),
-                  SummaryRow(
+                  TestId('stats_summary', child: SummaryRow(
                       sent: sent,
                       received: received,
                       sentLabel: '보낸 돈',
-                      receivedLabel: '받은 돈'),
+                      receivedLabel: '받은 돈')),
                   const SizedBox(height: AppSpacing.section),
                   const AppDivider(),
                   const SectionTitle('월별 보냄 · 받음', trailing: _Legend()),
                   CoachTarget(
                     spot: CoachSpot.statsChart,
-                    child: _ChartCard(
+                    child: TestId('stats_monthly_chart', child: _ChartCard(
                       child: _GroupedBarChart(
                         labels: [for (final r in rows) '${r.month}'],
                         sent: [for (final r in rows) r.sent],
                         received: [for (final r in rows) r.received],
                         labelSuffix: '월',
                       ),
-                    ),
+                    )),
                   ),
                 ],
               );
@@ -124,8 +125,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               },
             )
           else
-            const _LockedChart(
-                message: '가족 · 친구 · 회사별로\n얼마나 주고받았는지 한눈에 봐요'),
+            TestId('stats_detail_relation', child: const _LockedChart(
+                message: '가족 · 친구 · 회사별로\n얼마나 주고받았는지 한눈에 봐요')),
           const SizedBox(height: AppSpacing.section),
           const AppDivider(),
           SectionTitle('연도별', trailing: isPro ? null : const ProBadge()),
@@ -143,7 +144,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                     ),
             )
           else
-            const _LockedChart(message: '해마다 경조사비가 얼마나 나갔는지\n흐름을 볼 수 있어요'),
+            TestId('stats_detail_yearly', child: const _LockedChart(message: '해마다 경조사비가 얼마나 나갔는지\n흐름을 볼 수 있어요')),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import '../services/limits.dart';
 import '../services/pro_service.dart';
 import '../services/purchase_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 
 /// 프로 결제 화면. 언제든 닫을 수 있다.
@@ -37,11 +38,11 @@ class PaywallScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
+        leading: TestId('paywall_close', child: IconButton(
           tooltip: '닫기',
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
-        ),
+        )),
       ),
       body: SafeArea(
         child: ListView(
@@ -89,7 +90,7 @@ class PaywallScreen extends ConsumerWidget {
             const Text('구독 아님 · 광고 없음',
                 textAlign: TextAlign.center, style: AppText.sub),
             const SizedBox(height: 24),
-            FilledButton(
+            TestId('paywall_buy', child: FilledButton(
               onPressed: purchase.busy
                   ? null
                   : () => ref.read(purchaseProvider.notifier).buy(),
@@ -100,19 +101,19 @@ class PaywallScreen extends ConsumerWidget {
                       child: CircularProgressIndicator(
                           strokeWidth: 2.5, color: Colors.white))
                   : Text('${purchase.priceText}에 프로 시작하기'),
-            ),
+            )),
             const SizedBox(height: 8),
-            OutlinedButton(
+            TestId('paywall_later', child: OutlinedButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('나중에 할게요'),
-            ),
+            )),
             const SizedBox(height: 4),
-            TextButton(
+            TestId('btn_restore_purchase', child: TextButton(
               onPressed: purchase.busy
                   ? null
                   : () => ref.read(purchaseProvider.notifier).restore(),
               child: const Text('이미 구매했어요 (구매 복원)'),
-            ),
+            )),
             const SizedBox(height: 8),
             const Text('이미 입력한 기록은 무료에서도 언제든 보고 · 고치고 · 지울 수 있어요.',
                 textAlign: TextAlign.center, style: AppText.sub),

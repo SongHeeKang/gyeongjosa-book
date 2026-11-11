@@ -9,6 +9,7 @@ import '../models/reception.dart';
 import '../services/format.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/common.dart';
 import 'reception_screen.dart';
@@ -86,13 +87,28 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   }
 
   /// 나란히 놓인 큰 선택 버튼 묶음
+  /// 자동화 테스트용 식별자 (버튼 글자 → 이름)
+  static const _testIds = {
+    '신랑측': 'side_groom',
+    '신부측': 'side_bride',
+    '식권 기록 안 함': 'meal_off',
+    '식권도 기록': 'meal_on',
+    '1매': 'meal_default_1',
+    '2매': 'meal_default_2',
+    '현금만': 'method_cash_only',
+    '계좌이체도 구분': 'method_split',
+  };
+
   Widget _choiceRow(List<(String, bool, VoidCallback)> choices) {
     return Row(
       children: [
         for (var i = 0; i < choices.length; i++) ...[
           if (i > 0) const SizedBox(width: 8),
           Expanded(
-            child: SizedBox(
+            child: TestId(
+              _testIds[choices[i].$1] ?? 'choice_${choices[i].$1}',
+              selected: choices[i].$2,
+              child: SizedBox(
               height: AppSpacing.receptionButton,
               child: OutlinedButton(
                 onPressed: choices[i].$3,
@@ -106,6 +122,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                 ),
                 child: Text(choices[i].$1),
               ),
+            ),
             ),
           ),
         ],
@@ -189,32 +206,33 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
         children: [
           const FieldLabel('종류'),
           ChoiceChips(
+            testIdPrefix: 'select_event_type',
             options: EventTypes.all,
             selected: _type,
             onSelected: _selectType,
           ),
           const SizedBox(height: 20),
-          TextField(
+          TestId('input_event_title', child: TextField(
             controller: _title,
             style: AppText.receptionName,
             decoration: const InputDecoration(
               labelText: '행사 이름',
               hintText: '예: 홍길동 · 김영희 결혼식',
             ),
-          ),
+          )),
           const SizedBox(height: 20),
-          OutlinedButton.icon(
+          TestId('input_date', child: OutlinedButton.icon(
             onPressed: _pickDate,
             icon: const Icon(Icons.calendar_today),
             label: Text(formatDate(_date)),
-          ),
+          )),
           const SizedBox(height: 20),
           if (_isWedding) ...[
             const FieldLabel('구분'),
             _weddingSideButtons(),
             const SizedBox(height: 12),
           ],
-          TextField(
+          TestId('input_side', child: TextField(
             controller: _sides,
             style: AppText.receptionName,
             onChanged: (_) => setState(() {}),
@@ -232,16 +250,16 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                   ? '여러 명이면 쉼표(,)로 나눠 적어 주세요'
                   : '쉼표(,)로 나눠 적어요. 비워 두면 구분 없이 받아요',
             ),
-          ),
+          )),
           const SizedBox(height: 20),
-          TextField(
+          TestId('input_operator', child: TextField(
             controller: _operator,
             style: AppText.receptionName,
             decoration: const InputDecoration(
               labelText: '접수자 이름',
               hintText: '접수를 맡은 분 이름',
             ),
-          ),
+          )),
           const SizedBox(height: 20),
           const FieldLabel('식권'),
           _choiceRow([
@@ -268,7 +286,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                 () => setState(() => _methodEnabled = true)),
           ]),
           const SizedBox(height: 28),
-          SizedBox(
+          TestId('btn_start_reception', child: SizedBox(
             height: AppSpacing.receptionButton,
             child: FilledButton(
               onPressed: _saving || _mealEnabled == null || _methodEnabled == null
@@ -278,7 +296,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                   textStyle: AppText.receptionButton),
               child: const Text('접수 시작'),
             ),
-          ),
+          )),
         ],
       ),
     );

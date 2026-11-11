@@ -3,6 +3,7 @@ import 'dart:ui' show PathMetric;
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 
 /// 도움말이 가리킬 수 있는 자리
 enum CoachSpot {
@@ -420,7 +421,9 @@ class _CoachOverlayState extends State<_CoachOverlay> {
                   SizedBox(
                     width: _buttonWidth,
                     height: _buttonHeight,
-                    child: FilledButton(
+                    child: TestId(
+                      'coach_ok',
+                      child: FilledButton(
                       onPressed: () => Navigator.of(context).pop(),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.background,
@@ -430,6 +433,7 @@ class _CoachOverlayState extends State<_CoachOverlay> {
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: const Text('알겠어요'),
+                    ),
                     ),
                   ),
                 ],

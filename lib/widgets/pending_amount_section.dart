@@ -7,6 +7,7 @@ import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import 'amount_input.dart';
 import 'common.dart';
 import 'person_picker_sheet.dart';
@@ -105,10 +106,14 @@ class _PendingRowState extends ConsumerState<_PendingRow> {
                   ],
                 ),
               ),
-              TextButton(
-                style: TextButton.styleFrom(foregroundColor: AppColors.textSub),
-                onPressed: _hide,
-                child: const Text('안 갔어요'),
+              TestId(
+                'ask_skip',
+                child: TextButton(
+                  style:
+                      TextButton.styleFrom(foregroundColor: AppColors.textSub),
+                  onPressed: _hide,
+                  child: const Text('안 갔어요'),
+                ),
               ),
             ],
           ),
@@ -117,19 +122,25 @@ class _PendingRowState extends ConsumerState<_PendingRow> {
             children: [
               for (final a in _amounts) ...[
                 Expanded(
-                  child: OutlinedButton(
-                    style: button,
-                    onPressed: () => _record(a),
-                    child: Text(formatManWon(a)),
+                  child: TestId(
+                    'ask_amount_$a',
+                    child: OutlinedButton(
+                      style: button,
+                      onPressed: () => _record(a),
+                      child: Text(formatManWon(a)),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
               ],
               Expanded(
-                child: OutlinedButton(
-                  style: button,
-                  onPressed: _enterAmount,
-                  child: const Text('직접'),
+                child: TestId(
+                  'ask_custom',
+                  child: OutlinedButton(
+                    style: button,
+                    onPressed: _enterAmount,
+                    child: const Text('직접'),
+                  ),
                 ),
               ),
             ],

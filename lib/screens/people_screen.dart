@@ -8,6 +8,7 @@ import '../services/format.dart';
 import '../services/limits.dart';
 import '../services/pro_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/person_form_sheet.dart';
 import '../widgets/coach_mark.dart';
@@ -66,7 +67,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 style: AppText.sub,
               ),
             ),
-          TextButton(onPressed: _add, child: const Text('사람 추가')),
+          TestId('btn_add_person', child: TextButton(onPressed: _add, child: const Text('사람 추가'))),
           const HelpButton(screen: CoachScreen.people),
           const SettingsButton(),
           SettingsButton.trailingGap,
@@ -79,7 +80,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 AppSpacing.page, 4, AppSpacing.page, 4),
             child: CoachTarget(
               spot: CoachSpot.peopleSearch,
-              child: TextField(
+              child: TestId('people_search', child: TextField(
               controller: _search,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
@@ -92,7 +93,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                         onPressed: () => setState(_search.clear),
                       ),
               ),
-            ),
+            )),
             ),
           ),
           SizedBox(
@@ -104,12 +105,12 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 for (final r in [null, ...Relations.all])
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
+                    child: TestId('people_filter_${r ?? '전체'}', child: ChoiceChip(
                       showCheckmark: false,
                       label: Text(r ?? '전체'),
                       selected: _relation == r,
                       onSelected: (_) => setState(() => _relation = r),
-                    ),
+                    )),
                   ),
               ],
             ),
@@ -158,7 +159,7 @@ class _PersonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = summary.person;
-    return InkWell(
+    return TestId('people_item_${p.name}', child: InkWell(
       onTap: () => Navigator.push(context,
           MaterialPageRoute<void>(builder: (_) => PersonDetailScreen(personId: p.id!))),
       child: Padding(
@@ -190,6 +191,6 @@ class _PersonRow extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

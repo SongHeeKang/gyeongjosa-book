@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 
 /// 첫 실행 가이드 4장. 설정의 [사용 방법]에서 다시 볼 수 있다.
@@ -73,11 +74,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               alignment: Alignment.centerRight,
               child: Padding(
                 padding: const EdgeInsets.only(right: 8, top: 4),
-                child: TextButton(
-                  style:
-                      TextButton.styleFrom(foregroundColor: AppColors.textSub),
-                  onPressed: _finish,
-                  child: const Text('건너뛰기'),
+                child: TestId(
+                  'guide_skip',
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                        foregroundColor: AppColors.textSub),
+                    onPressed: _finish,
+                    child: const Text('건너뛰기'),
+                  ),
                 ),
               ),
             ),
@@ -86,8 +90,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 controller: _controller,
                 onPageChanged: (i) => setState(() => _index = i),
                 children: [
-                  for (final (title, body, picture) in _pages)
-                    Padding(
+                  for (final (i, (title, body, picture)) in _pages.indexed)
+                    TestId(
+                      'guide_page_${i + 1}',
+                      child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.page),
                       child: Column(
@@ -111,6 +117,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ],
                       ),
                     ),
+                    ),
                 ],
               ),
             ),
@@ -132,9 +139,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Padding(
               padding: const EdgeInsets.all(AppSpacing.page),
               child: _isLast
-                  ? FilledButton(
-                      onPressed: _finish, child: const Text('시작하기'))
-                  : OutlinedButton(onPressed: _next, child: const Text('다음')),
+                  ? TestId('guide_start',
+                      child: FilledButton(
+                          onPressed: _finish, child: const Text('시작하기')))
+                  : TestId('guide_next',
+                      child: OutlinedButton(
+                          onPressed: _next, child: const Text('다음'))),
             ),
           ],
         ),

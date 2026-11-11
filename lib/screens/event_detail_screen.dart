@@ -6,6 +6,7 @@ import '../services/format.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/record_form_sheet.dart';
@@ -51,7 +52,7 @@ class EventDetailScreen extends ConsumerWidget {
             title: Text(e.title),
             actions: [
               if (e.isMine) const HelpButton(screen: CoachScreen.eventDetail),
-              PopupMenuButton<String>(
+              TestId('event_menu', child: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: AppColors.icon),
                 onSelected: (v) {
                   if (v == 'edit') {
@@ -66,7 +67,7 @@ class EventDetailScreen extends ConsumerWidget {
                   PopupMenuItem(value: 'edit', child: Text('행사 수정')),
                   PopupMenuItem(value: 'delete', child: Text('삭제')),
                 ],
-              ),
+              )),
               const SizedBox(width: 8),
             ],
           ),
@@ -130,7 +131,7 @@ class EventDetailScreen extends ConsumerWidget {
                           screen: CoachScreen.eventDetail),
                       CoachTarget(
                         spot: CoachSpot.eventReception,
-                        child: FilledButton.icon(
+                        child: TestId('btn_event_reception', child: FilledButton.icon(
                           onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute<void>(
@@ -138,29 +139,29 @@ class EventDetailScreen extends ConsumerWidget {
                                       ReceptionFormScreen(event: e))),
                           icon: const Icon(Icons.edit_note),
                           label: const Text('행사장 접수'),
-                        ),
+                        )),
                       ),
                       const SizedBox(height: 8),
                       CoachTarget(
                         spot: CoachSpot.eventDirect,
-                        child: OutlinedButton.icon(
+                        child: TestId('btn_event_direct_input', child: OutlinedButton.icon(
                           onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute<void>(
                                   builder: (_) => QuickEntryScreen(event: e))),
                           icon: const Icon(Icons.bolt, size: 20),
                           label: const Text('받은 명단 직접 입력'),
-                        ),
+                        )),
                       ),
                       const SizedBox(height: 8),
                       CoachTarget(
                         spot: CoachSpot.eventImport,
-                        child: OutlinedButton.icon(
+                        child: TestId('btn_event_import', child: OutlinedButton.icon(
                           onPressed: () =>
                               pickAndOpenImport(context, eventId: e.id),
                           icon: const Icon(Icons.file_download_outlined),
                           label: const Text('장부 가져오기'),
-                        ),
+                        )),
                       ),
                     ] else
                       FilledButton.icon(

@@ -21,6 +21,9 @@ class AppBottomNav extends StatelessWidget {
     ('chart', '통계'),
   ];
 
+  /// 자동화 테스트용 식별자 (탭 순서대로)
+  static const _testIds = ['tab_home', 'tab_people', 'tab_events', 'tab_stats'];
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -37,6 +40,7 @@ class AppBottomNav extends StatelessWidget {
               for (var i = 0; i < _items.length; i++)
                 Expanded(
                   child: _NavItem(
+                    testId: _testIds[i],
                     icon: _items[i].$1,
                     label: _items[i].$2,
                     selected: i == currentIndex,
@@ -53,11 +57,13 @@ class AppBottomNav extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
+    required this.testId,
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
   });
+  final String testId;
   final String icon;
   final String label;
   final bool selected;
@@ -67,6 +73,7 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? AppColors.primary : AppColors.textSub;
     return Semantics(
+      identifier: testId,
       selected: selected,
       button: true,
       label: label,

@@ -5,6 +5,7 @@ import '../data/providers.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
 import '../theme/app_theme.dart';
+import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/screen_coach.dart';
@@ -38,10 +39,10 @@ class MyEventsScreen extends ConsumerWidget {
           if (hasMine) ...[
             CoachTarget(
               spot: CoachSpot.myEventsCreate,
-              child: TextButton(
+              child: TestId('btn_new_event', child: TextButton(
                 onPressed: () => _create(context),
                 child: const Text('내 행사 만들기'),
-              ),
+              )),
             ),
           ],
           const HelpButton(screen: CoachScreen.myEvents),
@@ -61,17 +62,17 @@ class MyEventsScreen extends ConsumerWidget {
                   message: '결혼식 · 돌잔치처럼 내가 받는 행사를 만들어 보세요',
                   action: CoachTarget(
                     spot: CoachSpot.myEventsCreate,
-                    child: FilledButton(
+                    child: TestId('btn_new_event', child: FilledButton(
                       onPressed: () => _create(context),
                       child: const Text('내 행사 만들기'),
-                    ),
+                    )),
                   ),
                 )
               else
                 for (final (i, s) in mine.indexed)
                   _firstTarget(
                     i,
-                    EventTile(
+                    TestId('event_item_${s.event.title}', child: EventTile(
                       event: s.event,
                       subtitle:
                           '${formatDate(s.event.date)} · 받은 사람 ${s.count}명 · ${formatWon(s.total)}',
@@ -80,7 +81,7 @@ class MyEventsScreen extends ConsumerWidget {
                           MaterialPageRoute<void>(
                               builder: (_) =>
                                   EventDetailScreen(eventId: s.event.id!))),
-                    ),
+                    )),
                   ),
               if (receptions.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.section - 6),

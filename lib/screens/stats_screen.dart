@@ -8,6 +8,7 @@ import '../data/providers.dart';
 import '../models/constants.dart';
 import '../services/format.dart';
 import '../services/pro_service.dart';
+import '../services/limit_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
@@ -198,7 +199,7 @@ class _LockedChart extends ConsumerWidget {
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
         ),
-        onPressed: () => ensurePro(context, ref,
+        onPressed: () => LimitService.canUseProFeature(context, ref,
             reason: '관계별 · 연도별 상세 차트는 프로 기능이에요.'),
         child: Column(
           children: [

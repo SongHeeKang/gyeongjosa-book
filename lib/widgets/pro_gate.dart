@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/providers.dart';
 import '../screens/paywall_screen.dart';
-import '../services/limits.dart';
 import '../services/pro_service.dart';
 import '../theme/app_theme.dart';
 
@@ -17,23 +15,6 @@ Future<bool> showPaywall(BuildContext context, WidgetRef ref,
   return ref.read(isProProvider);
 }
 
-
-/// 내 행사를 새로 만들어도 되는지 확인 (두 번째부터 결제 화면)
-Future<bool> ensureCanAddMyEvent(BuildContext context, WidgetRef ref) async {
-  if (ref.read(isProProvider)) return true;
-  final count = await ref.read(repositoryProvider).countMyEvents();
-  if (count < FreeLimits.myEvents) return true;
-  if (!context.mounted) return false;
-  return showPaywall(context, ref,
-      reason: '무료 버전은 내 행사를 ${FreeLimits.myEvents}개까지 만들 수 있어요.');
-}
-
-/// 프로 전용 기능(CSV, 상세 차트)을 눌렀을 때
-Future<bool> ensurePro(BuildContext context, WidgetRef ref,
-    {required String reason}) async {
-  if (ref.read(isProProvider)) return true;
-  return showPaywall(context, ref, reason: reason);
-}
 
 /// 작은 "PRO" 배지
 class ProBadge extends StatelessWidget {

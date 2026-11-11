@@ -145,7 +145,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
     try {
       final repo = ref.read(repositoryProvider);
       // 내 행사 한도: 새로 만들 때만 확인
-      if (_eventId == null && !await ensureCanAddMyEvent(context, ref)) return;
+      if (_eventId == null && !await LimitService.canCreateMyEvent(context, ref)) return;
       if (!mounted) return;
       final maxPeople = await _resolvePeopleLimit();
       if (!maxPeople.proceed) return;

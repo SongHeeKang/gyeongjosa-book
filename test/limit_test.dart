@@ -12,6 +12,8 @@ import 'package:gyeongjosa/screens/event_form_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/screens/quick_entry_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
+import 'package:gyeongjosa/services/limit_service.dart';
+import 'package:gyeongjosa/services/pro_service.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -150,5 +152,44 @@ void main() {
   testWidgets('일정 추가(남의 행사)에는 행사장 접수 안내가 없다', (tester) async {
     await open(tester, const EventFormScreen());
     expect(find.text('행사장 접수로 가기'), findsNothing);
+  });
+
+  group('한도 상태 (테스트 메뉴)', () {
+    Future<ProviderContainer> make(Map<String, Object> prefsValues) async {
+      SharedPreferences.setMockInitialValues(
+          {for (final e in prefsValues.entries) 'flutter.${e.key}': e.value});
+      final prefs = await SharedPreferences.getInstance();
+      final container = ProviderContainer(overrides: [
+        prefsProvider.overrideWithValue(prefs),
+        repositoryProvider.overrideWithValue(_FakeRepository(31)),
+      ]);
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('스위치를 끄면 실제 구매가 없을 때 무료로 본다', () async {
+      final c = await make({PrefKeys.devProOverride: false});
+      final status = await c.read(limitStatusProvider.future);
+      expect(status.isPro, isFalse);
+      expect(status.basis, '테스트 스위치');
+      expect(status.people, 31);
+      expect(status.summary, contains('사람 31명 / 무료 30명'));
+    });
+
+    test('스위치를 쓰지 않으면 실제 구매 여부를 따른다', () async {
+      final none = await make({});
+      expect((await none.read(limitStatusProvider.future)).basis, '구매 없음');
+      expect(none.read(isProProvider), isFalse);
+      final bought = await make({PrefKeys.proPurchased: true});
+      expect((await bought.read(limitStatusProvider.future)).basis,
+          'Google Play 구매');
+      expect(bought.read(isProProvider), isTrue);
+    });
+
+    test('구매 기록이 있어도 스위치를 끄면 무료로 본다', () async {
+      final c = await make(
+          {PrefKeys.proPurchased: true, PrefKeys.devProOverride: false});
+      expect(c.read(isProProvider), isFalse);
+    });
   });
 }

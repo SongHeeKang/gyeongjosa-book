@@ -16,6 +16,7 @@ import '../services/notification_service.dart';
 import '../services/pro_service.dart';
 import '../services/purchase_service.dart';
 import '../services/settings_service.dart';
+import '../services/limit_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
@@ -95,7 +96,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       });
 
   Future<void> _exportCsv() async {
-    if (!await ensurePro(context, ref,
+    if (!await LimitService.canUseProFeature(context, ref,
         reason: '엑셀(CSV) 내보내기는 프로 기능이에요.')) {
       return;
     }
@@ -270,6 +271,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: 12),
         const AppDivider(),
         TestId('test_menu', child: const SectionTitle('테스트 전용 (출시 전 제거)')),
+        TestId('test_limit_status', child: ListTile(
+          leading: const Icon(Icons.fact_check_outlined, size: 24),
+          title: const Text('무료 한도 상태'),
+          subtitle: Text(ref.watch(limitStatusProvider).value?.summary ?? '확인 중…'),
+          isThreeLine: true,
+        )),
         TestId('test_ispro', child: SwitchListTile(
           secondary: const Icon(Icons.science_outlined, size: 24),
           title: const Text('isPro 켜기/끄기 (테스트)', style: AppText.listName),

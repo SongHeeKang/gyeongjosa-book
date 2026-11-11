@@ -14,7 +14,6 @@ import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/common.dart';
 import '../widgets/person_name_field.dart';
-import '../widgets/pro_gate.dart';
 import 'reception_form_screen.dart';
 
 /// 행사 수정, 내 행사 만들기, 일정 추가(남의 행사).
@@ -132,7 +131,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     if (!mounted) return;
     // 내 행사 장부는 무료 1개. (기존 내 행사를 수정하는 건 항상 가능)
     final becomesMine = _isMine && widget.existing?.isMine != true;
-    if (becomesMine && !await ensureCanAddMyEvent(context, ref)) return;
+    if (becomesMine && !await LimitService.canCreateMyEvent(context, ref)) return;
     if (!mounted) return;
 
     // 처음 알림을 켤 때 한 번만 이유를 설명하고 권한 요청 (스위치를 다시 켜면 또 물어봄)

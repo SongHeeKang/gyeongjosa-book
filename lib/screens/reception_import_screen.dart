@@ -6,9 +6,10 @@ import '../models/constants.dart';
 import '../models/event.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
+import '../services/limits.dart';
+import '../services/pro_service.dart';
 import '../services/reception_file_service.dart';
 import '../services/reception_import.dart';
-import '../services/limit_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
@@ -115,12 +116,11 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
   /// 사람 30명 한도 처리. 넘으면 안내 후 결제 화면을 띄우고,
   /// 결제하지 않으면 한도까지만 가져올지 묻는다. 파일은 그대로 남으니 나중에 마저 가져올 수 있다.
   Future<({bool proceed, int? limit})> _resolvePeopleLimit() async {
-    final limit = LimitService.importPeopleLimit(ref);
-    if (limit == null) return (proceed: true, limit: null);
+    if (ref.read(isProProvider)) return (proceed: true, limit: null);
     final plan = await ref.read(repositoryProvider).planImport(widget.package,
-        eventId: _eventId, maxPeople: limit);
+        eventId: _eventId, maxPeople: FreeLimits.people);
     if (plan.skippedByLimit == 0) {
-      return (proceed: true, limit: limit);
+      return (proceed: true, limit: FreeLimits.people);
     }
     if (!mounted) return (proceed: false, limit: null);
     final upgraded = await showPaywall(context, ref,
@@ -136,7 +136,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
         message:
             '나머지 ${plan.skippedByLimit}명은 프로를 구매한 뒤 같은 파일을 다시 가져오면 들어와요. 파일을 지우지 말고 보관해 주세요.',
         okText: '${plan.items.length}명 가져오기');
-    return (proceed: partial, limit: limit);
+    return (proceed: partial, limit: FreeLimits.people);
   }
 
   Future<void> _import() async {

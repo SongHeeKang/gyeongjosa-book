@@ -5,19 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../models/constants.dart';
 import '../models/person.dart';
-import '../services/limit_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import 'amount_input.dart';
 import 'common.dart';
+import 'pro_gate.dart';
 
 /// 사람 추가/수정 창. 새로 추가하면 새 사람의 id, 수정이면 기존 id 를 돌려준다.
 /// 새로 추가할 때는 무료 한도(30명)를 먼저 확인한다.
 Future<int?> showPersonForm(BuildContext context, WidgetRef ref,
     {Person? existing}) async {
-  if (existing == null && !await LimitService.canAddNewPerson(context, ref)) {
-    return null;
-  }
+  if (existing == null && !await ensureCanAddPerson(context, ref)) return null;
   if (!context.mounted) return null;
   return showModalBottomSheet<int>(
     context: context,

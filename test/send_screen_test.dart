@@ -1,5 +1,6 @@
 // 추가 L: 장부 보내기 전에 받는 사람에게 무엇이 보이는지 보여준다
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/screens/reception_send_screen.dart';
@@ -54,9 +55,39 @@ void main() {
     expect(find.text('전체 명단 · 앱에서 열기'), findsOneWidget);
     expect(find.text('추천'), findsOneWidget);
 
-    expect(find.textContaining("앱에서 열어야 명단이 보여요"), findsOneWidget);
-    expect(find.text('장부 파일 보내기'), findsOneWidget);
+    // 받는 사람은 이렇게 열어요 (추가 O)
+    expect(find.text('받는 사람은 이렇게 열어요'), findsOneWidget);
+    expect(find.text("② 파일을 눌러 '경조사 장부'로 열기"), findsOneWidget);
+    expect(find.text('무료는 30명까지 가져올 수 있어요(이 장부 4명)'), findsOneWidget);
+    expect(find.text('카카오톡 파일은 보관 기간이 지나면 받을 수 없어요'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('요약 메시지만'), 200,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('안내 메시지 + 장부 파일 보내기'), findsOneWidget);
+    expect(find.text('장부 파일만'), findsOneWidget);
     expect(find.text('장부 파일도 보내기'), findsNothing);
+  });
+
+  testWidgets('추천 버튼: 안내 메시지를 먼저 보내고 돌아오면 장부 파일 보내기가 나온다 (제목 없이)',
+      (tester) async {
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('dev.fluttercommunity.plus/share'), (call) async {
+      calls.add(call);
+      return 'com.kakao.talk';
+    });
+    await open(tester);
+    expect(find.text('② 이제 장부 파일을 같은 방에 보내세요'), findsNothing);
+    await tester.scrollUntilVisible(find.text('안내 메시지 + 장부 파일 보내기'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('안내 메시지 + 장부 파일 보내기'));
+    await tester.pumpAndSettle();
+
+    final args = calls.single.arguments as Map;
+    expect(args['text'], contains('[장부 파일 받는 방법]'));
+    expect(args['subject'], isNull);
+    await tester.scrollUntilVisible(find.text('② 이제 장부 파일을 같은 방에 보내세요'), -200,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('② 이제 장부 파일을 같은 방에 보내세요'), findsOneWidget);
   });
 
   testWidgets('요약 메시지를 고르면 보낼 글 전체와 명단이 없다는 안내, 장부 파일도 보내기',

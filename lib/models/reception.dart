@@ -204,6 +204,7 @@ class ReceptionTotals {
 /// 접수 장부 + 항목. 장부 보내기 · 가져오기의 단위이자 화면 표시용 묶음.
 class ReceptionPackage {
   static const formatName = 'gyeongjosa_reception';
+  static const notOursMessage = '경조사 장부 파일이 아니에요. 기존 기록은 그대로예요.';
   static const formatVersion = 1;
 
   final Reception reception;
@@ -245,7 +246,7 @@ class ReceptionPackage {
   /// 받은 파일을 읽는다. 다른 사람이 보낸 파일이므로 내용을 모두 검사하고,
   /// 문제가 있으면 사용자에게 보여줄 문구를 담은 [FormatException]을 던진다.
   factory ReceptionPackage.parse(String text) {
-    const notOurs = FormatException('경조사 장부에서 보낸 접수 파일이 아니에요.');
+    const notOurs = FormatException(notOursMessage);
     final Object? root;
     try {
       root = jsonDecode(text);

@@ -138,6 +138,14 @@ void main() {
       expect(text,
           contains('https://play.google.com/store/apps/details?id=com.heekangsong.gyeongjosa'));
       expect(text, isNot(contains('김철수')));
+      // 받는 사람 안내 (추가 O)
+      expect(text, contains('[장부 파일 받는 방법]'));
+      expect(text, contains("② 함께 보낸 장부 파일(.json)을 눌러 '경조사 장부'로 열기"));
+      expect(text, contains('※ 무료는 30명까지 가져올 수 있어요(이 장부 2명)'));
+      expect(text, contains('※ 카카오톡 파일은 보관 기간이 지나면 받을 수 없어요'));
+      expect(text, isNot(contains('전체 명단은')));
+      // 첫 줄 제목은 한 번만
+      expect('접수 결과'.allMatches(text).length, 1);
       expect(text, isNot(contains('이영희')));
     });
   });

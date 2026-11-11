@@ -10,6 +10,7 @@ import 'screens/manage_space_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/restore_prompt.dart';
 import 'services/auto_backup_service.dart';
+import 'services/incoming_file_service.dart';
 import 'services/notification_service.dart';
 import 'services/purchase_service.dart';
 import 'services/settings_service.dart';
@@ -28,6 +29,9 @@ Future<void> main() async {
     container: container,
     child: const GyeongjosaApp(),
   ));
+
+  // 카카오톡 등에서 장부 파일을 눌러 열었으면 바로 가져오기 화면으로
+  IncomingFiles.start();
 
   final autoBackup = container.read(autoBackupProvider.notifier);
   autoBackup.scheduleIfNeverBackedUp();
@@ -71,6 +75,7 @@ class GyeongjosaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final seen = ref.watch(onboardingSeenProvider);
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: '경조사 장부',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),

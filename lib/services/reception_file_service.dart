@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/constants.dart';
 import '../models/reception.dart';
 import 'app_config.dart';
+import 'limits.dart';
 import 'format.dart';
 
 /// 요약 메시지 공유, 장부 파일(JSON 1개) 만들기 · 공유 · 읽기
@@ -28,7 +29,8 @@ class ReceptionFileService {
     return '${parts.join('_')}.json';
   }
 
-  /// 요약 메시지. 앱이 없어도 읽을 수 있고, 전체 명단은 넣지 않는다.
+  /// 요약(안내) 메시지. 앱이 없어도 읽을 수 있고, 전체 명단은 넣지 않는다.
+  /// 끝에 받는 사람이 장부 파일을 여는 방법을 붙인다.
   static String summaryMessage(ReceptionPackage package) {
     final r = package.reception;
     final totals = package.totals;
@@ -46,17 +48,22 @@ class ReceptionFileService {
         '현금 ${formatWon(package.totalsForMethod(ReceptionDefaults.cash).amount)} · '
             '계좌이체 ${formatWon(package.totalsForMethod(ReceptionDefaults.transfer).amount)}',
       '',
-      "전체 명단은 '경조사 장부' 앱에서 장부 파일을 열어 확인하세요.",
+      '[장부 파일 받는 방법]',
+      "① 아래 링크로 '경조사 장부' 앱 설치",
+      "② 함께 보낸 장부 파일(.json)을 눌러 '경조사 장부'로 열기",
+      '③ 이름 · 금액 전체 명단을 확인하고 [가져오기]',
+      '※ 무료는 ${FreeLimits.people}명까지 가져올 수 있어요(이 장부 ${totals.count}명)',
+      '※ 카카오톡 파일은 보관 기간이 지나면 받을 수 없어요',
       '앱 받기: ${AppConfig.playStoreUrl}',
     ].join('\n');
   }
 
-  /// 요약 메시지를 글자로 공유창에 보낸다.
-  static Future<void> shareSummary(ReceptionPackage package) async {
-    await SharePlus.instance.share(ShareParams(
-      text: summaryMessage(package),
-      subject: '${package.reception.title} 접수 결과',
-    ));
+  /// 요약(안내) 메시지를 글자로 공유창에 보낸다. 공유 창을 그냥 닫으면 false.
+  /// 제목(subject)은 넣지 않는다. 카카오톡이 제목과 본문을 합쳐 첫 줄이 두 번 들어가기 때문.
+  static Future<bool> shareSummary(ReceptionPackage package) async {
+    final result = await SharePlus.instance
+        .share(ShareParams(text: summaryMessage(package)));
+    return result.status != ShareResultStatus.dismissed;
   }
 
   /// 파일을 만들어 공유창으로 보낸다.
@@ -66,8 +73,6 @@ class ReceptionFileService {
     await file.writeAsString(package.toJsonString(), flush: true);
     await SharePlus.instance.share(ShareParams(
       files: [XFile(file.path, mimeType: 'application/json')],
-      subject: '${package.reception.title} 접수 장부',
-      text: '경조사 장부 앱에서 [내 행사 > 장부 가져오기]로 이 파일을 불러오세요.',
     ));
   }
 
@@ -76,15 +81,19 @@ class ReceptionFileService {
   static Future<ReceptionPackage?> pick() async {
     final picked = await FilePicker.pickFiles(type: FileType.any);
     if (picked.isEmpty) return null;
-    final bytes = await picked.first.xFile.readAsBytes();
-    if (bytes.length > _maxFileBytes) {
-      throw const FormatException('경조사 장부에서 보낸 접수 파일이 아니에요.');
+    return fromBytes(await picked.first.xFile.readAsBytes());
+  }
+
+  /// 파일 내용을 읽는다. 우리 장부 파일이 아니면 [FormatException].
+  static ReceptionPackage fromBytes(List<int> bytes) {
+    if (bytes.isEmpty || bytes.length > _maxFileBytes) {
+      throw const FormatException(ReceptionPackage.notOursMessage);
     }
     final String text;
     try {
       text = utf8.decode(bytes);
     } on FormatException {
-      throw const FormatException('경조사 장부에서 보낸 접수 파일이 아니에요.');
+      throw const FormatException(ReceptionPackage.notOursMessage);
     }
     return ReceptionPackage.parse(text);
   }

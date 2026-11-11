@@ -30,6 +30,21 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- 카카오톡 등에서 장부 파일(.json)을 누르거나 '다른 앱으로 열기' · 공유하기로 열 때.
+                 카카오톡은 octet-stream으로 보낼 때가 있어 함께 받는다. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="content"/>
+                <data android:mimeType="application/json"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/json"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
         </activity>
         <!-- 안드로이드 설정의 '데이터 삭제' 대신 열리는 안내 화면. 설정 앱만 열 수 있게 exported=false -->
         <activity

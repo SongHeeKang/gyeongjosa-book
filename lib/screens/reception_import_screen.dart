@@ -9,6 +9,7 @@ import '../services/format.dart';
 import '../services/reception_file_service.dart';
 import '../services/reception_import.dart';
 import '../services/limit_service.dart';
+import '../services/limits.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
@@ -223,6 +224,17 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
                 TestId('import_preview_total', child: Text('${totals.count}명 · ${formatWon(totals.amount)}',
                     style: AppText.summaryAmount
                         .copyWith(color: AppColors.primary))),
+                if (ref.watch(remainingPeopleProvider).value case final free?) ...[
+                  const SizedBox(height: 8),
+                  TestId(
+                    'import_free_remaining',
+                    child: Text(
+                        free > 0
+                            ? '무료로 $free명까지 가져올 수 있어요'
+                            : '무료 ${FreeLimits.people}명이 다 찼어요. 이미 등록한 사람의 기록만 가져올 수 있어요',
+                        style: AppText.body.copyWith(color: AppColors.primary)),
+                  ),
+                ],
                 if (plan != null && plan.alreadyImported > 0) ...[
                   const SizedBox(height: 8),
                   Text('이미 가져온 ${plan.alreadyImported}명은 다시 저장하지 않아요.',

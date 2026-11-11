@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/constants.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
+import '../services/limits.dart';
 import '../services/reception_file_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -23,6 +24,10 @@ class _ReceptionSendScreenState extends State<ReceptionSendScreen> {
   /// 처음에는 추천인 장부 파일을 골라 둔다
   bool _file = true;
 
+  /// [안내 메시지 + 장부 파일 보내기]의 첫 번째(안내 메시지)를 보냈는지.
+  /// 보냈으면 두 번째(장부 파일) 보내기 버튼을 보여준다.
+  bool _guideSent = false;
+
   ReceptionPackage get _package => widget.package;
 
   Future<void> _sendSummary() async {
@@ -33,14 +38,27 @@ class _ReceptionSendScreenState extends State<ReceptionSendScreen> {
     }
   }
 
-  Future<void> _sendFile() async {
-    final ok = await confirmDialog(context,
-        title: '장부 파일 보내기',
-        message: '문자는 파일이 안 갈 수 있어요. 카카오톡이나 메일을 권장해요',
-        okText: '파일 보내기');
-    if (!ok) return;
+  Future<void> _sendFile({bool confirm = true}) async {
+    if (confirm) {
+      final ok = await confirmDialog(context,
+          title: '장부 파일 보내기',
+          message: '문자는 파일이 안 갈 수 있어요. 카카오톡이나 메일을 권장해요',
+          okText: '파일 보내기');
+      if (!ok) return;
+    }
     try {
       await ReceptionFileService.share(_package);
+    } catch (e) {
+      if (mounted) showSnack(context, '보내지 못했어요: $e');
+    }
+  }
+
+  /// 추천: 두 번에 나눠 보낸다. 카카오톡은 파일과 글을 한 번에 보내면 글이 빠지기도 한다.
+  /// ① 안내 메시지를 보내고 앱으로 돌아오면 ② 장부 파일 보내기 버튼을 보여준다.
+  Future<void> _sendGuideThenFile() async {
+    try {
+      final sent = await ReceptionFileService.shareSummary(_package);
+      if (sent && mounted) setState(() => _guideSent = true);
     } catch (e) {
       if (mounted) showSnack(context, '보내지 못했어요: $e');
     }
@@ -125,23 +143,135 @@ class _ReceptionSendScreenState extends State<ReceptionSendScreen> {
               ),
             ),
             const SizedBox(height: 8),
-          ] else ...[
-            const Text(
-                "받는 사람이 '경조사 장부' 앱에서 열어야 명단이 보여요. 앱이 없다면 요약 메시지도 함께 보내세요(설치 링크 포함)",
-                style: AppText.sub),
-            const SizedBox(height: 8),
-          ],
-          SizedBox(
-            height: AppSpacing.receptionButton,
-            child: TestId(
-              'send_go',
-              child: FilledButton.icon(
-                onPressed: _file ? _sendFile : _sendSummary,
-                icon: const Icon(Icons.send),
-                label: Text(_file ? '장부 파일 보내기' : '요약 메시지 보내기'),
+            SizedBox(
+              height: AppSpacing.receptionButton,
+              child: TestId(
+                'send_go',
+                child: FilledButton.icon(
+                  onPressed: _sendSummary,
+                  icon: const Icon(Icons.send),
+                  label: const Text('요약 메시지 보내기'),
+                ),
               ),
             ),
-          ),
+          ] else ...[
+            TestId('send_receiver_guide',
+                child: _ReceiverGuide(count: _package.totals.count)),
+            const SizedBox(height: 16),
+            if (_guideSent) ...[
+              TestId(
+                'send_step2',
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('② 이제 장부 파일을 같은 방에 보내세요',
+                          style: AppText.sectionTitle
+                              .copyWith(color: AppColors.primary)),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: AppSpacing.receptionButton,
+                        child: TestId(
+                          'send_step2_file',
+                          child: FilledButton.icon(
+                            onPressed: () => _sendFile(confirm: false),
+                            icon: const Icon(Icons.insert_drive_file_outlined),
+                            label: const Text('장부 파일 보내기'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            SizedBox(
+              height: AppSpacing.receptionButton,
+              child: TestId(
+                'send_go',
+                child: FilledButton.icon(
+                  onPressed: _sendGuideThenFile,
+                  icon: const Icon(Icons.send),
+                  label: const Text('안내 메시지 + 장부 파일 보내기'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: AppSpacing.receptionButton,
+                    child: TestId(
+                      'send_file_only',
+                      child: OutlinedButton(
+                        onPressed: _sendFile,
+                        child: const Text('장부 파일만'),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SizedBox(
+                    height: AppSpacing.receptionButton,
+                    child: TestId(
+                      'send_summary_only',
+                      child: OutlinedButton(
+                        onPressed: _sendSummary,
+                        child: const Text('요약 메시지만'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 장부 파일을 보낼 때, 받는 사람이 여는 방법과 주의할 점
+class _ReceiverGuide extends StatelessWidget {
+  const _ReceiverGuide({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    const steps = [
+      '① 앱 설치',
+      "② 파일을 눌러 '경조사 장부'로 열기",
+      '③ [가져오기]',
+    ];
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('받는 사람은 이렇게 열어요', style: AppText.sectionTitle),
+          const SizedBox(height: 8),
+          for (final s in steps)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(s, style: AppText.body),
+            ),
+          const SizedBox(height: 6),
+          Text('무료는 ${FreeLimits.people}명까지 가져올 수 있어요(이 장부 $count명)',
+              style: AppText.sub),
+          const Text('카카오톡 파일은 보관 기간이 지나면 받을 수 없어요',
+              style: AppText.sub),
         ],
       ),
     );

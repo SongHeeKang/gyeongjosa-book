@@ -254,9 +254,11 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: EntryLayout(
+          top: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             AutoCoach(
               prefs: ref.read(prefsProvider),
               screen: CoachScreen.quickEntry,
@@ -268,7 +270,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (!keyboardOpen)
+                  if (!keyboardOpen && !isShortScreen(context))
                     Text(widget.event.title, style: AppText.sectionTitle),
                   if (detail != null)
                     Padding(
@@ -298,8 +300,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                 ],
               ),
             ),
-            Expanded(
-              child: keyboardOpen
+            ],
+          ),
+          list: keyboardOpen
                   ? LayoutBuilder(
                       builder: (_, constraints) => ListView(
                         padding: const EdgeInsets.symmetric(
@@ -307,8 +310,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                         children: [
                           if (_session.isNotEmpty)
                             recent(((constraints.maxHeight -
-                                        RecentSavedList.warningHeight) /
-                                    AppSpacing.recentLine)
+                                        recentWarningHeight(context)) /
+                                    recentLineHeight(context))
                                 .floor()
                                 .clamp(1, 3)),
                           ...relationChips,
@@ -360,7 +363,17 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                         ),
                       ],
                     ),
+          compactList: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_session.isNotEmpty) recent(1),
+                ...relationChips,
+              ],
             ),
+          ),
+          bottom: [
             AmountField(
               controller: _amount,
               focusNode: _amountFocus,

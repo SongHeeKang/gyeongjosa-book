@@ -210,9 +210,10 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
     };
     return TestId(testId, child: CoachTarget(
       spot: spot,
-      child: SizedBox(
+      // 글자를 크게 키운 폰에서는 카드가 아래로 늘어나 글자가 잘리지 않게 한다
+      child: Container(
         width: _cardWidth,
-        height: _cardHeight,
+        constraints: const BoxConstraints(minHeight: _cardHeight),
         child: Material(
           color: AppColors.background,
           elevation: 2,
@@ -222,11 +223,12 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
           child: InkWell(
             onTap: () => Navigator.of(context).pop(action),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 10, 0),
+              padding: const EdgeInsets.fromLTRB(22, 6, 10, 6),
               child: Row(
                 children: [
                   Expanded(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

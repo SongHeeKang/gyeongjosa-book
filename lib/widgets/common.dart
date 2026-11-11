@@ -11,6 +11,13 @@ import '../widgets/test_id.dart';
 String signedWon(int amount, {required bool isSent}) =>
     '${isSent ? '−' : '+'}${formatWon(amount)}';
 
+/// 좁은 폰인지: 화면 너비를 글자 크기로 나눈 값이 360보다 작으면 좁다고 본다.
+/// (320 너비 폰, 또는 보통 폰이라도 휴대폰 글자를 크게 키운 경우)
+bool isNarrowScreen(BuildContext context) {
+  final media = MediaQuery.of(context);
+  return media.size.width / media.textScaler.scale(1) < AppSpacing.narrowWidth;
+}
+
 /// FutureProvider 결과를 로딩/오류/데이터로 나눠 그린다.
 class AsyncBody<T> extends StatelessWidget {
   const AsyncBody({super.key, required this.value, required this.builder});

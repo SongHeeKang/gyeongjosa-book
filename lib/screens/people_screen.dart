@@ -67,7 +67,17 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 style: AppText.sub,
               ),
             ),
-          TestId('btn_add_person', child: TextButton(onPressed: _add, child: const Text('사람 추가'))),
+          // 좁은 폰 · 큰 글씨에서는 글자 대신 아이콘으로 줄인다
+          TestId(
+            'btn_add_person',
+            child: isNarrowScreen(context)
+                ? IconButton(
+                    tooltip: '사람 추가',
+                    icon: const Icon(Icons.person_add_alt_1_outlined),
+                    onPressed: _add,
+                  )
+                : TextButton(onPressed: _add, child: const Text('사람 추가')),
+          ),
           const HelpButton(screen: CoachScreen.people),
           const SettingsButton(),
           SettingsButton.trailingGap,

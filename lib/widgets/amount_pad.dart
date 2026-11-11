@@ -6,18 +6,81 @@ import '../services/format.dart';
 import '../theme/app_theme.dart';
 import 'test_id.dart';
 import 'amount_input.dart';
+import 'common.dart';
 
 /// 행사장 접수와 받은 명단 직접 입력이 함께 쓰는 금액 입력 묶음.
 /// 한쪽을 고치면 다른 쪽도 같이 바뀐다.
 
 /// 키보드와 제목을 뺀 공간이 아주 작은 폰: 금액 패드를 낮추고 확인 줄을 뺀다.
+/// 글자 크기에 맞춘 줄 높이. 휴대폰 글자를 키우면 줄도 같이 높아져 글자가 잘리지 않는다.
+double scaledHeight(BuildContext context, double height) =>
+    MediaQuery.textScalerOf(context).scale(height);
+
+/// '최근 저장' 한 줄 높이
+double recentLineHeight(BuildContext context) =>
+    scaledHeight(context, AppSpacing.recentLine);
+
+/// '같은 이름이 있어요' 줄 높이
+double recentWarningHeight(BuildContext context) =>
+    scaledHeight(context, RecentSavedList.warningHeight);
+
+/// 화면이 낮은 폰(작은 화면 · 큰 글씨)인지. 낮으면 접수 현황을 한 줄로 줄인다.
+bool isShortScreen(BuildContext context) {
+  final media = MediaQuery.of(context);
+  final textScale = media.textScaler.scale(1).clamp(1.0, 2.0);
+  return media.size.height - media.padding.vertical - kToolbarHeight <
+      AppSpacing.shortScreenBody * textScale;
+}
+
+/// 이름칸(위) · 목록(가운데) · 금액칸과 금액 버튼(아래) 배치.
+/// 화면이 아주 낮아(작은 폰 + 키보드 + 큰 글씨) 다 들어가지 않으면 목록 대신
+/// [compactList]를 넣고 화면 전체를 스크롤한다. 버튼이 잘려 눌리지 않는 일이 없게 한다.
+class EntryLayout extends StatelessWidget {
+  const EntryLayout({
+    super.key,
+    required this.top,
+    required this.list,
+    required this.compactList,
+    required this.bottom,
+  });
+  final Widget top;
+  final Widget list;
+  final Widget compactList;
+  final List<Widget> bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0);
+    return LayoutBuilder(builder: (context, box) {
+      final minBody = AppSpacing.entryMinBase +
+          AppSpacing.entryMinPerScale * textScale +
+          (isNarrowScreen(context) ? AppSpacing.entryMinNarrowExtra : 0);
+      if (box.maxHeight >= minBody) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [top, Expanded(child: list), ...bottom],
+        );
+      }
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [top, compactList, ...bottom],
+        ),
+      );
+    });
+  }
+}
+
 bool isAmountAreaTight(BuildContext context) {
   final media = MediaQuery.of(context);
+  // 휴대폰 글자를 키우면 이름칸 · 금액칸이 커지므로 그만큼 일찍 줄인다
+  final textScale = media.textScaler.scale(1).clamp(1.0, 2.0);
   return media.size.height -
           media.viewInsets.bottom -
           media.padding.vertical -
           kToolbarHeight <
-      AppSpacing.receptionTightBody;
+      AppSpacing.receptionTightBody +
+          AppSpacing.receptionTightPerScale * (textScale - 1);
 }
 
 /// 최근 저장 한 줄의 내용
@@ -204,7 +267,7 @@ class AmountField extends StatelessWidget {
             // 키보드를 뺀 공간이 아주 작은 폰에서는 생략한다.
             if (!tight)
               SizedBox(
-                height: 20,
+                height: scaledHeight(context, 20),
                 child: Row(
                   children: [
                     Expanded(
@@ -340,7 +403,7 @@ class _RecentSavedListState extends State<RecentSavedList>
 
   Widget _line(RecentSavedItem item, {required bool latest, Color? background}) {
     return Container(
-      height: AppSpacing.recentLine,
+      height: recentLineHeight(context),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
           color: background, borderRadius: BorderRadius.circular(6)),
@@ -378,9 +441,9 @@ class _RecentSavedListState extends State<RecentSavedList>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (warn)
-          const SizedBox(
-            height: RecentSavedList.warningHeight,
-            child: TestId('recent_warning',
+          SizedBox(
+            height: recentWarningHeight(context),
+            child: const TestId('recent_warning',
                 child: Text('같은 이름이 있어요', style: AppText.warning)),
           ),
         if (latest != null)
@@ -397,13 +460,13 @@ class _RecentSavedListState extends State<RecentSavedList>
                             .transform((_controller.value * 4).clamp(0.0, 1.0));
                     final count = visible + (slide > 0 ? 1 : 0);
                     return SizedBox(
-                      height: visible * AppSpacing.recentLine,
+                      height: visible * recentLineHeight(context),
                       child: ClipRect(
                         child: OverflowBox(
                           alignment: Alignment.topCenter,
                           maxHeight: double.infinity,
                           child: Transform.translate(
-                            offset: Offset(0, -slide * AppSpacing.recentLine),
+                            offset: Offset(0, -slide * recentLineHeight(context)),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [

@@ -164,7 +164,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             TestId('btn_csv_export', child: ListTile(
               leading: const Icon(Icons.table_view, size: 24),
               title: Row(children: [
-                const Text('엑셀(CSV)로 내보내기'),
+                const Flexible(child: Text('엑셀(CSV)로 내보내기')),
                 if (!pro.isPro) ...[const SizedBox(width: 8), const ProBadge()],
               ]),
               subtitle: const Text('이름, 관계, 보냄/받음, 금액, 행사, 날짜, 메모'),

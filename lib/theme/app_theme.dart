@@ -42,6 +42,13 @@ class AppSpacing {
   static const padButton = 48.0; // 접수 화면 키보드 위 금액 버튼 높이
   static const padButtonTight = 38.0; // 키보드를 뺀 공간이 아주 작은 폰의 금액 버튼 높이
   static const receptionTightBody = 320.0; // 이보다 공간이 작으면 접수 화면을 줄인다
+  static const receptionTightPerScale = 450.0; // 글자 크기 1.0을 넘는 만큼 위 기준을 높인다
+  static const shortScreenBody = 520.0; // 제목줄을 뺀 높이가 이보다 낮으면 접수 현황을 한 줄로
+  static const narrowWidth = 360.0; // 너비 ÷ 글자 크기가 이보다 작으면 좁은 폰으로 본다
+  // 접수 · 받은 명단 직접 입력: 이 높이(+글자 크기만큼)가 안 되면 화면 전체를 스크롤한다
+  static const entryMinBase = 300.0;
+  static const entryMinPerScale = 80.0;
+  static const entryMinNarrowExtra = 60.0; // 좁은 폰은 현황이 두 줄이라 그만큼 더 필요
   static const receptionButton = 56.0; // 접수 화면 그 밖의 버튼 높이
   static const bottomNav = 76.0; // 하단 메뉴 높이
   static const recentLine = 28.0; // 접수 화면 '최근 저장' 한 줄 높이

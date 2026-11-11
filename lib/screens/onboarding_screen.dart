@@ -100,9 +100,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         children: [
                           Expanded(
                             child: Center(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: picture,
+                              // 그림은 화면에 맞춰 통째로 줄인다. 그림 속 글자까지
+                              // 휴대폰 글자 크기를 따라 커지면 그림이 깨지므로 고정한다.
+                              child: MediaQuery.withNoTextScaling(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: picture,
+                                ),
                               ),
                             ),
                           ),

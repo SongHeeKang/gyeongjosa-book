@@ -220,18 +220,25 @@ class ReceptionSummaryScreen extends ConsumerWidget {
   Widget _sideRow(String side, ReceptionTotals t, {required bool showMeals}) =>
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
+        // 좁은 폰에서는 인원 · 금액이 다음 줄로 내려가게 한다
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 2,
           children: [
-            Expanded(
-                child: Text(
-                    side == ReceptionDefaults.noSide ? '구분 없음' : side,
-                    style: AppText.listName)),
-            Text(
-                showMeals
-                    ? '${t.count}명 · 식권 ${t.mealTickets}매 · '
-                    : '${t.count}명 · ',
-                style: AppText.sub),
-            Text(formatWon(t.amount), style: AppText.listAmount),
+            Text(side == ReceptionDefaults.noSide ? '구분 없음' : side,
+                style: AppText.listName),
+            Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                    text: showMeals
+                        ? '${t.count}명 · 식권 ${t.mealTickets}매 · '
+                        : '${t.count}명 · ',
+                    style: AppText.sub),
+                TextSpan(text: formatWon(t.amount), style: AppText.listAmount),
+              ]),
+            ),
           ],
         ),
       );

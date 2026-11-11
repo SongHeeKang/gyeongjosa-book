@@ -254,16 +254,18 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
         typed.isNotEmpty && package.entries.any((e) => e.name == typed);
     // 키보드가 열려 있으면 바쁜 때: 현황을 한 줄로 줄이고 전체 내역은 숨긴다.
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    // 화면이 낮은 폰에서는 키보드가 없어도 현황을 한 줄로 줄인다.
+    final compactStatus = keyboardOpen || isShortScreen(context);
     final entries = package.entries;
     final tight = isAmountAreaTight(context);
 
     // 저장 전에도 도움말이 가리킬 수 있게 비어 있으면 한 줄 자리를 잡아 둔다.
     Widget recentSaved(int lines) => entries.isEmpty && !duplicate
-        ? const Padding(
-            padding: EdgeInsets.only(top: 10),
+        ? Padding(
+            padding: const EdgeInsets.only(top: 10),
             child: CoachTarget(
               spot: CoachSpot.receptionRecent,
-              child: SizedBox(height: AppSpacing.recentLine),
+              child: SizedBox(height: recentLineHeight(context)),
             ),
           )
         : CoachTarget(
@@ -283,15 +285,13 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
 
     return SafeArea(
       top: false,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
+      child: EntryLayout(
+        top: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (keyboardOpen)
+                if (compactStatus)
                   TestId('reception_status', child: _CompactStatus(
                     package: package,
                     side: side,
@@ -336,8 +336,7 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
               ],
             ),
           ),
-          Expanded(
-            child: keyboardOpen
+        list: keyboardOpen
                 // 최근 저장은 3줄, 화면이 작은 폰에서는 들어가는 만큼만
                 ? LayoutBuilder(
                     builder: (_, constraints) => ListView(
@@ -345,8 +344,8 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                           horizontal: AppSpacing.page),
                       children: [
                         recentSaved(((constraints.maxHeight -
-                                    RecentSavedList.warningHeight) /
-                                AppSpacing.recentLine)
+                                    recentWarningHeight(context)) /
+                                recentLineHeight(context))
                             .floor()
                             .clamp(1, 3)),
                       ],
@@ -377,7 +376,11 @@ class _ReceptionScreenState extends ConsumerState<ReceptionScreen> {
                       ));
                     },
                   )),
-          ),
+        compactList: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+          child: recentSaved(1),
+        ),
+        bottom: [
           AmountField(
             controller: _amount,
             focusNode: _amountFocus,
@@ -423,18 +426,13 @@ class _CompactStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final totals = package.totals;
     final sides = package.reception.sides;
-    return SizedBox(
-      height: 44,
-      child: Row(
-        children: [
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text('${totals.count}명 · ${formatWon(totals.amount)}',
-                  style: AppText.sectionTitle.copyWith(color: AppColors.primary)),
-            ),
-          ),
+    final total = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text('${totals.count}명 · ${formatWon(totals.amount)}',
+          style: AppText.sectionTitle.copyWith(color: AppColors.primary)),
+    );
+    final controls = <Widget>[
           _MealToggle(
               enabled: package.reception.mealTicketEnabled,
               onTap: onToggleMeals),
@@ -463,8 +461,24 @@ class _CompactStatus extends StatelessWidget {
               screen: CoachScreen.reception,
               size: 20,
               onClosed: onHelpClosed),
+    ];
+    // 좁은 폰에서 한 줄에 다 넣으면 총액 글자가 아주 작아지므로 두 줄로 나눈다.
+    if (isNarrowScreen(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(padding: const EdgeInsets.only(top: 6), child: total),
+          SizedBox(
+            height: 44,
+            child: Row(children: [...controls.take(controls.length - 1),
+                const Spacer(), controls.last]),
+          ),
         ],
-      ),
+      );
+    }
+    return SizedBox(
+      height: 44,
+      child: Row(children: [Expanded(child: total), ...controls]),
     );
   }
 }

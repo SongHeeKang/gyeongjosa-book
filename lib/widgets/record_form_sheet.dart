@@ -6,11 +6,11 @@ import '../models/constants.dart';
 import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../services/format.dart';
+import '../services/limit_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import 'amount_input.dart';
 import 'common.dart';
-import 'pro_gate.dart';
 
 /// 아래에서 올라오는 내역 입력/수정 창.
 /// 저장하거나 삭제하면 true 를 돌려준다.
@@ -137,7 +137,7 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
 
   /// 확인 필요: 다른 사람이므로 같은 이름의 새 사람으로 분리
   Future<void> _splitToNewPerson() async {
-    if (!await ensureCanAddPerson(context, ref)) return;
+    if (!await LimitService.canAddNewPerson(context, ref)) return;
     await ref.read(repositoryProvider).moveRecordToNewPerson(
         widget.existing!.id!, widget.existing!.personName ?? '');
     ref.refreshData();

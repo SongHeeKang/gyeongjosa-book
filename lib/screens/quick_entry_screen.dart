@@ -7,6 +7,7 @@ import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../models/person.dart';
 import '../services/format.dart';
+import '../services/limit_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
@@ -15,7 +16,6 @@ import '../widgets/amount_pad.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/person_name_field.dart';
-import '../widgets/pro_gate.dart';
 import '../widgets/record_form_sheet.dart';
 import '../widgets/screen_coach.dart';
 
@@ -100,8 +100,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       var isNew = false;
       if (person == null) {
         if (!mounted) return;
-        // 31번째 사람부터 결제 화면
-        if (!await ensureCanAddPerson(context, ref)) return;
+        // 31번째 새 사람부터 결제 화면. 닫으면 적은 이름 · 금액을 그대로 두고 돌아온다.
+        if (!await LimitService.canAddNewPerson(context, ref)) {
+          if (mounted && parseAmount(_amount.text) != amount) {
+            _amount.text = formatNumber(amount);
+          }
+          return;
+        }
         final id = await repo.insertPerson(Person(
           name: name,
           relation: _relation,
@@ -191,6 +196,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   Widget build(BuildContext context) {
     final detail = ref.watch(eventDetailProvider(widget.event.id!)).value;
     final people = ref.watch(allPeopleProvider).value ?? const <Person>[];
+    final remainingFree = ref.watch(remainingPeopleProvider).value;
     final hasName = _name.text.trim().isNotEmpty;
     // 키보드가 열려 있으면 바쁜 때: 제목을 줄이고 내역 대신 최근 저장 줄만 보여준다.
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
@@ -270,6 +276,19 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (remainingFree != null && remainingFree <= 5)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, bottom: 2),
+                      child: TestId(
+                        'free_remaining',
+                        child: Text(
+                          remainingFree > 0
+                              ? '무료로 $remainingFree명 더 적을 수 있어요'
+                              : '무료 30명이 다 찼어요. 이미 등록한 사람은 계속 적을 수 있어요',
+                          style: AppText.sub,
+                        ),
+                      ),
+                    ),
                   if (!keyboardOpen && !isShortScreen(context))
                     Text(widget.event.title, style: AppText.sectionTitle),
                   if (detail != null)

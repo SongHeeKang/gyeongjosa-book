@@ -4,25 +4,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
+import '../services/limit_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/coach_mark.dart';
+import '../widgets/pro_gate.dart';
 import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 import 'event_detail_screen.dart';
-import 'event_form_screen.dart';
-import 'reception_screen.dart';
 import 'reception_summary_screen.dart';
+import 'whose_event_screen.dart';
 
-/// 내 행사 탭: 내 행사와 접수 장부 목록. 남의 행사는 홈의 일정으로 간다.
+/// 내 행사 탭: '내 행사'와 '대신 받은 장부' 두 묶음. 남의 행사는 홈의 일정으로 간다.
 class MyEventsScreen extends ConsumerWidget {
   const MyEventsScreen({super.key});
 
-  void _create(BuildContext context) => Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-          builder: (_) => const EventFormScreen(initialIsMine: true)));
+  /// 누르는 순간 한도 검사 (닿았으면 바로 결제 화면)
+  Future<void> _create(BuildContext context, WidgetRef ref) =>
+      createMyEvent(context, ref);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,6 +31,7 @@ class MyEventsScreen extends ConsumerWidget {
         ref.watch(receptionSummariesProvider).value ?? const <ReceptionSummary>[];
     final hasMine =
         events.value?.any((s) => s.event.isMine) ?? false;
+    final locked = ref.watch(myEventLimitReachedProvider).value ?? false;
     return Scaffold(
       appBar: AppBar(
         title: const Text('내 행사'),
@@ -40,8 +41,17 @@ class MyEventsScreen extends ConsumerWidget {
             CoachTarget(
               spot: CoachSpot.myEventsCreate,
               child: TestId('btn_new_event', child: TextButton(
-                onPressed: () => _create(context),
-                child: const Text('내 행사 만들기'),
+                onPressed: () => _create(context, ref),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('내 행사 만들기'),
+                    if (locked) ...[
+                      const SizedBox(width: 4),
+                      ProLockMark(compact: isNarrowScreen(context)),
+                    ],
+                  ],
+                ),
               )),
             ),
           ],
@@ -63,12 +73,13 @@ class MyEventsScreen extends ConsumerWidget {
                   action: CoachTarget(
                     spot: CoachSpot.myEventsCreate,
                     child: TestId('btn_new_event', child: FilledButton(
-                      onPressed: () => _create(context),
+                      onPressed: () => _create(context, ref),
                       child: const Text('내 행사 만들기'),
                     )),
                   ),
                 )
-              else
+              else ...[
+                const SectionTitle('내 행사'),
                 for (final (i, s) in mine.indexed)
                   _firstTarget(
                     i,
@@ -83,10 +94,11 @@ class MyEventsScreen extends ConsumerWidget {
                                   EventDetailScreen(eventId: s.event.id!))),
                     )),
                   ),
+              ],
               if (receptions.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.section - 6),
                 const AppDivider(),
-                const SectionTitle('접수 장부'),
+                const SectionTitle('대신 받은 장부'),
                 for (final s in receptions) _receptionRow(context, s),
               ],
               fabBottomSpace,
@@ -105,15 +117,15 @@ class MyEventsScreen extends ConsumerWidget {
   Widget _receptionRow(BuildContext context, ReceptionSummary s) {
     final r = s.reception;
     final status = !r.isFinished
-        ? '접수 중'
-        : (r.imported ? '내 장부로 옮김' : '접수 완료');
+        ? '받는 중'
+        : (r.imported ? '내 행사로 옮김' : '받기 끝남');
     return InkWell(
       onTap: () => Navigator.push(
           context,
-          MaterialPageRoute<void>(
-              builder: (_) => r.isFinished
-                  ? ReceptionSummaryScreen(receptionId: r.id)
-                  : ReceptionScreen(receptionId: r.id))),
+          r.isFinished
+              ? MaterialPageRoute<void>(
+                  builder: (_) => ReceptionSummaryScreen(receptionId: r.id))
+              : receptionReceiveRoute(r.id)),
       child: Padding(
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.page, vertical: AppSpacing.item),

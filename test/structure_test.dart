@@ -374,13 +374,15 @@ void main() {
       }
     });
 
-    testWidgets('기록하기를 누르면 선택지 4개가 보인다', (tester) async {
+    testWidgets('기록하기를 누르면 선택지 3개가 보인다', (tester) async {
       await pump(tester, const MainShell());
       await tester.tap(find.byTooltip('기록하기'));
       await tester.pumpAndSettle();
-      for (final t in ['보냈어요', '일정 추가', '받은 명단 직접 입력', '행사장 접수']) {
+      for (final t in ['보냈어요', '일정 추가', '받은 돈 적기']) {
         expect(find.text(t), findsOneWidget);
       }
+      expect(find.text('행사장 접수'), findsNothing);
+      expect(find.text('받은 명단 직접 입력'), findsNothing);
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
       expect(find.text('보냈어요'), findsNothing);
@@ -433,13 +435,20 @@ void main() {
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
       expect(find.text('연필 버튼 하나면 돼요'), findsOneWidget);
+      expect(find.text('보냈어요 · 일정 추가 · 받은 돈 적기'), findsOneWidget);
+      // 그림은 카드 3개
+      for (final t in ['보냈어요', '일정 추가', '받은 돈 적기']) {
+        expect(find.text(t), findsOneWidget, reason: t);
+      }
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
 
       // 새 3장: 접수 안내 그림
       expect(tester.takeException(), isNull);
-      expect(find.text('결혼식 · 장례식\n접수대에서도 바로'), findsOneWidget);
-      expect(find.text('손님 이름을 적고 금액만 누르면 저장돼요.\n끝나면 혼주에게 장부를 보내요.'),
+      expect(find.text('내 행사도, 대신 받을 때도'), findsOneWidget);
+      expect(
+          find.text(
+              '손님 이름을 적고 금액만 누르면 저장돼요. 대신 받았다면 끝나고 혼주에게 장부를 보내요'),
           findsOneWidget);
       for (final t in [
         '42명 · 3,150,000원',
@@ -594,5 +603,29 @@ void main() {
       expect(find.text('무료 버전은 내 행사를 1개까지 만들 수 있어요.'), findsOneWidget);
       expect(repo.insertedEvents, isEmpty);
     });
+  });
+
+  // 추가 Q: 받은 돈 적기로 합친 뒤 예전 입구 이름이 화면에 남지 않는다
+  test('코드에 행사장 접수 · 받은 명단 직접 입력 같은 예전 문구가 없다', () {
+    const old = [
+      '행사장 접수',
+      '받은 명단 직접 입력',
+      '접수 장부',
+      '접수 시작',
+      '접수 마치기',
+      '내 장부로 옮기기',
+      '접수 결과',
+    ];
+    final hits = <String>[];
+    for (final f in Directory('lib').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      final lines = f.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        for (final w in old) {
+          if (lines[i].contains(w)) hits.add('${f.path}:${i + 1} $w');
+        }
+      }
+    }
+    expect(hits, isEmpty);
   });
 }

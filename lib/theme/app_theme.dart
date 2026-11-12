@@ -26,10 +26,8 @@ class AppColors {
   static const menuSentSoft = Color(0xFFFEE2E2);
   static const menuSchedule = primary;
   static const menuScheduleSoft = guideChip;
-  static const menuDirect = success;
-  static const menuDirectSoft = Color(0xFFDCFCE7);
-  static const menuReception = Color(0xFFEA580C);
-  static const menuReceptionSoft = Color(0xFFFFEDD5);
+  static const menuReceive = success;
+  static const menuReceiveSoft = Color(0xFFDCFCE7);
 
   /// 받은 돈 = 포인트색, 보낸 돈 = 기본 글자색
   static Color amount(bool isSent) => isSent ? text : primary;
@@ -45,7 +43,7 @@ class AppSpacing {
   static const receptionTightPerScale = 450.0; // 글자 크기 1.0을 넘는 만큼 위 기준을 높인다
   static const shortScreenBody = 520.0; // 제목줄을 뺀 높이가 이보다 낮으면 접수 현황을 한 줄로
   static const narrowWidth = 360.0; // 너비 ÷ 글자 크기가 이보다 작으면 좁은 폰으로 본다
-  // 접수 · 받은 명단 직접 입력: 이 높이(+글자 크기만큼)가 안 되면 화면 전체를 스크롤한다
+  // 받은 돈 적기: 이 높이(+글자 크기만큼)가 안 되면 화면 전체를 스크롤한다
   static const entryMinBase = 300.0;
   static const entryMinPerScale = 80.0;
   static const entryMinNarrowExtra = 60.0; // 좁은 폰은 현황이 두 줄이라 그만큼 더 필요

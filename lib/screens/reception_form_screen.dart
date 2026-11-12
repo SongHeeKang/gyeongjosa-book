@@ -12,14 +12,27 @@ import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/common.dart';
-import 'reception_screen.dart';
+import '../services/receive_targets.dart';
+import 'receive_money_screen.dart';
 
-/// 접수 시작: 행사 이름, 종류, 날짜, 구분, 접수자
+/// 행사 설정.
+/// - 다른 사람 행사(대신 받기): 행사 이름, 종류, 날짜, 구분, 받는 사람, 식권, 결제 방법
+///   → [받기 시작]을 누르면 receptions에 저장하고 받은 돈 적기 화면으로 간다.
+/// - 내 행사([ReceptionFormScreen.myEvent]): 구분, 식권, 결제 방법만. 행사마다 처음 한 번
+///   묻고, 받은 돈 적기 화면의 현황 줄에서 다시 바꿀 수 있다([editing]).
 class ReceptionFormScreen extends ConsumerStatefulWidget {
-  const ReceptionFormScreen({super.key, this.event});
+  const ReceptionFormScreen({super.key})
+      : event = null,
+        editing = false;
 
-  /// 내 행사 상세에서 들어오면 행사 이름 · 종류 · 날짜를 미리 채운다.
+  const ReceptionFormScreen.myEvent(
+      {super.key, required Event this.event, this.editing = false});
+
+  /// 내 행사의 받기 설정이면 그 행사
   final Event? event;
+
+  /// 이미 받고 있는 중에 설정만 바꾸는지 (저장 후 돌아간다)
+  final bool editing;
 
   @override
   ConsumerState<ReceptionFormScreen> createState() =>
@@ -41,6 +54,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
 
   bool get _isFuneral => _type == '장례';
   bool get _isWedding => _type == '결혼';
+  bool get _isMine => widget.event != null;
 
   @override
   void initState() {
@@ -50,6 +64,14 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       _title.text = event.title;
       _date = event.date;
       if (EventTypes.all.contains(event.type)) _type = event.type;
+      if (event.receiveSettingsDone) {
+        _sides.text = event.sides
+            .where((s) => s != ReceptionDefaults.noSide)
+            .join(', ');
+        _mealEnabled = event.mealTicketEnabled;
+        _defaultMeals = event.defaultMealTickets;
+        _methodEnabled = event.methodEnabled;
+      }
     }
     _operator.text =
         ref.read(prefsProvider).getString(PrefKeys.receptionOperator) ?? '';
@@ -155,7 +177,36 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       .toSet()
       .toList();
 
+  /// 내 행사: 받기 설정을 저장하고 받은 돈 적기 화면으로 (설정만 바꿀 때는 돌아간다)
+  Future<void> _saveMyEvent(Event event) async {
+    final sides = _parseSides();
+    if (sides.isEmpty && _isFuneral) {
+      showSnack(context, '상주 이름을 입력해 주세요.');
+      return;
+    }
+    setState(() => _saving = true);
+    await ref.read(repositoryProvider).updateEventReceiveSettings(
+        event.withReceiveSettings(
+          sides: sides.isEmpty ? const [ReceptionDefaults.noSide] : sides,
+          mealTicketEnabled: _mealEnabled!,
+          defaultMealTickets: _defaultMeals,
+          methodEnabled: _methodEnabled!,
+        ));
+    ref.refreshData();
+    if (!mounted) return;
+    if (widget.editing) {
+      Navigator.pop(context);
+      return;
+    }
+    Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(
+            builder: (_) =>
+                ReceiveMoneyScreen(target: MyEventTarget(event.id!))));
+  }
+
   Future<void> _start() async {
+    if (widget.event case final event?) return _saveMyEvent(event);
     final title = _title.text.trim();
     if (title.isEmpty) {
       showSnack(context, '행사 이름을 입력해 주세요.');
@@ -168,7 +219,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
     }
     final operatorName = _operator.text.trim();
     if (operatorName.isEmpty) {
-      showSnack(context, '접수자 이름을 입력해 주세요.');
+      showSnack(context, '받는 사람 이름을 입력해 주세요.');
       return;
     }
     setState(() => _saving = true);
@@ -193,17 +244,25 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
     Navigator.pushReplacement(
         context,
         MaterialPageRoute<void>(
-            builder: (_) => ReceptionScreen(receptionId: reception.id)));
+            builder: (_) =>
+                ReceiveMoneyScreen(target: ReceptionTarget(reception.id))));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('행사장 접수')),
+      appBar: AppBar(title: const Text('행사 설정')),
       body: ListView(
         padding:
             const EdgeInsets.fromLTRB(AppSpacing.page, 8, AppSpacing.page, 32),
         children: [
+          if (_isMine) ...[
+            Text('내 행사 · ${widget.event!.title}', style: AppText.sectionTitle),
+            const SizedBox(height: 4),
+            const Text('이 행사에서 받을 때 쓸 설정이에요. 받는 중에도 바꿀 수 있어요.',
+                style: AppText.sub),
+            const SizedBox(height: 20),
+          ] else ...[
           const FieldLabel('종류'),
           ChoiceChips(
             testIdPrefix: 'select_event_type',
@@ -227,6 +286,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
             label: Text(formatDate(_date)),
           )),
           const SizedBox(height: 20),
+          ],
           if (_isWedding) ...[
             const FieldLabel('구분'),
             _weddingSideButtons(),
@@ -251,15 +311,17 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                   : '쉼표(,)로 나눠 적어요. 비워 두면 구분 없이 받아요',
             ),
           )),
-          const SizedBox(height: 20),
-          TestId('input_operator', child: TextField(
-            controller: _operator,
-            style: AppText.receptionName,
-            decoration: const InputDecoration(
-              labelText: '접수자 이름',
-              hintText: '접수를 맡은 분 이름',
-            ),
-          )),
+          if (!_isMine) ...[
+            const SizedBox(height: 20),
+            TestId('input_operator', child: TextField(
+              controller: _operator,
+              style: AppText.receptionName,
+              decoration: const InputDecoration(
+                labelText: '받는 사람 이름',
+                hintText: '돈을 받는 분(내 이름)',
+              ),
+            )),
+          ],
           const SizedBox(height: 20),
           const FieldLabel('식권'),
           _choiceRow([
@@ -294,7 +356,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                   : _start,
               style: FilledButton.styleFrom(
                   textStyle: AppText.receptionButton),
-              child: const Text('접수 시작'),
+              child: Text(widget.editing ? '저장' : '받기 시작'),
             ),
           )),
         ],

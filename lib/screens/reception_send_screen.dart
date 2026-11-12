@@ -11,7 +11,7 @@ import '../widgets/test_id.dart';
 
 /// 장부 보내기: 요약 메시지 · 장부 파일 중 고른다.
 /// 받는 사람 화면에 무엇이 보이는지 미리 보여줘서, 요약 메시지만 보내고
-/// 명단이 갔다고 생각하는 일이 없게 한다. (접수 마치기 · 내 행사의 접수 장부에서 연다)
+/// 명단이 갔다고 생각하는 일이 없게 한다. (대신 받은 장부 · 내 행사 상세에서 연다)
 class ReceptionSendScreen extends StatefulWidget {
   const ReceptionSendScreen({super.key, required this.package});
   final ReceptionPackage package;

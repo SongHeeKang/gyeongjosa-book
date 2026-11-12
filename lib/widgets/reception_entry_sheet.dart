@@ -335,7 +335,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                 ? Padding(
                     padding: const EdgeInsets.fromLTRB(
                         AppSpacing.page, 12, AppSpacing.page, 32),
-                    child: Text(q.isEmpty ? '찾을 이름을 입력해 주세요.' : '접수 기록이 없어요.',
+                    child: Text(q.isEmpty ? '찾을 이름을 입력해 주세요.' : '받은 기록이 없어요.',
                         textAlign: TextAlign.center, style: AppText.body),
                   )
                 : ListView(

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sqflite/sqflite.dart';
 
 import '../models/constants.dart';
@@ -246,6 +248,27 @@ class Repository {
         where: 'id = ?', whereArgs: [event.id]);
   }
 
+  /// 내 행사의 받기 설정 (구분 · 식권 · 결제 방법)
+  Future<void> updateEventReceiveSettings(Event event) async {
+    final db = await _db;
+    await db.update(
+        'events',
+        {
+          'sides': jsonEncode(event.sides),
+          'meal_ticket_enabled': event.mealTicketEnabled ? 1 : 0,
+          'default_meal_tickets': event.defaultMealTickets,
+          'method_enabled': event.methodEnabled ? 1 : 0,
+        },
+        where: 'id = ?',
+        whereArgs: [event.id]);
+  }
+
+  Future<void> setEventMealTicketEnabled(int id, bool enabled) async {
+    final db = await _db;
+    await db.update('events', {'meal_ticket_enabled': enabled ? 1 : 0},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
   /// 행사를 지워도 내역은 남는다 (행사 연결만 끊김).
   Future<void> deleteEvent(int id) async {
     final db = await _db;
@@ -279,7 +302,7 @@ class Repository {
         .toList();
   }
 
-  /// 접수 장부와 지우지 않은 항목(최신이 앞). 없으면 null.
+  /// 대신 받은 장부와 지우지 않은 항목(최신이 앞). 없으면 null.
   Future<ReceptionPackage?> getReceptionPackage(String id) async {
     final db = await _db;
     final rows = await db.query('receptions', where: 'id = ?', whereArgs: [id]);

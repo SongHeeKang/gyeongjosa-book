@@ -19,10 +19,13 @@ import 'package:gyeongjosa/screens/main_shell.dart';
 import 'package:gyeongjosa/screens/onboarding_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/screens/person_detail_screen.dart';
+import 'package:gyeongjosa/screens/pick_my_event_screen.dart';
+import 'package:gyeongjosa/screens/whose_event_screen.dart';
 import 'package:gyeongjosa/screens/quick_entry_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
 import 'package:gyeongjosa/screens/reception_import_screen.dart';
-import 'package:gyeongjosa/screens/reception_screen.dart';
+import 'package:gyeongjosa/screens/receive_money_screen.dart';
+import 'package:gyeongjosa/services/receive_targets.dart';
 import 'package:gyeongjosa/screens/reception_send_screen.dart';
 import 'package:gyeongjosa/screens/reception_summary_screen.dart';
 import 'package:gyeongjosa/screens/settings_screen.dart';
@@ -73,7 +76,11 @@ class _DemoRepository extends Repository {
       title: '우리 큰딸 결혼식 (서울 강남)',
       date: _today.subtract(const Duration(days: 3)),
       isMine: true,
-      place: '서울 강남구 아주 긴 이름의 웨딩홀 3층 그랜드볼룸');
+      place: '서울 강남구 아주 긴 이름의 웨딩홀 3층 그랜드볼룸',
+      // 받기 설정을 모두 켜서 받은 돈 적기 화면을 가장 꽉 차게
+      receiveSides: const ['신랑측', '신부측'],
+      mealTicketEnabled: true,
+      methodEnabled: true);
 
   late final schedules = [
     for (var i = 0; i < 4; i++)
@@ -254,7 +261,11 @@ final _cases = <_Case>[
   _Case('일정 전체', (_) => const AllSchedulesScreen()),
   _Case('일정 추가', (_) => const EventFormScreen(), keyboard: true),
   _Case('내 행사 만들기', (_) => const EventFormScreen(initialIsMine: true), keyboard: true),
-  _Case('행사장 접수 시작', (_) => const ReceptionFormScreen(), open: (t) async {
+  _Case('누구 행사인가요?', (_) => const WhoseEventScreen()),
+  _Case('어느 행사에 적을까요?', (_) => const PickMyEventScreen()),
+  _Case('내 행사 받기 설정', (r) => ReceptionFormScreen.myEvent(event: r.myEvent),
+      keyboard: true),
+  _Case('대신 받기 행사 설정', (_) => const ReceptionFormScreen(), open: (t) async {
     // 아래쪽 버튼은 화면 밖이라 아직 그려지지 않았을 수 있어 스크롤해서 찾는다
     await t.scrollUntilVisible(find.text('식권도 기록'), 120,
         scrollable: find.byType(Scrollable).first);
@@ -262,13 +273,19 @@ final _cases = <_Case>[
     await t.tap(find.text('식권도 기록'));
     await t.pumpAndSettle();
   }, keyboard: true),
-  _Case('행사장 접수 중', (_) => const ReceptionScreen(receptionId: 'r1'), keyboard: true),
-  _Case('접수 요약', (_) => const ReceptionSummaryScreen(receptionId: 'r1')),
+  _Case('받은 돈 적기 (대신 받기)',
+      (_) => const ReceiveMoneyScreen(target: ReceptionTarget('r1')),
+      keyboard: true),
+  _Case('받은 돈 적기 (내 행사)',
+      (_) => const ReceiveMoneyScreen(target: MyEventTarget(1)),
+      keyboard: true),
+  _Case('대신 받은 장부', (_) => const ReceptionSummaryScreen(receptionId: 'r1')),
   _Case('장부 보내기', (r) => ReceptionSendScreen(package: r.package)),
   _Case('장부 보내기 (요약 메시지)', (r) => ReceptionSendScreen(package: r.package),
       open: (t) => _tapText(t, '요약 메시지')),
   _Case('받은 장부 가져오기', (r) => ReceptionImportScreen(package: r.package)),
-  _Case('받은 명단 직접 입력', (r) => QuickEntryScreen(event: r.myEvent), keyboard: true),
+  _Case('빠른 연속 입력 (보낸 돈)', (r) => QuickEntryScreen(event: r.schedules.first),
+      keyboard: true),
   _Case(
       '내역 입력창',
       (r) => _launcher((c) => showRecordForm(c, personId: 1)),

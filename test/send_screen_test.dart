@@ -95,7 +95,7 @@ void main() {
     await open(tester);
     await tester.tap(find.text('요약 메시지'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('[경조사 장부] 홍길동 결혼식 접수 결과'), findsOneWidget);
+    expect(find.textContaining('[경조사 장부] 홍길동 결혼식 받은 명단'), findsOneWidget);
     // 공유 버튼 근처는 화면 아래쪽이라 스크롤해서 본다
     await tester.scrollUntilVisible(find.text('요약 메시지 보내기'), 200,
         scrollable: find.byType(Scrollable).first);

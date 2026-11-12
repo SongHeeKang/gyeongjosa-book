@@ -7,7 +7,8 @@ import 'package:gyeongjosa/data/repository.dart';
 import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/screens/help_screen.dart';
 import 'package:gyeongjosa/screens/main_shell.dart';
-import 'package:gyeongjosa/screens/reception_screen.dart';
+import 'package:gyeongjosa/screens/receive_money_screen.dart';
+import 'package:gyeongjosa/services/receive_targets.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:gyeongjosa/widgets/app_bottom_nav.dart';
@@ -283,7 +284,7 @@ void main() {
           prefsValues: {'coach_seen_home': true, 'coach_seen_stats': true});
       await settle(tester);
       expect(find.text('처음 4장 가이드'), findsOneWidget);
-      expect(find.text('받은 명단 직접 입력'), findsOneWidget);
+      expect(find.text('받은 돈 적기'), findsOneWidget);
       await tester.tap(find.text('도움말 처음부터 다시 보기'));
       await tester.pump();
       expect(prefs.getBool('coach_seen_home'), isNull);
@@ -294,14 +295,14 @@ void main() {
     });
   });
 
-  group('행사장 접수 도움말', () {
+  group('받은 돈 적기 도움말 (대신 받기)', () {
     const text = '이름을 적고 금액을 누르면 바로 저장';
     testWidgets('첫 저장 전에 뜨고 최근 저장 자리까지 가리킨다', (tester) async {
-      await pump(tester, const ReceptionScreen(receptionId: 'r1'));
+      await pump(tester, ReceiveMoneyScreen(target: ReceptionTarget('r1')));
       await settle(tester);
       expect(find.text(text), findsOneWidget);
       expect(find.text('방금 저장한 손님이 맨 위에'), findsOneWidget);
-      expect(find.text('끝나면 혼주에게 보내요'), findsOneWidget);
+      expect(find.text('여기에 저장돼요(내 행사 / 대신 받기)'), findsOneWidget);
       await tester.tap(find.text('알겠어요'));
       await settle(tester);
       final name = tester.widget<TextField>(find.byType(TextField).first);
@@ -331,7 +332,7 @@ void main() {
         ],
         child: MaterialApp(
             theme: buildAppTheme(),
-            home: const ReceptionScreen(receptionId: 'r1')),
+            home: ReceiveMoneyScreen(target: ReceptionTarget('r1'))),
       ));
       await tester.pump();
       await settle(tester);
@@ -353,7 +354,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('카드가 위에서부터 4개 쌓이고, 같은 크기 · 같은 자리에서 아이콘만 X로 바뀐다',
+    testWidgets('카드가 위에서부터 3개 쌓이고, 같은 크기 · 같은 자리에서 아이콘만 X로 바뀐다',
         (tester) async {
       await pump(tester, const MainShell(),
           prefsValues: {'coach_seen_home': true, 'coach_seen_recordMenu': true});
@@ -365,11 +366,13 @@ void main() {
       expect(tester.takeException(), isNull);
 
       final tops = [
-        for (final t in ['보냈어요', '일정 추가', '받은 명단 직접 입력', '행사장 접수'])
+        for (final t in ['보냈어요', '일정 추가', '받은 돈 적기'])
           tester.getTopLeft(find.text(t)).dy,
       ];
       expect(tops, orderedEquals([...tops]..sort()));
-      expect(find.text('종이 장부·계좌이체를 옮겨 적어요'), findsOneWidget);
+      expect(find.text('결혼식 · 돌잔치에서 받은 돈을 적어요'), findsOneWidget);
+      expect(find.text('행사장 접수'), findsNothing);
+      expect(find.text('받은 명단 직접 입력'), findsNothing);
 
       expect(find.byIcon(Icons.close), findsOneWidget);
       expect(find.byTooltip('닫기'), findsOneWidget);
@@ -401,10 +404,11 @@ void main() {
 
     testWidgets('카드를 누르면 메뉴를 닫고 해당 화면으로 간다', (tester) async {
       await open(tester);
-      await tester.tap(find.text('행사장 접수'));
+      await tester.tap(find.text('받은 돈 적기'));
       await tester.pumpAndSettle();
       expect(find.text('보냈어요'), findsNothing);
-      expect(find.text('접수 시작'), findsOneWidget);
+      // 받은 돈 적기는 '누구 행사인가요?'부터 묻는다
+      expect(find.text('누구 행사인가요?'), findsOneWidget);
     });
 
     testWidgets('처음 열 때 카드를 가리키는 도움말이 뜬다', (tester) async {
@@ -415,17 +419,17 @@ void main() {
       await settle(tester);
       expect(tester.takeException(), isNull);
       // 카드마다 따로 설명하지 않고 하나로 묶는다
-      expect(find.text('하고 싶은 일을 고르세요\n카드마다 무엇을 하는지 적혀 있어요'),
+      expect(find.text('하고 싶은 일을 골라요\n카드마다 무엇을 하는지 적혀 있어요'),
           findsOneWidget);
       expect(find.text('내가 낸 축의금·부의금'), findsNothing);
       expect(find.text('닫기'), findsOneWidget);
       final group = CoachScreen.recordMenu.marks.single.rect!;
-      for (final card in ['보냈어요', '행사장 접수']) {
+      for (final card in ['보냈어요', '받은 돈 적기']) {
         expect(group.contains(tester.getCenter(find.text(card))), isTrue);
       }
       // 설명은 묶음 바로 위에 있다
       final label = tester.getRect(find.text(
-          '하고 싶은 일을 고르세요\n카드마다 무엇을 하는지 적혀 있어요'));
+          '하고 싶은 일을 골라요\n카드마다 무엇을 하는지 적혀 있어요'));
       expect(label.bottom, lessThan(group.top));
       expect(group.top - label.bottom, lessThanOrEqualTo(80));
 

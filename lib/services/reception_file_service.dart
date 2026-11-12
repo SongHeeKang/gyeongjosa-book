@@ -36,8 +36,8 @@ class ReceptionFileService {
     final totals = package.totals;
     final hasOperator = r.operatorName.trim().isNotEmpty;
     return [
-      '[경조사 장부] ${r.title} 접수 결과',
-      '${formatDate(r.date)}${hasOperator ? ' · 접수: ${r.operatorName}' : ''}',
+      '[경조사 장부] ${r.title} 받은 명단',
+      '${formatDate(r.date)}${hasOperator ? ' · 받은 사람: ${r.operatorName}' : ''}',
       '',
       '총 ${totals.count}명 · ${formatWon(totals.amount)}',
       for (final side in package.sides)

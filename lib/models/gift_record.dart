@@ -19,7 +19,7 @@ class GiftRecord {
   /// 받은 장부를 가져올 때 동명이인이 의심되어 확인이 필요한 내역
   final bool needsReview;
 
-  /// 행사장 접수에서 온 기록의 구분(신랑측 등) · 식권 매수. 없으면 null.
+  /// 받은 돈 적기 · 대신 받은 장부에서 온 기록의 구분(신랑측 등) · 식권 매수. 없으면 null.
   final String? side;
   final int? mealTickets;
 

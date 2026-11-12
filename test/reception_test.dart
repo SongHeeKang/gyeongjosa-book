@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -6,10 +7,14 @@ import 'package:gyeongjosa/data/repository.dart';
 import 'package:gyeongjosa/models/event.dart';
 import 'package:gyeongjosa/models/person.dart';
 import 'package:gyeongjosa/models/reception.dart';
+import 'package:gyeongjosa/models/gift_record.dart';
+import 'package:gyeongjosa/services/backup_service.dart';
+import 'package:gyeongjosa/services/event_package.dart';
 import 'package:gyeongjosa/services/reception_file_service.dart';
 import 'package:gyeongjosa/services/reception_import.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 ReceptionEntry entry(String id, String name,
@@ -129,8 +134,8 @@ void main() {
               createdAt: DateTime(2026, 11, 1)),
         ],
       ));
-      expect(text, contains('[경조사 장부] 홍길동 결혼식 접수 결과'));
-      expect(text, contains('2026년 11월 1일 (일) · 접수: 김민수'));
+      expect(text, contains('[경조사 장부] 홍길동 결혼식 받은 명단'));
+      expect(text, contains('2026년 11월 1일 (일) · 받은 사람: 김민수'));
       expect(text, contains('총 2명 · 150,000원'));
       expect(text, contains('- 신랑측 1명 · 100,000원'));
       expect(text, contains('- 신부측 1명 · 50,000원'));
@@ -145,7 +150,7 @@ void main() {
       expect(text, contains('※ 카카오톡 파일은 보관 기간이 지나면 받을 수 없어요'));
       expect(text, isNot(contains('전체 명단은')));
       // 첫 줄 제목은 한 번만
-      expect('접수 결과'.allMatches(text).length, 1);
+      expect('받은 명단'.allMatches(text).length, 1);
       expect(text, isNot(contains('이영희')));
     });
   });
@@ -361,6 +366,251 @@ void main() {
       expect(all.plan.alreadyImported, 1);
       expect(await repo.countPeople(), 32);
       expect((await repo.getReceptionPackage('r1'))!.reception.imported, isTrue);
+    });
+  });
+
+  // 추가 Q: DB 7버전(내 행사별 받기 설정)과 예전 파일 호환
+  group('DB 7버전과 예전 파일', () {
+    late Directory dir;
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('gyeongjosa_v7');
+    });
+
+    tearDown(() async {
+      try {
+        await dir.delete(recursive: true);
+      } on FileSystemException catch (_) {}
+    });
+
+    /// 지금 출시된 앱(DB 6버전)이 만드는 것과 같은 구조의 DB 파일
+    Future<String> makeV6(String name) async {
+      final path = p.join(dir.path, name);
+      final db = await openDatabase(path, version: 6, onCreate: (db, _) async {
+        await db.execute(
+            "CREATE TABLE people (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, relation TEXT NOT NULL DEFAULT '기타', phone TEXT, memo TEXT, created_at TEXT NOT NULL)");
+        await db.execute(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL DEFAULT '기타', title TEXT NOT NULL, date TEXT NOT NULL, is_mine INTEGER NOT NULL DEFAULT 0, place TEXT, memo TEXT, notify INTEGER NOT NULL DEFAULT 1, person_id INTEGER REFERENCES people(id) ON DELETE SET NULL, pending_hidden INTEGER NOT NULL DEFAULT 0)");
+        await db.execute(
+            "CREATE TABLE records (id INTEGER PRIMARY KEY AUTOINCREMENT, person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE, event_id INTEGER REFERENCES events(id) ON DELETE SET NULL, direction TEXT NOT NULL, amount INTEGER NOT NULL, method TEXT NOT NULL DEFAULT '현금', date TEXT NOT NULL, memo TEXT, event_type TEXT, needs_review INTEGER NOT NULL DEFAULT 0, side TEXT, meal_tickets INTEGER)");
+        await db.execute(
+            "CREATE TABLE receptions (id TEXT PRIMARY KEY, title TEXT NOT NULL, event_type TEXT NOT NULL DEFAULT '기타', date TEXT NOT NULL, sides TEXT NOT NULL, operator_name TEXT NOT NULL DEFAULT '', started_at TEXT NOT NULL, finished_at TEXT, imported INTEGER NOT NULL DEFAULT 0, meal_ticket_enabled INTEGER NOT NULL DEFAULT 1, default_meal_tickets INTEGER NOT NULL DEFAULT 1, method_enabled INTEGER NOT NULL DEFAULT 1)");
+        await db.execute(
+            "CREATE TABLE reception_entries (id TEXT PRIMARY KEY, reception_id TEXT NOT NULL REFERENCES receptions(id) ON DELETE CASCADE, name TEXT NOT NULL, amount INTEGER NOT NULL, side TEXT NOT NULL DEFAULT '', method TEXT NOT NULL DEFAULT '현금', meal_tickets INTEGER NOT NULL DEFAULT 1, memo TEXT, created_at TEXT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0)");
+        await db.execute(
+            'CREATE TABLE imported_entries (entry_id TEXT PRIMARY KEY, imported_at TEXT NOT NULL)');
+        await db.insert('people', {'name': '옛손님', 'created_at': '2026-01-01'});
+        await db.insert('events', {
+          'title': '우리 결혼식',
+          'date': '2026-10-03',
+          'is_mine': 1,
+          'type': '결혼'
+        });
+        await db.insert('events',
+            {'title': '친구 결혼식', 'date': '2026-12-01', 'is_mine': 0});
+        await db.insert('records', {
+          'person_id': 1,
+          'event_id': 1,
+          'direction': '받음',
+          'amount': 50000,
+          'date': '2026-10-03'
+        });
+        await db.insert('receptions', {
+          'id': 'old-r',
+          'title': '누나 결혼식',
+          'date': '2026-09-01',
+          'sides': '["신부측"]',
+          'started_at': '2026-09-01T10:00:00',
+        });
+        await db.insert('reception_entries', {
+          'id': 'old-e',
+          'reception_id': 'old-r',
+          'name': '대신손님',
+          'amount': 30000,
+          'side': '신부측',
+          'created_at': '2026-09-01T10:05:00',
+        });
+      });
+      await db.close();
+      return path;
+    }
+
+    test('v6 → v7: 기록은 그대로, 예전 내 행사는 식권 · 계좌 끔으로 설정을 다시 묻지 않는다',
+        () async {
+      final helper = DatabaseHelper.forTest(await makeV6('old.db'));
+      final repo = Repository(helper);
+      final mine = (await repo.myEvents()).single;
+      expect(mine.receiveSettingsDone, isTrue);
+      expect(mine.sides, ['전체']);
+      expect(mine.mealTicketEnabled, isFalse);
+      expect(mine.methodEnabled, isFalse);
+      final others = (await repo.allEvents()).where((e) => !e.isMine);
+      expect(others.single.receiveSettingsDone, isFalse);
+      expect((await repo.allRecords()).single.amount, 50000);
+      expect((await repo.getReceptionPackage('old-r'))!.entries.single.name,
+          '대신손님');
+      await helper.close();
+    });
+
+    test('예전(v6) 백업 파일은 검사를 통과하고 복원하면 v7로 올라간다', () async {
+      final backup = await makeV6('backup.db');
+      await DatabaseHelper.validateBackupFile(backup);
+
+      final helper = DatabaseHelper.forTest(p.join(dir.path, 'app.db'));
+      await Repository(helper).insertPerson(
+          Person(name: '지금사람', createdAt: DateTime(2026)));
+      await BackupService(helper).restoreFrom(backup);
+      final repo = Repository(helper);
+      expect((await repo.allPeople()).single.name, '옛손님');
+      expect((await repo.myEvents()).single.receiveSettingsDone, isTrue);
+      final db = await helper.database;
+      expect((await db.rawQuery('PRAGMA user_version')).first.values.first, 7);
+      await helper.close();
+    });
+
+    test('새 내 행사는 처음 받을 때 설정을 묻고, 행사 이름을 고쳐도 설정은 남는다', () async {
+      final helper = DatabaseHelper.forTest(p.join(dir.path, 'new.db'));
+      final repo = Repository(helper);
+      final id = await repo.insertEvent(myEvent());
+      expect((await repo.getEvent(id))!.receiveSettingsDone, isFalse);
+
+      await repo.updateEventReceiveSettings((await repo.getEvent(id))!
+          .withReceiveSettings(
+              sides: const ['신랑측', '신부측'],
+              mealTicketEnabled: true,
+              defaultMealTickets: 2,
+              methodEnabled: true));
+      await repo.updateEvent(Event(
+          id: id,
+          type: '결혼',
+          title: '이름 고침',
+          date: DateTime(2026, 11, 1),
+          isMine: true));
+      final e = (await repo.getEvent(id))!;
+      expect(e.title, '이름 고침');
+      expect(e.sides, ['신랑측', '신부측']);
+      expect(e.mealTicketEnabled, isTrue);
+      expect(e.defaultMealTickets, 2);
+      expect(e.methodEnabled, isTrue);
+      await helper.close();
+    });
+
+    test('예전 장부 파일(식권 · 결제 방법 값이 없는 것)도 가져온다', () async {
+      const oldFile = '''
+{"format":"gyeongjosa_reception","version":1,
+ "reception":{"id":"r-old","title":"홍길동 결혼식","event_type":"결혼","date":"2026-11-01",
+   "sides":["신랑측","신부측"],"operator_name":"김민수","started_at":"2026-11-01T09:00:00"},
+ "entries":[{"id":"a","name":"김철수","amount":50000,"side":"신랑측","method":"현금","meal_tickets":2,"created_at":"2026-11-01T10:00:00"}]}''';
+      final package = ReceptionPackage.parse(oldFile);
+      final helper = DatabaseHelper.forTest(p.join(dir.path, 'imp.db'));
+      final repo = Repository(helper);
+      final result = await repo.applyImport(package, newEvent: myEvent());
+      final record = (await repo.recordsForEvent(result.eventId)).single;
+      expect(record.side, '신랑측');
+      expect(record.mealTickets, 2);
+      await helper.close();
+    });
+
+    test('내 행사로 옮기기: 구분 · 식권이 기록에, 받기 설정이 새 내 행사에 옮겨진다', () async {
+      final helper = DatabaseHelper.forTest(p.join(dir.path, 'move.db'));
+      final repo = Repository(helper);
+      final r = Reception(
+        id: 'r1',
+        title: '누나 결혼식',
+        eventType: '결혼',
+        date: DateTime(2026, 12, 26),
+        sides: const ['신랑측', '신부측'],
+        operatorName: '송희강',
+        startedAt: DateTime(2026, 12, 26, 9),
+        mealTicketEnabled: true,
+        defaultMealTickets: 2,
+        methodEnabled: true,
+      );
+      final package = ReceptionPackage(r, [
+        ReceptionEntry(
+            id: 'x',
+            receptionId: 'r1',
+            name: '박지원',
+            amount: 100000,
+            side: '신부측',
+            method: '계좌',
+            mealTickets: 3,
+            createdAt: DateTime(2026, 12, 26, 10)),
+      ]);
+      // 내 행사로 옮기기의 '새로 만들기'와 같은 새 행사 (화면의 _newEvent와 같은 값)
+      final result = await repo.applyImport(package,
+          newEvent: Event(
+            type: r.eventType,
+            title: r.title,
+            date: r.date,
+            isMine: true,
+            notify: false,
+            receiveSides: r.sides,
+            mealTicketEnabled: r.mealTicketEnabled,
+            defaultMealTickets: r.defaultMealTickets,
+            methodEnabled: r.methodEnabled,
+          ));
+      final record = (await repo.recordsForEvent(result.eventId)).single;
+      expect(record.side, '신부측');
+      expect(record.mealTickets, 3);
+      expect(record.method, '계좌');
+      final event = (await repo.getEvent(result.eventId))!;
+      expect(event.sides, ['신랑측', '신부측']);
+      expect(event.mealTicketEnabled, isTrue);
+      expect(event.defaultMealTickets, 2);
+      // 대신 받은 명단은 사람 목록과 따로이고, 옮긴 뒤에만 사람이 생긴다
+      expect(await repo.countPeople(), 1);
+      await helper.close();
+    });
+
+    test('내 행사 [장부 보내기] 파일은 예전과 같은 형식(version 1)이라 이전 버전 앱에서도 열린다',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final event = Event(
+        id: 7,
+        type: '결혼',
+        title: '우리 결혼식',
+        date: DateTime(2026, 10, 3),
+        isMine: true,
+        receiveSides: const ['신랑측', '신부측'],
+        mealTicketEnabled: true,
+      );
+      final records = [
+        GiftRecord(
+            id: 1,
+            personId: 1,
+            eventId: 7,
+            direction: '받음',
+            amount: 50000,
+            date: DateTime(2026, 10, 3),
+            side: '신랑측',
+            mealTickets: 2,
+            personName: '김철수'),
+        GiftRecord(
+            id: 2,
+            personId: 2,
+            eventId: 7,
+            direction: '받음',
+            amount: 100000,
+            method: '계좌',
+            date: DateTime(2026, 10, 3),
+            personName: '이영희'),
+      ];
+      final json = eventPackage(prefs, event, records).toJsonString();
+      final root = jsonDecode(json) as Map;
+      expect(root['format'], 'gyeongjosa_reception');
+      expect(root['version'], 1);
+      // 이전 버전 앱과 같은 읽기 코드로 읽힌다
+      final back = ReceptionPackage.parse(json);
+      expect(back.entries.map((e) => e.name), ['김철수', '이영희']);
+      expect(back.entries.first.side, '신랑측');
+      expect(back.entries.first.mealTickets, 2);
+      expect(back.entries.last.method, '계좌');
+      // 같은 내 행사를 다시 보내도 항목 ID가 같아 받는 쪽에서 두 번 들어가지 않는다
+      final again = ReceptionPackage.parse(
+          eventPackage(prefs, event, records).toJsonString());
+      expect(again.entries.map((e) => e.id), back.entries.map((e) => e.id));
     });
   });
 }

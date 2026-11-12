@@ -5,15 +5,16 @@ import '../data/providers.dart';
 import '../models/constants.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
+import '../services/receive_targets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/reception_entry_sheet.dart';
 import 'reception_import_screen.dart';
-import 'reception_screen.dart';
+import 'receive_money_screen.dart';
 import 'reception_send_screen.dart';
 
-/// 접수 마치기: 구분별 요약, 장부 보내기, 내 장부로 옮기기
+/// 대신 받은 장부 상세 (받기 끝내기 뒤): 구분별 요약, [이어서 받기] [장부 보내기] [내 행사로 옮기기]
 class ReceptionSummaryScreen extends ConsumerWidget {
   const ReceptionSummaryScreen({super.key, required this.receptionId});
   final String receptionId;
@@ -34,13 +35,14 @@ class ReceptionSummaryScreen extends ConsumerWidget {
     Navigator.pushReplacement(
         context,
         MaterialPageRoute<void>(
-            builder: (_) => ReceptionScreen(receptionId: receptionId)));
+            builder: (_) =>
+                ReceiveMoneyScreen(target: ReceptionTarget(receptionId))));
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final ok = await confirmDialog(context,
-        title: '접수 장부 삭제',
-        message: '접수 명단이 모두 지워져요. 내 장부로 옮긴 내역은 그대로 남아요.\n삭제할까요?',
+        title: '대신 받은 장부 삭제',
+        message: '받은 명단이 모두 지워져요. 내 행사로 옮긴 내역은 그대로 남아요.\n삭제할까요?',
         okText: '삭제',
         destructive: true);
     if (!ok) return;
@@ -57,22 +59,20 @@ class ReceptionSummaryScreen extends ConsumerWidget {
         if (package == null) {
           return Scaffold(
               appBar: AppBar(),
-              body: const Center(child: Text('삭제된 접수 장부예요.')));
+              body: const Center(child: Text('삭제된 장부예요.')));
         }
         final r = package.reception;
         final totals = package.totals;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('접수 요약'),
+            title: const Text('대신 받은 장부'),
             actions: [
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: AppColors.icon),
                 onSelected: (v) {
-                  if (v == 'reopen') _reopen(context, ref);
                   if (v == 'delete') _delete(context, ref);
                 },
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'reopen', child: Text('접수 다시 열기')),
                   PopupMenuItem(value: 'delete', child: Text('삭제')),
                 ],
               ),
@@ -90,7 +90,11 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                     Text(r.title, style: AppText.sectionTitle),
                     const SizedBox(height: 4),
                     Text(
-                        '${r.eventType} · ${formatDate(r.date)} · 접수 ${r.operatorName}',
+                        [
+                          r.eventType,
+                          formatDate(r.date),
+                          if (r.operatorName.isNotEmpty) '받은 사람 ${r.operatorName}',
+                        ].join(' · '),
                         style: AppText.sub),
                     const SizedBox(height: 16),
                     TestId('summary_total', child: Text('${totals.count}명 · ${formatWon(totals.amount)}',
@@ -123,6 +127,15 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                     const SizedBox(height: 20),
                     SizedBox(
                       height: AppSpacing.receptionButton,
+                      child: TestId('btn_continue_receive', child: OutlinedButton.icon(
+                        onPressed: () => _reopen(context, ref),
+                        icon: const Icon(Icons.playlist_add),
+                        label: const Text('이어서 받기'),
+                      )),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: AppSpacing.receptionButton,
                       child: TestId('btn_send', child: FilledButton.icon(
                         onPressed: totals.count == 0
                             ? null
@@ -143,12 +156,12 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                                     builder: (_) => ReceptionImportScreen(
                                         package: package))),
                         icon: Icon(r.imported ? Icons.check : Icons.move_to_inbox),
-                        label: Text(r.imported ? '내 장부로 옮겼어요' : '내 장부로 옮기기'),
+                        label: Text(r.imported ? '내 행사로 옮겼어요' : '내 행사로 옮기기'),
                       )),
                     ),
                     if (!r.imported) ...[
                       const SizedBox(height: 4),
-                      const Text('혼주 · 상주 본인 폰으로 접수했다면 눌러 주세요.',
+                      const Text('혼주 · 상주 본인 폰으로 받았다면 눌러 주세요.',
                           textAlign: TextAlign.center, style: AppText.sub),
                     ],
                   ],
@@ -156,10 +169,10 @@ class ReceptionSummaryScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.section),
               const AppDivider(),
-              SectionTitle('접수 명단 ${totals.count}명'),
+              SectionTitle('받은 명단 ${totals.count}명'),
               if (package.entries.isEmpty)
                 const EmptyView(
-                    icon: Icons.list_alt, message: '아직 접수한 사람이 없어요.')
+                    icon: Icons.list_alt, message: '아직 받은 사람이 없어요.')
               else
                 for (final e in package.entries)
                   ReceptionEntryTile(

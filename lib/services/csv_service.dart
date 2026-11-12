@@ -17,7 +17,7 @@ class CsvService {
   static const header = ['번호', '이름', '관계', '구분', '금액', '결제 방법', '식권', '메모', '날짜'];
 
   /// [records]: 모든 기록(사람 이름 · 관계 포함), [events]: 모든 행사,
-  /// [receptions]: 내 행사로 아직 옮기지 않은 접수 장부.
+  /// [receptions]: 내 행사로 아직 옮기지 않은 대신 받은 장부.
   /// 금액은 쉼표 없는 숫자, 엑셀에서 한글이 깨지지 않도록 UTF-8 BOM을 붙인다.
   /// 쉼표 · 따옴표 · 줄바꿈이 들어간 값은 큰따옴표로 감싼다.
   static String buildCsv({
@@ -49,13 +49,13 @@ class CsvService {
         ..addAll(_section([for (final r in byEvent[e.id]!) _Row.fromRecord(r)]));
     }
 
-    // 내 행사로 옮기지 않은 접수 장부
+    // 내 행사로 옮기지 않은 대신 받은 장부
     for (final pkg in receptions) {
       final r = pkg.reception;
       if (pkg.entries.isEmpty) continue;
       rows
         ..add([])
-        ..add(['[접수 장부] ${r.title}', toDbDate(r.date), r.eventType, '받음'])
+        ..add(['[대신 받은 장부] ${r.title}', toDbDate(r.date), r.eventType, '받음'])
         ..addAll(_section([
           for (final e in pkg.entries)
             _Row(

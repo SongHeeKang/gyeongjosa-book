@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/providers.dart';
-import '../models/event.dart';
 import '../screens/event_form_screen.dart';
-import '../screens/quick_entry_screen.dart';
-import '../screens/reception_form_screen.dart';
-import '../services/format.dart';
+import '../screens/whose_event_screen.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
@@ -15,9 +11,9 @@ import 'common.dart';
 import 'person_picker_sheet.dart';
 import 'screen_coach.dart';
 
-enum _RecordAction { sent, schedule, received, reception }
+enum _RecordAction { sent, schedule, received }
 
-/// 기록하기 메뉴: 연필 버튼 위로 카드 4개가 펼쳐지고, 고르면 해당 화면으로 간다.
+/// 기록하기 메뉴: 연필 버튼 위로 카드 3개가 펼쳐지고, 고르면 해당 화면으로 간다.
 /// [onClosed]는 메뉴가 닫힐 때(화면 이동 전에) 불린다.
 Future<void> showRecordMenu(BuildContext context, WidgetRef ref,
     {VoidCallback? onClosed}) async {
@@ -42,56 +38,10 @@ Future<void> showRecordMenu(BuildContext context, WidgetRef ref,
       await Navigator.push(context,
           MaterialPageRoute<void>(builder: (_) => const EventFormScreen()));
     case _RecordAction.received:
-      await _startReceivedEntry(context, ref);
-    case _RecordAction.reception:
-      await Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-              builder: (_) => const ReceptionFormScreen()));
+      // 받은 돈 적기: '누구 행사인가요?'부터 묻는다
+      await Navigator.push(context,
+          MaterialPageRoute<void>(builder: (_) => const WhoseEventScreen()));
   }
-}
-
-/// [받은 명단 직접 입력]: 내 행사를 고르고(없으면 바로 만들고) 연속 입력으로 간다.
-Future<void> _startReceivedEntry(BuildContext context, WidgetRef ref) async {
-  final repo = ref.read(repositoryProvider);
-  final mine = await repo.myEvents();
-  if (!context.mounted) return;
-
-  Event? event;
-  var createNew = mine.isEmpty;
-  if (mine.length == 1) event = mine.first;
-  if (mine.length > 1) {
-    final picked = await showModalBottomSheet<_EventPick>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (_) => _MyEventPickerSheet(events: mine),
-    );
-    if (picked == null || !context.mounted) return;
-    event = picked.event;
-    createNew = picked.event == null;
-  }
-  if (createNew) {
-    final id = await Navigator.push<int>(
-        context,
-        MaterialPageRoute<int>(
-            builder: (_) => const EventFormScreen(initialIsMine: true)));
-    if (id == null) return;
-    event = await repo.getEvent(id);
-    if (!context.mounted) return;
-  }
-  final target = event;
-  if (target == null) return;
-  await Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-          builder: (_) => QuickEntryScreen(event: target)));
-}
-
-class _EventPick {
-  final Event? event; // null이면 새로 만들기
-  const _EventPick(this.event);
 }
 
 const _menuDuration = Duration(milliseconds: 200);
@@ -137,21 +87,12 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
     ),
     (
       _RecordAction.received,
-      CoachSpot.menuDirect,
+      CoachSpot.menuReceive,
       Icons.playlist_add,
-      '받은 명단 직접 입력',
-      '종이 장부·계좌이체를 옮겨 적어요',
-      AppColors.menuDirect,
-      AppColors.menuDirectSoft,
-    ),
-    (
-      _RecordAction.reception,
-      CoachSpot.menuReception,
-      Icons.assignment_outlined,
-      '행사장 접수',
-      '접수대에서 바로 받아요',
-      AppColors.menuReception,
-      AppColors.menuReceptionSoft,
+      '받은 돈 적기',
+      '결혼식 · 돌잔치에서 받은 돈을 적어요',
+      AppColors.menuReceive,
+      AppColors.menuReceiveSoft,
     ),
   ];
 
@@ -206,7 +147,6 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
       _RecordAction.sent => 'menu_sent',
       _RecordAction.schedule => 'menu_schedule',
       _RecordAction.received => 'menu_received',
-      _RecordAction.reception => 'menu_reception',
     };
     return TestId(testId, child: CoachTarget(
       spot: spot,
@@ -238,7 +178,7 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
                             overflow: TextOverflow.ellipsis),
                         Text(sub,
                             style: AppText.sub,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis),
                       ],
                     ),
@@ -298,42 +238,6 @@ class _RecordMenuState extends ConsumerState<_RecordMenu> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _MyEventPickerSheet extends StatelessWidget {
-  const _MyEventPickerSheet({required this.events});
-  final List<Event> events;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints:
-          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          const Padding(
-            padding:
-                EdgeInsets.fromLTRB(AppSpacing.page, 0, AppSpacing.page, 12),
-            child: Text('어느 행사의 명단인가요?', style: AppText.appTitle),
-          ),
-          for (final e in events)
-            ListTile(
-              title: Text(e.title),
-              subtitle: Text(formatDate(e.date)),
-              onTap: () => Navigator.pop(context, _EventPick(e)),
-            ),
-          ListTile(
-            leading: const Icon(Icons.add, color: AppColors.primary),
-            title: Text('새 내 행사 만들기',
-                style: AppText.listName.copyWith(color: AppColors.primary)),
-            onTap: () => Navigator.pop(context, const _EventPick(null)),
-          ),
-          const SizedBox(height: 12),
-        ],
-      ),
     );
   }
 }

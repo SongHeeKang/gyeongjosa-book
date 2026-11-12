@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import '../services/format.dart';
+import 'constants.dart';
 
 class Event {
   final int? id;
@@ -21,6 +24,19 @@ class Event {
   /// 연결된 사람의 관계 (읽을 때만 채워짐)
   final String? personRelation;
 
+  /// 내 행사의 받기 설정. [receiveSides]가 null이면 아직 설정하지 않은 행사라
+  /// 처음 받은 돈을 적을 때 한 번 물어본다.
+  final List<String>? receiveSides;
+  final bool mealTicketEnabled;
+  final int defaultMealTickets;
+  final bool methodEnabled;
+
+  bool get receiveSettingsDone => receiveSides != null;
+
+  /// 받기 화면에서 쓰는 구분 (설정 전이면 구분 없음)
+  List<String> get sides =>
+      receiveSides ?? const [ReceptionDefaults.noSide];
+
   const Event({
     this.id,
     required this.type,
@@ -33,7 +49,36 @@ class Event {
     this.personId,
     this.pendingHidden = false,
     this.personRelation,
+    this.receiveSides,
+    this.mealTicketEnabled = false,
+    this.defaultMealTickets = 1,
+    this.methodEnabled = false,
   });
+
+  /// 받기 설정만 바꾼 사본
+  Event withReceiveSettings({
+    required List<String> sides,
+    required bool mealTicketEnabled,
+    required int defaultMealTickets,
+    required bool methodEnabled,
+  }) =>
+      Event(
+        id: id,
+        type: type,
+        title: title,
+        date: date,
+        isMine: isMine,
+        place: place,
+        memo: memo,
+        notify: notify,
+        personId: personId,
+        pendingHidden: pendingHidden,
+        personRelation: personRelation,
+        receiveSides: sides,
+        mealTicketEnabled: mealTicketEnabled,
+        defaultMealTickets: defaultMealTickets,
+        methodEnabled: methodEnabled,
+      );
 
   factory Event.fromMap(Map<String, Object?> m) => Event(
         id: m['id'] as int?,
@@ -47,7 +92,21 @@ class Event {
         personId: m['person_id'] as int?,
         pendingHidden: (m['pending_hidden'] as int? ?? 0) == 1,
         personRelation: m['person_relation'] as String?,
+        receiveSides: _decodeSides(m['sides'] as String?),
+        mealTicketEnabled: (m['meal_ticket_enabled'] as int? ?? 0) == 1,
+        defaultMealTickets: m['default_meal_tickets'] as int? ?? 1,
+        methodEnabled: (m['method_enabled'] as int? ?? 0) == 1,
       );
+
+  static List<String>? _decodeSides(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final list = (jsonDecode(raw) as List).whereType<String>().toList();
+      return list.isEmpty ? const [ReceptionDefaults.noSide] : list;
+    } catch (_) {
+      return const [ReceptionDefaults.noSide];
+    }
+  }
 
   Map<String, Object?> toMap() => {
         if (id != null) 'id': id,
@@ -60,6 +119,13 @@ class Event {
         'notify': notify ? 1 : 0,
         'person_id': personId,
         'pending_hidden': pendingHidden ? 1 : 0,
+        // 받기 설정은 정해졌을 때만 쓴다. 행사 이름만 고칠 때 설정이 지워지지 않게.
+        if (receiveSides != null) ...{
+          'sides': jsonEncode(receiveSides),
+          'meal_ticket_enabled': mealTicketEnabled ? 1 : 0,
+          'default_meal_tickets': defaultMealTickets,
+          'method_enabled': methodEnabled ? 1 : 0,
+        },
       };
 
   /// 일정 이름: 김철수 + 결혼 → '김철수 결혼식'

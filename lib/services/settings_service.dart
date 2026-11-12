@@ -19,7 +19,12 @@ class PrefKeys {
   static const autoBackupFileName = 'auto_backup_file_name';
   static const restorePromptDone = 'restore_prompt_done';
 
-  /// 접수 장부별 마지막 구분
+  /// 대신 받은 장부별 마지막 구분
+  /// 내 행사 [장부 보내기] 파일의 항목 ID 앞에 붙이는 이 설치만의 값
+  static const installId = 'install_id';
+
+  static String eventLastSide(int eventId) => 'event_last_side_$eventId';
+
   static String receptionLastSide(String receptionId) =>
       'reception_last_side_$receptionId';
 }

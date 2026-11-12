@@ -25,7 +25,7 @@ class DatabaseHelper {
   factory DatabaseHelper.separateConnection() => DatabaseHelper._(null, false);
 
   static const dbFileName = 'gyeongjosa.db';
-  static const _dbVersion = 6;
+  static const _dbVersion = 7;
 
   final String? _pathOverride;
   final bool _singleInstance;
@@ -115,7 +115,7 @@ class DatabaseHelper {
       await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_records_date ON records(date)');
     },
-    // v3: 접수 모드 (접수 장부, 접수 항목, 가져온 항목 기록, 확인 필요 표시)
+    // v3: 접수 모드 (대신 받은 장부, 접수 항목, 가져온 항목 기록, 확인 필요 표시)
     3: (db) async {
       await db.execute('''
         CREATE TABLE receptions (
@@ -163,7 +163,7 @@ class DatabaseHelper {
       await db.execute(
           'ALTER TABLE events ADD COLUMN pending_hidden INTEGER NOT NULL DEFAULT 0');
     },
-    // v5: 접수 장부별 식권 기록 · 기본 매수 · 결제 방법 구분 (예전 접수는 전처럼 모두 켜짐)
+    // v5: 대신 받은 장부별 식권 기록 · 기본 매수 · 결제 방법 구분 (예전 접수는 전처럼 모두 켜짐)
     5: (db) async {
       await db.execute(
           'ALTER TABLE receptions ADD COLUMN meal_ticket_enabled INTEGER NOT NULL DEFAULT 1');
@@ -178,6 +178,20 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE records ADD COLUMN meal_tickets INTEGER');
       await _fillImportedSides(db);
     },
+    // v7: 내 행사별 받기 설정 (구분 · 식권 기록 · 기본 매수 · 결제 방법).
+    // sides가 비어 있으면 아직 설정하지 않은 행사라 처음 받을 때 한 번 묻는다.
+    // 이미 있던 내 행사는 식권 · 계좌를 끈 채로 '설정함'으로 채워 다시 묻지 않는다.
+    7: (db) async {
+      await db.execute('ALTER TABLE events ADD COLUMN sides TEXT');
+      await db.execute(
+          'ALTER TABLE events ADD COLUMN meal_ticket_enabled INTEGER NOT NULL DEFAULT 0');
+      await db.execute(
+          'ALTER TABLE events ADD COLUMN default_meal_tickets INTEGER NOT NULL DEFAULT 1');
+      await db.execute(
+          'ALTER TABLE events ADD COLUMN method_enabled INTEGER NOT NULL DEFAULT 0');
+      await db.rawUpdate('UPDATE events SET sides = ? WHERE is_mine = 1',
+          ['["${ReceptionDefaults.noSide}"]']);
+    },
   };
 
   /// DB를 닫지 않고 지금 내용을 파일 하나로 복사한다. 복사하는 동안 다른 저장은 잠깐 기다린다.
@@ -191,7 +205,7 @@ class DatabaseHelper {
     });
   }
 
-  /// v6: 이미 가져온 기록 중 원래 접수 장부가 남아 있는 것은 그 항목(uuid)을 찾아
+  /// v6: 이미 가져온 기록 중 원래 대신 받은 장부가 남아 있는 것은 그 항목(uuid)을 찾아
   /// 구분 · 식권을 채운다. 예전에는 구분 · 식권을 메모 글자에 섞어 저장했으므로,
   /// 메모가 그때 모양 그대로인 기록만 고치고 메모는 원래 메모로 되돌린다.
   /// 사용자가 메모를 고친 기록이나 장부가 지워진 기록은 건드리지 않는다.

@@ -10,6 +10,7 @@ import '../services/reception_file_service.dart';
 import '../services/reception_import.dart';
 import '../services/limit_service.dart';
 import '../services/limits.dart';
+import '../services/pro_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
@@ -95,13 +96,26 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
         return;
       }
     }
+    // 무료에서 내 행사가 이미 있으면 잠긴 '새로 만들기' 대신 있는 행사를 골라 둔다
+    if (mine.length >= FreeLimits.myEvents && !ref.read(isProProvider)) {
+      _eventId = mine.first.id;
+      _refreshPlan();
+    }
   }
 
-  void _select(int? eventId) {
+  /// '새 내 행사 만들기'는 고르는 순간 한도를 본다(닿았으면 바로 결제 화면, 닫으면 그대로).
+  Future<void> _select(int? eventId) async {
+    if (eventId == null &&
+        _eventId != null &&
+        !await LimitService.canCreateMyEvent(context, ref)) {
+      return;
+    }
+    if (!mounted) return;
     setState(() => _eventId = eventId);
     _refreshPlan();
   }
 
+  /// 새 내 행사는 장부의 구분 · 식권 · 결제 방법 설정을 그대로 이어받는다.
   Event _newEvent() {
     final r = widget.package.reception;
     return Event(
@@ -110,6 +124,10 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
       date: r.date,
       isMine: true,
       notify: false,
+      receiveSides: r.sides,
+      mealTicketEnabled: r.mealTicketEnabled,
+      defaultMealTickets: r.defaultMealTickets,
+      methodEnabled: r.methodEnabled,
     );
   }
 
@@ -205,6 +223,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
         .toList();
     if (summaries.hasValue) _preselect([for (final s in mine) s.event]);
     final hasWork = plan != null && plan.remaining > 0;
+    final locked = ref.watch(myEventLimitReachedProvider).value ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('받은 장부 가져오기')),
@@ -218,7 +237,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
                 Text(r.title, style: AppText.sectionTitle),
                 const SizedBox(height: 4),
                 Text(
-                    '${formatDate(r.date)}${r.operatorName.isEmpty ? '' : ' · 접수 ${r.operatorName}'}',
+                    '${formatDate(r.date)}${r.operatorName.isEmpty ? '' : ' · 받은 사람 ${r.operatorName}'}',
                     style: AppText.sub),
                 const SizedBox(height: 16),
                 TestId('import_preview_total', child: Text('${totals.count}명 · ${formatWon(totals.amount)}',
@@ -265,13 +284,14 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
                     subtitle: Text(
                         '${formatDate(s.event.date)} · 받은 사람 ${s.count}명'),
                   ),
-                RadioListTile<int?>(
+                TestId('import_new_event', child: RadioListTile<int?>(
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: AppSpacing.page),
                   value: null,
                   title: const Text('새 내 행사 만들기', style: AppText.listName),
                   subtitle: Text(r.title),
-                ),
+                  secondary: locked ? const ProLockMark() : null,
+                )),
               ],
             ),
           ),

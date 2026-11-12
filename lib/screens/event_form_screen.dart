@@ -14,7 +14,6 @@ import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
 import '../widgets/common.dart';
 import '../widgets/person_name_field.dart';
-import 'reception_form_screen.dart';
 
 /// 행사 수정, 내 행사 만들기, 일정 추가(남의 행사).
 /// 일정 추가는 이름 · 종류 · 날짜 · 장소 · 전날 알림만 받고, 금액은 다녀온 뒤에 적는다.
@@ -179,26 +178,6 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.page, 8, AppSpacing.page, 32),
         children: [
-          // 남의 행사 돈을 대신 받는 경우는 인원 제한 없는 행사장 접수로 안내한다
-          if (!isSchedule && widget.existing == null) ...[
-            const Text("다른 사람 행사의 돈을 대신 받나요? '행사장 접수'는 인원 제한 없이 무료예요",
-                style: AppText.sub),
-            const SizedBox(height: 8),
-            TestId(
-              'btn_go_reception',
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute<void>(
-                        builder: (_) => const ReceptionFormScreen())),
-                icon: const Icon(Icons.edit_note),
-                label: const Text('행사장 접수로 가기'),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const AppDivider(),
-            const SizedBox(height: 20),
-          ],
           if (widget.existing != null) ...[
             SegmentedButton<bool>(
               showSelectedIcon: false,

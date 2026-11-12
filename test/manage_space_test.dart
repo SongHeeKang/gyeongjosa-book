@@ -18,7 +18,12 @@ void main() {
 
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('manage_space'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() {
+    // Windows에서는 sqlite가 파일을 늦게 놓기도 한다. 임시 폴더라 못 지워도 괜찮다.
+    try {
+      dir.deleteSync(recursive: true);
+    } on FileSystemException catch (_) {}
+  });
 
   Person person(String name) =>
       Person(name: name, relation: '친구', createdAt: DateTime(2026, 11, 5));

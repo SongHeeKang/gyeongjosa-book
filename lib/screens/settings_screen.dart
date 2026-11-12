@@ -103,7 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await _run(() async {
       final repo = ref.read(repositoryProvider);
       final records = await repo.allRecords();
-      // 내 행사로 아직 옮기지 않은 접수 장부도 함께 넣는다
+      // 내 행사로 아직 옮기지 않은 대신 받은 장부도 함께 넣는다
       final receptions = [
         for (final s in await repo.receptionSummaries())
           if (!s.reception.imported) await repo.getReceptionPackage(s.reception.id),

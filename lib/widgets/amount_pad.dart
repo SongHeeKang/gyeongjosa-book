@@ -8,7 +8,7 @@ import 'test_id.dart';
 import 'amount_input.dart';
 import 'common.dart';
 
-/// 행사장 접수와 받은 명단 직접 입력이 함께 쓰는 금액 입력 묶음.
+/// 받은 돈 적기 화면(내 행사 · 대신 받기)이 쓰는 금액 입력 묶음.
 /// 한쪽을 고치면 다른 쪽도 같이 바뀐다.
 
 /// 키보드와 제목을 뺀 공간이 아주 작은 폰: 금액 패드를 낮추고 확인 줄을 뺀다.
@@ -89,15 +89,17 @@ class RecentSavedItem {
     required this.id,
     required this.name,
     required this.amount,
-    required this.savedAt,
+    this.savedAt,
     this.details = const [],
   });
   final Object id;
   final String name;
   final int amount;
-  final DateTime savedAt;
 
-  /// 금액과 시각 사이에 넣을 내용 (식권, 계좌 등)
+  /// 저장 시각. 모르면(예전에 적은 내 행사 기록) 표시하지 않는다.
+  final DateTime? savedAt;
+
+  /// 금액과 시각 사이에 넣을 내용 (식권, 계좌 등). ' · '는 알아서 넣는다.
   final List<InlineSpan> details;
 }
 
@@ -416,10 +418,11 @@ class _RecentSavedListState extends State<RecentSavedList>
           Expanded(
             child: Text.rich(
               TextSpan(children: [
-                TextSpan(
-                    text: '${item.name} · ${formatManWon(item.amount)} · '),
-                ...item.details,
-                TextSpan(text: formatTime(item.savedAt)),
+                TextSpan(text: '${item.name} · ${formatManWon(item.amount)}'),
+                for (final d in [
+                  ...item.details,
+                  if (item.savedAt case final at?) TextSpan(text: formatTime(at)),
+                ]) ...[const TextSpan(text: ' · '), d],
               ]),
               style: latest ? AppText.body : AppText.sub,
               maxLines: 1,

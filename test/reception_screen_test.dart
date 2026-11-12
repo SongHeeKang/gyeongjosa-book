@@ -6,11 +6,13 @@ import 'package:gyeongjosa/data/providers.dart';
 import 'package:gyeongjosa/data/repository.dart';
 import 'package:gyeongjosa/models/event.dart';
 import 'package:gyeongjosa/models/constants.dart';
+import 'package:gyeongjosa/models/person.dart';
 import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
 import 'package:gyeongjosa/screens/reception_import_screen.dart';
-import 'package:gyeongjosa/screens/reception_screen.dart';
+import 'package:gyeongjosa/screens/receive_money_screen.dart';
+import 'package:gyeongjosa/services/receive_targets.dart';
 import 'package:gyeongjosa/services/limits.dart';
 import 'package:gyeongjosa/services/reception_import.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
@@ -21,6 +23,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 화면 동작만 확인하는 메모리 저장소
 class FakeRepository extends Repository {
   FakeRepository() : super(DatabaseHelper.forTest('unused.db'));
+
+  /// 대신 받기는 사람 목록에 넣지 않는다. 넣으려 하면 센다.
+  int peopleInserted = 0;
+  @override
+  Future<int> insertPerson(Person person) async => ++peopleInserted;
 
   Reception reception = Reception(
     id: 'r1',
@@ -156,7 +163,7 @@ void main() {
                   context,
                   MaterialPageRoute<void>(
                       builder: (_) =>
-                          const ReceptionScreen(receptionId: 'r1'))),
+                          ReceiveMoneyScreen(target: ReceptionTarget('r1')))),
               child: const Text('열기'),
             ),
           ),
@@ -543,10 +550,10 @@ void main() {
       expect(sidesField(tester).controller!.text, '양가 어른');
     });
 
-    testWidgets('식권과 결제 방법을 모두 골라야 접수 시작이 눌린다', (tester) async {
+    testWidgets('식권과 결제 방법을 모두 골라야 받기 시작이 눌린다', (tester) async {
       await openForm(tester);
       FilledButton start() => tester.widget<FilledButton>(
-          find.widgetWithText(FilledButton, '접수 시작'));
+          find.widgetWithText(FilledButton, '받기 시작'));
       expect(start().onPressed, isNull);
       expect(find.text('1매'), findsNothing);
 
@@ -591,18 +598,18 @@ void main() {
     expect(repo.entries, isEmpty);
   });
 
-  testWidgets('뒤로가기는 확인을 묻고, 접수 중에는 결제 화면이 뜨지 않는다', (tester) async {
+  testWidgets('뒤로가기는 확인을 묻고, 대신 받는 중에는 결제 화면이 뜨지 않는다', (tester) async {
     await open(tester);
 
     await tester.pageBack();
     await tester.pumpAndSettle();
-    expect(find.text('접수를 잠시 멈출까요?'), findsOneWidget);
-    expect(find.byType(ReceptionScreen), findsOneWidget);
+    expect(find.text('받은 돈 적기를 잠시 멈출까요?'), findsOneWidget);
+    expect(find.byType(ReceiveMoneyScreen), findsOneWidget);
     expect(find.byType(PaywallScreen), findsNothing);
 
     await tester.tap(find.text('멈추기'));
     await tester.pumpAndSettle();
-    expect(find.byType(ReceptionScreen), findsNothing);
+    expect(find.byType(ReceiveMoneyScreen), findsNothing);
   });
 
   group('받은 장부 가져오기 한도', () {
@@ -673,7 +680,7 @@ void main() {
     });
   });
 
-  testWidgets('접수 중에는 사람 40명을 넘게 받아도 결제 화면이 뜨지 않는다', (tester) async {
+  testWidgets('대신 받기는 40명을 넘게 받아도 결제 화면이 없고 사람 목록에 들어가지 않는다', (tester) async {
     final repo = await open(tester);
     for (var i = 0; i < 40; i++) {
       await tester.enterText(find.byType(TextField).first, '손님$i');
@@ -682,5 +689,7 @@ void main() {
     }
     expect(repo.entries.length, 40);
     expect(find.byType(PaywallScreen), findsNothing);
+    expect(repo.peopleInserted, 0);
+    expect(find.text('대신 받기 · 홍길동 결혼식'), findsOneWidget);
   });
 }

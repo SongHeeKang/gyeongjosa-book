@@ -9,8 +9,8 @@ import 'package:gyeongjosa/models/event.dart';
 import 'package:gyeongjosa/models/gift_record.dart';
 import 'package:gyeongjosa/models/person.dart';
 import 'package:gyeongjosa/models/reception.dart';
-import 'package:gyeongjosa/screens/quick_entry_screen.dart';
-import 'package:gyeongjosa/screens/reception_screen.dart';
+import 'package:gyeongjosa/screens/receive_money_screen.dart';
+import 'package:gyeongjosa/services/receive_targets.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:gyeongjosa/widgets/amount_pad.dart';
@@ -56,7 +56,19 @@ class _FakeRepository extends Repository {
   @override
   Future<Event?> getEvent(int id) async => _event;
   @override
-  Future<List<GiftRecord>> recordsForEvent(int eventId) async => records;
+  // 실제 DB처럼 최신이 앞이고 사람 이름이 붙어 있다
+  Future<List<GiftRecord>> recordsForEvent(int eventId) async => [
+        for (final (i, r) in records.indexed.toList().reversed)
+          GiftRecord(
+            id: i + 1,
+            personId: r.personId,
+            eventId: r.eventId,
+            direction: r.direction,
+            amount: r.amount,
+            date: r.date,
+            personName: people[r.personId - 1].name,
+          ),
+      ];
   // 접수 화면 비교용
   @override
   Future<ReceptionPackage?> getReceptionPackage(String id) async =>
@@ -100,11 +112,12 @@ void main() {
 
   Finder nameField() => find.widgetWithText(TextField, '이름');
   Finder amountField() => find.widgetWithText(TextField, '금액');
-  final quick = QuickEntryScreen(event: _event);
+  // 받은 돈 적기 > 내 행사 (예전 '받은 명단 직접 입력' 자리)
+  const quick = ReceiveMoneyScreen(target: MyEventTarget(1));
 
-  testWidgets('금액 버튼 8개의 글자 · 크기 · 위치가 행사장 접수와 같고 칩은 없다', (tester) async {
+  testWidgets('내 행사와 대신 받기의 금액 버튼 8개가 같고, 식권을 끈 내 행사는 칩이 없다', (tester) async {
     const labels = ['5만', '10만', '15만', '20만', '25만', '30만', '50만', '100만'];
-    await open(tester, const ReceptionScreen(receptionId: 'r1'));
+    await open(tester, ReceiveMoneyScreen(target: ReceptionTarget('r1')));
     final reception = {
       for (final l in labels) l: tester.getRect(find.text(l)),
     };

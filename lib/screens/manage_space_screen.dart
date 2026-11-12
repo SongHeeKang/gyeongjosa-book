@@ -117,7 +117,7 @@ class _ManageSpaceScreenState extends State<ManageSpaceScreen> {
               [
                 '사람 ${counts.people}명',
                 '기록 ${counts.records}건',
-                if (counts.entries > 0) '접수 ${counts.entries}건',
+                if (counts.entries > 0) '대신 받기 ${counts.entries}건',
               ].join(' · '),
               style: AppText.summaryAmount,
             ),

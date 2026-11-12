@@ -19,7 +19,8 @@ import '../widgets/person_name_field.dart';
 import '../widgets/record_form_sheet.dart';
 import '../widgets/screen_coach.dart';
 
-/// 빠른 연속 입력: 이름 → 금액 버튼 탭(바로 저장) → 다음 이름.
+/// 빠른 연속 입력(남의 행사에 보낸 돈): 이름 → 금액 버튼 탭(바로 저장) → 다음 이름.
+/// 받은 돈은 받은 돈 적기 화면(ReceiveMoneyScreen)에서 적는다.
 /// 축의금 봉투 100개를 빠르게 입력하는 게 목표.
 class QuickEntryScreen extends ConsumerStatefulWidget {
   const QuickEntryScreen({super.key, required this.event});
@@ -249,7 +250,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.event.isMine ? '받은 명단 직접 입력' : '빠른 연속 입력'),
+        title: const Text('빠른 연속 입력'),
         actions: [
           HelpButton(
               screen: CoachScreen.quickEntry,

@@ -26,12 +26,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     ),
     (
       '연필 버튼 하나면 돼요',
-      '보냈어요 · 일정 추가 · 받은 명단 직접 입력 · 행사장 접수',
+      '보냈어요 · 일정 추가 · 받은 돈 적기',
       _ButtonPicture(),
     ),
     (
-      '결혼식 · 장례식\n접수대에서도 바로',
-      '손님 이름을 적고 금액만 누르면 저장돼요.\n끝나면 혼주에게 장부를 보내요.',
+      '내 행사도, 대신 받을 때도',
+      '손님 이름을 적고 금액만 누르면 저장돼요. 대신 받았다면 끝나고 혼주에게 장부를 보내요',
       _ReceptionPicture(),
     ),
     (
@@ -199,7 +199,7 @@ class _PersonPicture extends StatelessWidget {
   }
 }
 
-/// 2장 그림: 연필 버튼과 선택지 4개
+/// 2장 그림: 연필 버튼과 카드 3개
 class _ButtonPicture extends StatelessWidget {
   const _ButtonPicture();
 
@@ -208,8 +208,7 @@ class _ButtonPicture extends StatelessWidget {
     const items = [
       (Icons.card_giftcard, '보냈어요'),
       (Icons.event_outlined, '일정 추가'),
-      (Icons.playlist_add, '받은 명단 직접 입력'),
-      (Icons.assignment_outlined, '행사장 접수'),
+      (Icons.playlist_add, '받은 돈 적기'),
     ];
     return SizedBox(
       width: 280,
@@ -240,7 +239,7 @@ class _ButtonPicture extends StatelessWidget {
   }
 }
 
-/// 3장 그림: 접수 화면을 작게 줄인 카드와 사용 순서 3단계.
+/// 3장 그림: 받은 돈 적기 화면을 작게 줄인 카드와 사용 순서 3단계.
 /// 눌러지는 것처럼 보이지만 그림이므로 화면 읽기 대상에서 뺀다.
 class _ReceptionPicture extends StatelessWidget {
   const _ReceptionPicture();

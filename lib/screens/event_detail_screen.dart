@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../services/event_package.dart';
 import '../services/format.dart';
+import '../services/notification_permission.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
@@ -88,7 +89,10 @@ class EventDetailScreen extends ConsumerWidget {
                           formatDate(e.date),
                           if ((e.place ?? '').isNotEmpty) e.place!,
                           if ((e.memo ?? '').isNotEmpty) e.memo!,
-                          if (e.notify) '전날 오전 9시 알림',
+                          if (e.notify)
+                            ref.watch(notificationPermissionProvider)
+                                ? '전날 오전 9시 알림'
+                                : '전날 알림 꺼짐 (알림 권한 없음)',
                         ].join('\n'),
                         style: AppText.sub.copyWith(height: 1.6),
                       ),

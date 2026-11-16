@@ -16,6 +16,7 @@ import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/screens/event_form_screen.dart';
 import 'package:gyeongjosa/screens/home_screen.dart';
 import 'package:gyeongjosa/screens/main_shell.dart';
+import 'package:gyeongjosa/services/notification_service.dart';
 import 'package:gyeongjosa/screens/my_events_screen.dart';
 import 'package:gyeongjosa/screens/onboarding_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
@@ -627,5 +628,95 @@ void main() {
       }
     }
     expect(hits, isEmpty);
+  });
+
+  // 앱을 켤 때 알림 권한 확인. 권한이 없고 허용하지 않으면 행사 알림을 쓸 수 없다.
+  group('알림 권한', () {
+    var enabled = false;
+    var requests = 0;
+
+    setUp(() {
+      enabled = false;
+      requests = 0;
+      NotificationService.debugAreEnabled = () async => enabled;
+      NotificationService.debugRequest = () async {
+        requests++;
+        // 허용 창이 떠 있는 것처럼 잠깐 기다린다
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        return enabled;
+      };
+    });
+    tearDown(() {
+      NotificationService.debugAreEnabled = null;
+      NotificationService.debugRequest = null;
+    });
+
+    Future<void> pumpApp(WidgetTester tester, Widget home) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.625;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({
+        'flutter.${PrefKeys.restorePromptDone}': true,
+        'flutter.coach_seen_home': true,
+      });
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          repositoryProvider.overrideWithValue(FakeRepository()),
+        ],
+        child: MaterialApp(theme: buildAppTheme(), home: home),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('권한이 있으면 아무것도 묻지 않고 그냥 진행한다', (tester) async {
+      enabled = true;
+      await pumpApp(tester, const MainShell());
+      expect(find.text('알림을 허용해 주세요'), findsNothing);
+      expect(requests, 0);
+    });
+
+    testWidgets('권한이 없으면 앱을 켤 때 묻고, 허용하면 그냥 진행한다', (tester) async {
+      await pumpApp(tester, const MainShell());
+      expect(find.text('알림을 허용해 주세요'), findsOneWidget);
+      enabled = true; // 허용 창에서 '허용'
+      await tester.tap(find.text('허용하기'));
+      await tester.pump(const Duration(seconds: 1)); // 허용 창이 닫힐 때까지
+      await tester.pumpAndSettle();
+      expect(requests, 1);
+      expect(find.text('알림을 허용해 주세요'), findsNothing);
+      expect(find.text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.'), findsNothing);
+    });
+
+    testWidgets('허용하지 않으면 안내하고, 행사 전날 알림 스위치를 쓸 수 없다', (tester) async {
+      await pumpApp(tester, const MainShell());
+      await tester.tap(find.text('허용 안 함'));
+      await tester.pumpAndSettle();
+      expect(requests, 0);
+      expect(find.text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.'), findsOneWidget);
+
+      await pumpApp(tester, const EventFormScreen());
+      final sw = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
+      expect(sw.value, isFalse);
+      expect(sw.onChanged, isNull);
+      expect(find.text('알림 권한이 없어 쓸 수 없어요'), findsOneWidget);
+      expect(find.text('알림 허용하기'), findsOneWidget);
+    });
+
+    testWidgets('일정 화면의 [알림 허용하기]로 허용하면 스위치가 켜진다', (tester) async {
+      await pumpApp(tester, const EventFormScreen());
+      await tester.ensureVisible(find.text('알림 허용하기'));
+      await tester.tap(find.text('알림 허용하기'));
+      await tester.pumpAndSettle();
+      enabled = true;
+      await tester.tap(find.text('허용하기'));
+      await tester.pump(const Duration(seconds: 1)); // 허용 창이 닫힐 때까지
+      await tester.pumpAndSettle();
+      final sw = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
+      expect(sw.value, isTrue);
+      expect(sw.onChanged, isNotNull);
+      expect(find.text('알림 허용하기'), findsNothing);
+    });
   });
 }

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/event.dart';
-import 'settings_service.dart';
 
 /// 행사 전날 오전 9시 알림.
 /// - 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle) 사용 → 9시 전후 몇 분 차이 가능
@@ -101,42 +99,31 @@ class NotificationService {
     );
   }
 
-  Future<bool> areEnabled() async =>
-      await _android?.areNotificationsEnabled() ?? true;
+  /// 테스트에서 휴대폰의 알림 허용 상태와 허용 창의 답을 흉내 낸다.
+  @visibleForTesting
+  static Future<bool> Function()? debugAreEnabled;
+  @visibleForTesting
+  static Future<bool> Function()? debugRequest;
 
-  /// Android 13 이상: 알림을 처음 켤 때 이유를 설명하고 권한을 요청한다.
-  /// 허용되면 true.
-  Future<bool> ensurePermission(
-      BuildContext context, SharedPreferences prefs) async {
-    if (await areEnabled()) return true;
-    if (!context.mounted) return false;
-
-    final asked = prefs.getBool(PrefKeys.notifPermissionAsked) ?? false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('알림을 허용해 주세요'),
-        content: Text(asked
-            ? '알림이 꺼져 있어요.\n행사 전날 오전 9시에 알려드리려면 알림 허용이 필요해요.'
-            : '행사 전날 오전 9시에 "내일 ○○ 결혼식이에요" 하고 알려드려요.\n다음 화면에서 알림을 허용해 주세요.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('나중에')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('허용하기')),
-        ],
-      ),
-    );
-    await prefs.setBool(PrefKeys.notifPermissionAsked, true);
-    if (ok != true) return false;
-    final granted = await _android?.requestNotificationsPermission() ?? false;
-    if (!granted && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('알림이 꺼져 있어요. 휴대폰 설정 > 앱 > 경조사 장부 > 알림에서 켤 수 있어요.'),
-      ));
+  /// 알림이 허용되어 있는지. 확인할 수 없으면(테스트 등) 허용으로 본다.
+  Future<bool> areEnabled() async {
+    if (debugAreEnabled case final fake?) return fake();
+    try {
+      return await _android?.areNotificationsEnabled() ?? true;
+    } catch (e) {
+      debugPrint('알림 권한 확인 실패: $e');
+      return true;
     }
-    return granted;
+  }
+
+  /// 안드로이드의 알림 허용 창을 띄운다 (13 이상). 허용되면 true.
+  Future<bool> requestPermission() async {
+    if (debugRequest case final fake?) return fake();
+    try {
+      return await _android?.requestNotificationsPermission() ?? false;
+    } catch (e) {
+      debugPrint('알림 권한 요청 실패: $e');
+      return false;
+    }
   }
 }

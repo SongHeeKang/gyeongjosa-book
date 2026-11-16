@@ -9,6 +9,9 @@ class PrefKeys {
   static const lastBackupAt = 'last_backup_at';
   static const backupBannerDismissedAt = 'backup_banner_dismissed_at';
   static const notifPermissionAsked = 'notif_permission_asked';
+
+  /// 알림 허용 창에서 거절한 횟수. 두 번이면 안드로이드가 창을 더 띄우지 않아 설정으로 보낸다.
+  static const notifDeniedCount = 'notif_denied_count';
   static const proPurchased = 'pro_purchased';
   static const devProOverride = 'dev_pro_override';
   static const quickEntryRelation = 'quick_entry_relation';

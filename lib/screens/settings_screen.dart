@@ -12,6 +12,7 @@ import '../services/auto_backup_service.dart';
 import '../services/backup_service.dart';
 import '../services/csv_service.dart';
 import '../services/format.dart';
+import '../services/notification_permission.dart';
 import '../services/notification_service.dart';
 import '../services/pro_service.dart';
 import '../services/purchase_service.dart';
@@ -318,8 +319,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           leading: const Icon(Icons.notifications_active_outlined, size: 24),
           title: const Text('알림 테스트 (지금 바로)'),
           onTap: () async {
-            await NotificationService.instance
-                .ensurePermission(context, ref.read(prefsProvider));
+            if (!await askNotificationPermission(context, ref)) return;
             await NotificationService.instance.showTest();
           },
         )),

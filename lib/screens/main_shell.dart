@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
+import '../services/notification_permission.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
@@ -42,10 +43,36 @@ class _MainShellState extends ConsumerState<MainShell> {
     CoachScreen.stats,
   ];
 
+  late final AppLifecycleListener _lifecycle;
+
+  /// 이번 실행에서 알림 권한을 확인했는지 (앱을 켤 때 한 번)
+  bool _permissionChecked = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showTabCoach());
+    // 휴대폰 설정에서 알림을 켜고 돌아오면 바로 반영한다
+    _lifecycle = AppLifecycleListener(
+        onResume: () =>
+            ref.read(notificationPermissionProvider.notifier).refresh());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _afterStart());
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  /// 앱을 켜면 알림 권한부터 확인한다. 이전 백업을 묻는 단계가 끝난 뒤에 묻고,
+  /// 권한이 있으면 아무것도 묻지 않는다. 그다음 탭 도움말.
+  Future<void> _afterStart() async {
+    if (!mounted) return;
+    if (!_permissionChecked && ref.read(restorePromptDoneProvider)) {
+      _permissionChecked = true;
+      await askNotificationPermission(context, ref, atLaunch: true);
+    }
+    _showTabCoach();
   }
 
   void _showTabCoach() {
@@ -59,7 +86,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   Widget build(BuildContext context) {
     // 이전 백업을 불러올지 묻는 단계가 끝나면 홈 도움말을 띄운다
     ref.listen(restorePromptDoneProvider, (_, done) {
-      if (done) _showTabCoach();
+      if (done) _afterStart();
     });
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     // 홈에 기록이 하나도 없을 때만 버튼 바로 위에 화살표를 띄운다

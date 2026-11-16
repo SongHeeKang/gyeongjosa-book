@@ -7,8 +7,8 @@ import '../models/event.dart';
 import '../models/person.dart';
 import '../services/format.dart';
 import '../services/limit_service.dart';
+import '../services/notification_permission.dart';
 import '../services/notification_service.dart';
-import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
@@ -50,6 +50,9 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     _date = e?.date ?? DateTime.now();
     _isMine = e?.isMine ?? widget.initialIsMine;
     _notify = e?.notify ?? true; // 전날 알림 기본 켜짐
+    // 휴대폰 설정에서 바꿨을 수 있으니 열 때마다 다시 확인한다
+    Future.microtask(
+        () => ref.read(notificationPermissionProvider.notifier).refresh());
     _title.text = e?.title ?? '';
     _place.text = e?.place ?? '';
     _memo.text = e?.memo ?? '';
@@ -81,11 +84,12 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  Future<void> _onNotifyChanged(bool value) async {
-    setState(() => _notify = value);
-    if (value) {
-      await NotificationService.instance
-          .ensurePermission(context, ref.read(prefsProvider));
+  void _onNotifyChanged(bool value) => setState(() => _notify = value);
+
+  /// 알림 권한이 없으면 전날 알림을 쓸 수 없다. 권한을 받으면 스위치가 켜진다.
+  Future<void> _askPermission() async {
+    if (await askNotificationPermission(context, ref) && mounted) {
+      setState(() => _notify = true);
     }
   }
 
@@ -133,11 +137,6 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     if (becomesMine && !await LimitService.canCreateMyEvent(context, ref)) return;
     if (!mounted) return;
 
-    // 처음 알림을 켤 때 한 번만 이유를 설명하고 권한 요청 (스위치를 다시 켜면 또 물어봄)
-    final prefs = ref.read(prefsProvider);
-    if (_notify && prefs.getBool(PrefKeys.notifPermissionAsked) != true) {
-      await NotificationService.instance.ensurePermission(context, prefs);
-    }
     final repo = ref.read(repositoryProvider);
     var event = Event(
       id: widget.existing?.id,
@@ -147,7 +146,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       isMine: _isMine,
       place: _place.text.trim().isEmpty ? null : _place.text.trim(),
       memo: _memo.text.trim().isEmpty ? null : _memo.text.trim(),
-      notify: _notify,
+      // 알림 권한이 없으면 전날 알림은 꺼진 채로 저장한다
+      notify: _notify && ref.read(notificationPermissionProvider),
       personId: personId,
       pendingHidden: widget.existing?.pendingHidden ?? false,
     );
@@ -166,6 +166,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   Widget build(BuildContext context) {
     final reminder = NotificationService.reminderTime(_date);
     final reminderPast = !reminder.isAfter(DateTime.now());
+    final notifAllowed = ref.watch(notificationPermissionProvider);
     final isSchedule = widget.isSchedule;
     final people = ref.watch(allPeopleProvider).value ?? const <Person>[];
     final hasName = _name.text.trim().isNotEmpty;
@@ -251,15 +252,27 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             )),
           ],
           const SizedBox(height: 12),
+          // 알림 권한이 없으면 스위치를 막고 권한부터 받게 한다
           TestId('switch_notify', child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('전날 오전 9시 알림', style: AppText.listName),
-            subtitle: Text(reminderPast
-                ? '이미 지난 날짜라 알림이 울리지 않아요'
-                : '${formatShortDate(reminder)} 오전 9시쯤 알려드려요'),
-            value: _notify,
-            onChanged: _onNotifyChanged,
+            subtitle: Text(!notifAllowed
+                ? '알림 권한이 없어 쓸 수 없어요'
+                : reminderPast
+                    ? '이미 지난 날짜라 알림이 울리지 않아요'
+                    : '${formatShortDate(reminder)} 오전 9시쯤 알려드려요'),
+            value: notifAllowed && _notify,
+            onChanged: notifAllowed ? _onNotifyChanged : null,
           )),
+          if (!notifAllowed)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TestId('btn_allow_notify', child: OutlinedButton.icon(
+                onPressed: _askPermission,
+                icon: const Icon(Icons.notifications_outlined),
+                label: const Text('알림 허용하기'),
+              )),
+            ),
           const SizedBox(height: 20),
           TestId('btn_save', child: FilledButton(
             onPressed: _saving ? null : _onSavePressed,

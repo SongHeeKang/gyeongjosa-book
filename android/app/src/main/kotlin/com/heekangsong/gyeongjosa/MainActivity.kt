@@ -2,6 +2,7 @@ package com.heekangsong.gyeongjosa
 
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -26,6 +27,15 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                 }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "gyeongjosa/notifications")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "openSettings") {
+                    openNotificationSettings()
+                    result.success(null)
+                } else {
+                    result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "gyeongjosa/auto_backup")
             .setMethodCallHandler { call, result ->
                 val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
@@ -49,6 +59,18 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** 휴대폰 설정의 이 앱 알림 화면 (알림 허용 창을 두 번 거절한 뒤에는 여기서만 켤 수 있다) */
+    private fun openNotificationSettings() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(android.net.Uri.fromParts("package", packageName, null))
+        }
+        startActivity(intent)
     }
 
     /** 앱이 켜져 있을 때 장부 파일로 다시 열린 경우 */

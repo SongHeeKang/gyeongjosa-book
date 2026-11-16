@@ -56,7 +56,7 @@ class _WhoseEventScreenState extends ConsumerState<WhoseEventScreen> {
       final mine = await repo.myEvents();
       if (!mounted) return;
       if (mine.isNotEmpty) {
-        await Navigator.pushReplacement(
+        await Navigator.push(
             context,
             MaterialPageRoute<void>(
                 builder: (_) => const PickMyEventScreen()));
@@ -67,13 +67,14 @@ class _WhoseEventScreenState extends ConsumerState<WhoseEventScreen> {
       if (id == null || !mounted) return;
       final event = await repo.getEvent(id);
       if (event == null || !mounted) return;
-      await Navigator.pushReplacement(context, myEventReceiveRoute(event));
+      await Navigator.push(context, myEventReceiveRoute(event));
     } finally {
       _busy = false;
     }
   }
 
-  void _other() => Navigator.pushReplacement(
+  // 질문 화면을 아래에 남겨 두어, 뒤로 가면 '누구 행사인가요?'로 돌아온다
+  void _other() => Navigator.push(
       context,
       MaterialPageRoute<void>(builder: (_) => const ReceptionFormScreen()));
 

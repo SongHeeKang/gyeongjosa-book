@@ -304,6 +304,39 @@ void main() {
     });
   });
 
+  group('누구 행사인가요? 에서 고른 뒤 뒤로 가면 질문 화면으로 돌아온다', () {
+    testWidgets('다른 사람 행사 → 행사 설정 → 뒤로', (tester) async {
+      await open(tester, const WhoseEventScreen());
+      await tester.tap(find.text('다른 사람 행사'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ReceptionFormScreen), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('누구 행사인가요?'), findsOneWidget);
+    });
+
+    testWidgets('내 행사(있음) → 어느 행사에 적을까요? → 뒤로', (tester) async {
+      await open(tester, const WhoseEventScreen(), myEvents: 1);
+      await tester.tap(find.text('내 행사'));
+      await tester.pumpAndSettle();
+      expect(find.text('어느 행사에 적을까요?'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('누구 행사인가요?'), findsOneWidget);
+    });
+
+    testWidgets('내 행사(없음) → 만들기 화면 → 뒤로', (tester) async {
+      final repo = await open(tester, const WhoseEventScreen());
+      repo.event = null;
+      await tester.tap(find.text('내 행사'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EventFormScreen), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('누구 행사인가요?'), findsOneWidget);
+    });
+  });
+
   testWidgets('내 행사 만들기 화면에는 대신 받기 안내가 없다', (tester) async {
     await open(tester, const EventFormScreen(initialIsMine: true));
     expect(find.textContaining('대신 받나요'), findsNothing);

@@ -28,8 +28,8 @@ enum LedgerOrder {
 /// - 신부측 152명 · 12,150,000원
 /// 현금 22,000,000원 · 계좌 3,350,000원 · 식권 330장
 ///
-/// 1. 강민호 · 100,000원 · 신랑측 · 현금
-/// 2. 강지은 · 50,000원 · 신부측 · 계좌 · 식권 2 · 메모: 봉투 2개
+/// 1. 강민호 · 100,000원 · 신랑측 · 현금 · 오전 11:52
+/// 2. 강지은 · 50,000원 · 신부측 · 계좌 · 식권 2 · 오후 12:03 · 메모: 봉투 2개
 /// (1/4) 다음 메시지에 이어져요
 ///
 /// 앱으로 정리하려면 이 메시지를 복사해 '경조사 장부' 앱 > 장부 가져오기 > [붙여넣어 가져오기]
@@ -135,7 +135,11 @@ class LedgerText {
     ];
   }
 
-  /// 명단 한 줄 (번호 제외): 이름 · 금액 · 구분 · 방법 · 식권 n · 메모: ...
+  /// 받은 시각이 있는지. 내 행사 기록은 날짜만 있어(자정) 시각을 넣지 않는다.
+  static bool hasTime(DateTime t) =>
+      t.hour != 0 || t.minute != 0 || t.second != 0 || t.millisecond != 0;
+
+  /// 명단 한 줄 (번호 제외): 이름 · 금액 · 구분 · 방법 · 식권 n · 받은 시각 · 메모: ...
   static String entryLine(ReceptionEntry e, ReceptionPackage p,
       {bool includeMemo = true}) {
     final memo = clean(e.memo ?? '');
@@ -145,6 +149,7 @@ class LedgerText {
       if (e.side.isNotEmpty && e.side != ReceptionDefaults.noSide) clean(e.side),
       if (_showsMethod(p)) e.method == ReceptionDefaults.transfer ? '계좌' : '현금',
       if (e.mealTickets > 0) '식권 ${e.mealTickets}',
+      if (hasTime(e.createdAt)) formatTime(e.createdAt),
       if (includeMemo && memo.isNotEmpty) '메모: $memo',
     ].join(_sep);
   }
@@ -159,6 +164,7 @@ class LedgerText {
   static final _amountRe = RegExp(r'^([\d,]+)\s*원$');
   static final _mealRe = RegExp(r'^식권\s*(\d+)\s*(?:장|매)?$');
   static final _memoRe = RegExp(r'^메모\s*:\s*(.*)$');
+  static final _timeRe = RegExp(r'^(오전|오후)\s*(\d{1,2}):(\d{2})$');
   static final _sideTotalRe = RegExp(r'^-\s*(.+?)\s+\d+명\s*·\s*[\d,]+원$');
   static final _skipRes = [
     RegExp(r'^총\s*\d+명'),
@@ -247,6 +253,7 @@ class LedgerText {
     String? method;
     var meals = 0;
     String? memo;
+    Duration? time;
     for (final token in parts.skip(2)) {
       if (token.isEmpty) continue;
       if (token == '현금') {
@@ -255,6 +262,10 @@ class LedgerText {
         method = ReceptionDefaults.transfer;
       } else if (_mealRe.firstMatch(token) case final m?) {
         meals = int.parse(m.group(1)!);
+      } else if (_timeRe.firstMatch(token) case final m?) {
+        // 오전 12:05 → 0시 5분, 오후 12:05 → 12시 5분, 오후 1:05 → 13시 5분
+        final h = int.parse(m.group(2)!) % 12 + (m.group(1) == '오후' ? 12 : 0);
+        time = Duration(hours: h, minutes: int.parse(m.group(3)!));
       } else if (_memoRe.firstMatch(token) case final m?) {
         memo = m.group(1)!.trim();
       } else if (side == null && method == null && meals == 0 && memo == null) {
@@ -263,7 +274,7 @@ class LedgerText {
         return null;
       }
     }
-    return _Row(parts[0], value, side, method, meals, memo);
+    return _Row(parts[0], value, side, method, meals, memo, time);
   }
 
   /// 행사 이름으로 종류를 짐작한다 (글에는 종류가 없다).
@@ -283,13 +294,17 @@ class LedgerText {
 
 class _Row {
   const _Row(
-      this.name, this.amount, this.side, this.method, this.meals, this.memo);
+      this.name, this.amount, this.side, this.method, this.meals, this.memo,
+      this.time);
   final String name;
   final int amount;
   final String? side;
   final String? method;
   final int meals;
   final String? memo;
+
+  /// 받은 시각 (그날 0시부터). 글에 시각이 없으면 null.
+  final Duration? time;
 }
 
 /// 붙여 넣은 글에서 읽은 장부
@@ -347,8 +362,10 @@ class ParsedLedger {
         method: r.method ?? ReceptionDefaults.cash,
         mealTickets: r.meals,
         memo: r.memo == null || r.memo!.isEmpty ? null : r.memo,
-        // 글의 순서를 지키도록 1밀리초씩 늘린다
-        createdAt: day.add(Duration(milliseconds: i)),
+        // 받은 시각이 있으면 그 시각, 없으면 글의 순서를 지키도록 1밀리초씩 늘린다
+        createdAt: r.time == null
+            ? day.add(Duration(milliseconds: i))
+            : day.add(r.time!),
       ));
     }
     return ReceptionPackage(

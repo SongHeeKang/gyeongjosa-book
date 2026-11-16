@@ -85,8 +85,8 @@ void main() {
             '- 신부측 1명 · 50,000원',
             '현금 100,000원 · 계좌 50,000원 · 식권 2장',
             '',
-            '1. 강민호 · 100,000원 · 신랑측 · 현금',
-            '2. 강지은 · 50,000원 · 신부측 · 계좌 · 식권 2 · 메모: 봉투 2개',
+            '1. 강민호 · 100,000원 · 신랑측 · 현금 · 오전 11:00',
+            '2. 강지은 · 50,000원 · 신부측 · 계좌 · 식권 2 · 오후 12:00 · 메모: 봉투 2개',
             '',
             "앱으로 정리하려면 이 메시지를 복사해 '경조사 장부' 앱 > 장부 가져오기 > [붙여넣어 가져오기]",
             '앱 받기: URL',
@@ -97,7 +97,7 @@ void main() {
               order: LedgerOrder.received, includeMemo: false)
           .single;
       expect(received, contains('1. 강민호'));
-      expect(received, contains('2. 강지은 · 50,000원 · 신부측 · 계좌 · 식권 2\n'));
+      expect(received, contains('2. 강지은 · 50,000원 · 신부측 · 계좌 · 식권 2 · 오후 12:00\n'));
       expect(received, isNot(contains('메모')));
     });
 
@@ -189,6 +189,12 @@ void main() {
         expect(back.reception.mealTicketEnabled, isTrue);
         expect(back.reception.eventType, '결혼');
         expect(rows(back), rows(package));
+        // 받은 시각(시 · 분)도 그대로 돌아온다
+        String times(ReceptionPackage p) => [
+              for (final e in LedgerText.sorted(p.entries, LedgerOrder.name))
+                '${e.name} ${e.createdAt.hour}:${e.createdAt.minute}',
+            ].join(',');
+        expect(times(back), times(package));
         expect(back.totals.amount, package.totals.amount);
         expect(back.totals.mealTickets, package.totals.mealTickets);
       }

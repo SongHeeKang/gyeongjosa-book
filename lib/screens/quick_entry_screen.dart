@@ -8,6 +8,7 @@ import '../models/gift_record.dart';
 import '../models/person.dart';
 import '../services/format.dart';
 import '../services/limit_service.dart';
+import '../services/limits.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
@@ -101,7 +102,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       var isNew = false;
       if (person == null) {
         if (!mounted) return;
-        // 31번째 새 사람부터 결제 화면. 닫으면 적은 이름 · 금액을 그대로 두고 돌아온다.
+        // 한도를 넘는 새 사람부터 결제 화면. 닫으면 적은 이름 · 금액을 그대로 두고 돌아온다.
         if (!await LimitService.canAddNewPerson(context, ref)) {
           if (mounted && parseAmount(_amount.text) != amount) {
             _amount.text = formatNumber(amount);
@@ -285,7 +286,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                         child: Text(
                           remainingFree > 0
                               ? '무료로 $remainingFree명 더 적을 수 있어요'
-                              : '무료 30명이 다 찼어요. 이미 등록한 사람은 계속 적을 수 있어요',
+                              : '무료 ${FreeLimits.people}명이 다 찼어요. 이미 등록한 사람은 계속 적을 수 있어요',
                           style: AppText.sub,
                         ),
                       ),

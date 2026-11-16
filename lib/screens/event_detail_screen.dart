@@ -15,9 +15,9 @@ import '../widgets/record_form_sheet.dart';
 import '../widgets/screen_coach.dart';
 import 'event_form_screen.dart';
 import 'quick_entry_screen.dart';
-import 'reception_import_screen.dart';
+import 'ledger_import_screen.dart';
 import 'reception_send_screen.dart';
-import 'whose_event_screen.dart';
+import 'event_routes.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({super.key, required this.eventId});
@@ -149,8 +149,8 @@ class EventDetailScreen extends ConsumerWidget {
                         spot: CoachSpot.eventImport,
                         child: TestId('btn_event_import', child: OutlinedButton.icon(
                           onPressed: () =>
-                              pickAndOpenImport(context, eventId: e.id),
-                          icon: const Icon(Icons.file_download_outlined),
+                              openLedgerImport(context, eventId: e.id),
+                          icon: const Icon(Icons.content_paste_go_outlined),
                           label: const Text('장부 가져오기'),
                         )),
                       ),

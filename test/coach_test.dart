@@ -62,6 +62,8 @@ class _FakeRepository extends Repository {
   @override
   Future<List<Never>> receptionSummaries() async => const [];
   @override
+  Future<List<Never>> myEvents() async => const [];
+  @override
   Future<List<int>> recordYears() async => [DateTime.now().year];
 }
 
@@ -295,14 +297,14 @@ void main() {
     });
   });
 
-  group('받은 돈 적기 도움말 (대신 받기)', () {
+  group('받은 돈 적기 도움말 (다른 사람 행사)', () {
     const text = '이름을 적고 금액을 누르면 바로 저장';
     testWidgets('첫 저장 전에 뜨고 최근 저장 자리까지 가리킨다', (tester) async {
       await pump(tester, ReceiveMoneyScreen(target: ReceptionTarget('r1')));
       await settle(tester);
       expect(find.text(text), findsOneWidget);
       expect(find.text('방금 저장한 손님이 맨 위에'), findsOneWidget);
-      expect(find.text('여기에 저장돼요(내 행사 / 대신 받기)'), findsOneWidget);
+      expect(find.text('여기에 저장돼요(내 행사 / 다른 사람 행사)'), findsOneWidget);
       await tester.tap(find.text('알겠어요'));
       await settle(tester);
       final name = tester.widget<TextField>(find.byType(TextField).first);
@@ -407,8 +409,8 @@ void main() {
       await tester.tap(find.text('받은 돈 적기'));
       await tester.pumpAndSettle();
       expect(find.text('보냈어요'), findsNothing);
-      // 받은 돈 적기는 '누구 행사인가요?'부터 묻는다
-      expect(find.text('누구 행사인가요?'), findsOneWidget);
+      // 행사가 하나도 없으면 받은 돈 적기는 바로 행사 만들기 화면
+      expect(find.text('누구 행사예요?'), findsOneWidget);
     });
 
     testWidgets('처음 열 때 카드를 가리키는 도움말이 뜬다', (tester) async {

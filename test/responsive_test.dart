@@ -19,8 +19,8 @@ import 'package:gyeongjosa/screens/main_shell.dart';
 import 'package:gyeongjosa/screens/onboarding_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/screens/person_detail_screen.dart';
-import 'package:gyeongjosa/screens/pick_my_event_screen.dart';
-import 'package:gyeongjosa/screens/whose_event_screen.dart';
+import 'package:gyeongjosa/screens/ledger_import_screen.dart';
+import 'package:gyeongjosa/screens/pick_event_screen.dart';
 import 'package:gyeongjosa/screens/quick_entry_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
 import 'package:gyeongjosa/screens/reception_import_screen.dart';
@@ -238,7 +238,7 @@ Widget _launcher(Future<void> Function(BuildContext context) open) => Builder(
 final _cases = <_Case>[
   _Case('홈', (_) => const MainShell()),
   _Case('사람 탭', (_) => const MainShell(), open: (t) => _tapText(t, '사람')),
-  _Case('내 행사 탭', (_) => const MainShell(), open: (t) => _tapText(t, '내 행사')),
+  _Case('행사 탭', (_) => const MainShell(), open: (t) => _tapText(t, '행사')),
   _Case('통계 탭', (_) => const MainShell(), open: (t) => _tapText(t, '통계')),
   _Case('기록하기 메뉴', (_) => const MainShell(), open: (t) async {
     await t.tap(find.byTooltip('기록하기'));
@@ -261,11 +261,12 @@ final _cases = <_Case>[
   _Case('일정 전체', (_) => const AllSchedulesScreen()),
   _Case('일정 추가', (_) => const EventFormScreen(), keyboard: true),
   _Case('내 행사 만들기', (_) => const EventFormScreen(initialIsMine: true), keyboard: true),
-  _Case('누구 행사인가요?', (_) => const WhoseEventScreen()),
-  _Case('어느 행사에 적을까요?', (_) => const PickMyEventScreen()),
+  _Case('어느 행사에 적을까요?', (_) => const PickEventScreen()),
   _Case('내 행사 받기 설정', (r) => ReceptionFormScreen.myEvent(event: r.myEvent),
       keyboard: true),
-  _Case('대신 받기 행사 설정', (_) => const ReceptionFormScreen(), open: (t) async {
+  _Case('행사 만들기 (다른 사람 행사)', (_) => const ReceptionFormScreen(), open: (t) async {
+    await t.tap(find.text('다른 사람 행사'));
+    await t.pumpAndSettle();
     // 아래쪽 버튼은 화면 밖이라 아직 그려지지 않았을 수 있어 스크롤해서 찾는다
     await t.scrollUntilVisible(find.text('식권도 기록'), 120,
         scrollable: find.byType(Scrollable).first);
@@ -273,17 +274,17 @@ final _cases = <_Case>[
     await t.tap(find.text('식권도 기록'));
     await t.pumpAndSettle();
   }, keyboard: true),
-  _Case('받은 돈 적기 (대신 받기)',
+  _Case('받은 돈 적기 (다른 사람 행사)',
       (_) => const ReceiveMoneyScreen(target: ReceptionTarget('r1')),
       keyboard: true),
   _Case('받은 돈 적기 (내 행사)',
       (_) => const ReceiveMoneyScreen(target: MyEventTarget(1)),
       keyboard: true),
-  _Case('대신 받은 장부', (_) => const ReceptionSummaryScreen(receptionId: 'r1')),
+  _Case('다른 사람 행사 상세', (_) => const ReceptionSummaryScreen(receptionId: 'r1')),
   _Case('장부 보내기', (r) => ReceptionSendScreen(package: r.package)),
-  _Case('장부 보내기 (요약 메시지)', (r) => ReceptionSendScreen(package: r.package),
-      open: (t) => _tapText(t, '요약 메시지')),
-  _Case('받은 장부 가져오기', (r) => ReceptionImportScreen(package: r.package)),
+  _Case('장부 가져오기 (붙여넣기)', (_) => const LedgerImportScreen()),
+  _Case('받은 장부 가져오기', (r) =>
+      ReceptionImportScreen(package: r.package, unreadableLines: 3)),
   _Case('빠른 연속 입력 (보낸 돈)', (r) => QuickEntryScreen(event: r.schedules.first),
       keyboard: true),
   _Case(

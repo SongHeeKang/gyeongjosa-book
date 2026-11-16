@@ -26,8 +26,8 @@ import 'reception_form_screen.dart';
 import 'reception_summary_screen.dart';
 
 /// 받은 돈 적기: 이름 입력 → 금액 버튼 탭(바로 저장) 또는 금액 입력 후 저장 → 다음 손님.
-/// 내 행사와 다른 사람 행사(대신 받기)가 이 화면 하나를 같이 쓰고, 저장하는 곳만
-/// [ReceiveTarget]에 따라 다르다. 대신 받기에서는 결제 화면을 절대 띄우지 않는다.
+/// 내 행사와 다른 사람 행사가 이 화면 하나를 같이 쓰고, 저장하는 곳만
+/// [ReceiveTarget]에 따라 다르다. 다른 사람 행사에서는 결제 화면을 절대 띄우지 않는다.
 class ReceiveMoneyScreen extends ConsumerStatefulWidget {
   const ReceiveMoneyScreen({super.key, required this.target});
   final ReceiveTarget target;
@@ -250,7 +250,7 @@ class _ReceiveMoneyScreenState extends ConsumerState<ReceiveMoneyScreen> {
   Future<void> _confirmLeave() async {
     final leave = await confirmDialog(context,
         title: '받은 돈 적기를 잠시 멈출까요?',
-        message: '입력한 내용은 저장되어 있어요.\n내 행사 탭에서 다시 들어오면 이어서 적을 수 있어요.',
+        message: '입력한 내용은 저장되어 있어요.\n행사 탭에서 다시 들어오면 이어서 적을 수 있어요.',
         okText: '멈추기');
     if (leave && mounted) Navigator.pop(context);
   }
@@ -406,7 +406,7 @@ class _ReceiveMoneyScreenState extends ConsumerState<ReceiveMoneyScreen> {
                   const SizedBox(height: 12),
                 ],
               ],
-              // 내 행사: 무료 30명이 거의 찼으면 미리 알려준다 (추가 M)
+              // 내 행사: 무료 한도가 거의 찼으면 미리 알려준다 (추가 M)
               if (_target.isMine)
                 if (ref.watch(remainingPeopleProvider).value case final free?
                     when free <= 5)
@@ -498,7 +498,7 @@ class _ReceiveMoneyScreenState extends ConsumerState<ReceiveMoneyScreen> {
   }
 }
 
-/// 저장 위치: "내 행사 · 우리 결혼식" / "대신 받기 · 누나 결혼식"
+/// 저장 위치: "내 행사 · 우리 결혼식" / "다른 사람 행사 · 누나 결혼식"
 class _Place extends StatelessWidget {
   const _Place({required this.label});
   final String label;

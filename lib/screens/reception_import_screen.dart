@@ -17,7 +17,15 @@ import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
 import 'event_detail_screen.dart';
 
-/// 내 행사의 [장부 가져오기]: 파일을 골라 미리보기 화면으로 간다.
+/// 가져오기 결과 (붙여넣어 가져오기 화면으로 돌려준다)
+class ImportResult {
+  const ImportResult(this.eventId, this.title, this.count);
+  final int eventId;
+  final String title;
+  final int count;
+}
+
+/// [예전 장부 파일 가져오기]: JSON 장부 파일을 골라 미리보기 화면으로 간다.
 Future<void> pickAndOpenImport(BuildContext context, {int? eventId}) async {
   try {
     final package = await ReceptionFileService.pick();
@@ -46,14 +54,26 @@ Future<void> pickAndOpenImport(BuildContext context, {int? eventId}) async {
   }
 }
 
-/// 미리보기 → 합칠 내 행사 고르기 → 가져오기
+/// 미리보기 → [새 내 행사로 만들기] 또는 [기존 내 행사에 합치기] → 가져오기.
+/// 붙여넣은 메시지와 예전 장부 파일이 함께 쓴다.
 class ReceptionImportScreen extends ConsumerStatefulWidget {
-  const ReceptionImportScreen(
-      {super.key, required this.package, this.initialEventId});
+  const ReceptionImportScreen({
+    super.key,
+    required this.package,
+    this.initialEventId,
+    this.unreadableLines = 0,
+    this.returnResult = false,
+  });
   final ReceptionPackage package;
 
   /// 내 행사 상세에서 들어오면 그 행사에 합친다.
   final int? initialEventId;
+
+  /// 붙여넣은 글에서 읽지 못하고 건너뛴 줄 수
+  final int unreadableLines;
+
+  /// 가져온 뒤 행사 화면으로 가지 않고 [ImportResult]를 돌려준다(다음 메시지를 이어 붙이도록).
+  final bool returnResult;
 
   @override
   ConsumerState<ReceptionImportScreen> createState() =>
@@ -131,7 +151,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
     );
   }
 
-  /// 사람 30명 한도 처리. 넘으면 안내 후 결제 화면을 띄우고,
+  /// 사람 한도 처리. 넘으면 안내 후 결제 화면을 띄우고,
   /// 결제하지 않으면 한도까지만 가져올지 묻는다. 파일은 그대로 남으니 나중에 마저 가져올 수 있다.
   Future<({bool proceed, int? limit})> _resolvePeopleLimit() async {
     final limit = LimitService.importPeopleLimit(ref);
@@ -147,13 +167,13 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
     if (upgraded) return (proceed: true, limit: null);
     if (!mounted) return (proceed: false, limit: null);
     if (plan.items.isEmpty) {
-      showSnack(context, '프로를 구매한 뒤 같은 파일을 다시 가져올 수 있어요.');
+      showSnack(context, '프로를 구매한 뒤 같은 장부를 다시 가져올 수 있어요.');
       return (proceed: false, limit: null);
     }
     final partial = await confirmDialog(context,
         title: '${plan.items.length}명만 먼저 가져올까요?',
         message:
-            '나머지 ${plan.skippedByLimit}명은 프로를 구매한 뒤 같은 파일을 다시 가져오면 들어와요. 파일을 지우지 말고 보관해 주세요.',
+            '나머지 ${plan.skippedByLimit}명은 프로를 구매한 뒤 같은 메시지(파일)를 다시 가져오면 들어와요. 받은 메시지를 지우지 말고 보관해 주세요.',
         okText: '${plan.items.length}명 가져오기');
     return (proceed: partial, limit: limit);
   }
@@ -178,6 +198,13 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
       if (!mounted) return;
       await _showResult(result.plan);
       if (!mounted) return;
+      if (widget.returnResult) {
+        final title = (await repo.getEvent(result.eventId))?.title ?? '';
+        if (!mounted) return;
+        Navigator.pop(context,
+            ImportResult(result.eventId, title, result.plan.items.length));
+        return;
+      }
       if (widget.initialEventId == result.eventId) {
         Navigator.pop(context);
         return;
@@ -203,7 +230,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
             if (plan.reviewCount > 0)
               '동명이인일 수 있는 ${plan.reviewCount}명은 \'확인 필요\'로 표시했어요.',
             if (plan.skippedByLimit > 0)
-              '${plan.skippedByLimit}명은 아직 못 가져왔어요. 프로를 구매한 뒤 같은 파일을 다시 가져오면 들어와요.',
+              '${plan.skippedByLimit}명은 아직 못 가져왔어요. 프로를 구매한 뒤 같은 메시지(파일)를 다시 가져오면 들어와요.',
           ].join('\n')),
           actions: [
             FilledButton(
@@ -254,6 +281,12 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
                         style: AppText.body.copyWith(color: AppColors.primary)),
                   ),
                 ],
+                if (widget.unreadableLines > 0) ...[
+                  const SizedBox(height: 8),
+                  TestId('import_unreadable', child: Text(
+                      '${widget.unreadableLines}줄을 읽지 못했어요. 그 줄은 빼고 가져와요.',
+                      style: AppText.body)),
+                ],
                 if (plan != null && plan.alreadyImported > 0) ...[
                   const SizedBox(height: 8),
                   Text('이미 가져온 ${plan.alreadyImported}명은 다시 저장하지 않아요.',
@@ -269,7 +302,7 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
           ),
           const SizedBox(height: AppSpacing.section),
           const AppDivider(),
-          const SectionTitle('어느 내 행사에 합칠까요?'),
+          const SectionTitle('어디에 넣을까요?'),
           RadioGroup<int?>(
             groupValue: _eventId,
             onChanged: _select,
@@ -282,13 +315,13 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
                     value: s.event.id,
                     title: Text(s.event.title, style: AppText.listName),
                     subtitle: Text(
-                        '${formatDate(s.event.date)} · 받은 사람 ${s.count}명'),
+                        '기존 내 행사에 합치기 · ${formatDate(s.event.date)} · ${s.count}명'),
                   ),
                 TestId('import_new_event', child: RadioListTile<int?>(
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: AppSpacing.page),
                   value: null,
-                  title: const Text('새 내 행사 만들기', style: AppText.listName),
+                  title: const Text('새 내 행사로 만들기', style: AppText.listName),
                   subtitle: Text(r.title),
                   secondary: locked ? const ProLockMark() : null,
                 )),

@@ -57,7 +57,7 @@ class FakeRepository extends Repository {
       entries.removeWhere((e) => e.id == id);
 }
 
-/// 가져오기 화면용: 사람이 한 명도 없는 상태에서 31명짜리 파일을 가져온다.
+/// 가져오기 화면용: 사람이 한 명도 없는 상태에서 51명짜리 장부를 가져온다.
 class ImportFakeRepository extends Repository {
   ImportFakeRepository() : super(DatabaseHelper.forTest('unused.db'));
 
@@ -72,7 +72,7 @@ class ImportFakeRepository extends Repository {
       startedAt: DateTime(2026, 11, 1),
     ),
     [
-      for (var i = 0; i < 31; i++)
+      for (var i = 0; i < 51; i++)
         ReceptionEntry(
           id: 'e$i',
           receptionId: 'r1',
@@ -92,6 +92,9 @@ class ImportFakeRepository extends Repository {
 
   @override
   Future<int> countMyEvents() async => 0;
+
+  @override
+  Future<int> countPeople() async => 0;
 
   @override
   Future<Event?> getEvent(int id) async => null;
@@ -115,6 +118,7 @@ class ImportFakeRepository extends Repository {
     int? eventId,
     Event? newEvent,
     int? maxPeople,
+    bool removeReception = false,
   }) async {
     appliedLimits.add(maxPeople);
     return (eventId: 1, plan: _plan(maxPeople));
@@ -550,12 +554,19 @@ void main() {
       expect(sidesField(tester).controller!.text, '양가 어른');
     });
 
-    testWidgets('식권과 결제 방법을 모두 골라야 받기 시작이 눌린다', (tester) async {
+    testWidgets('누구 행사인지 · 식권 · 결제 방법을 모두 골라야 받기 시작이 눌린다', (tester) async {
       await openForm(tester);
       FilledButton start() => tester.widget<FilledButton>(
           find.widgetWithText(FilledButton, '받기 시작'));
       expect(start().onPressed, isNull);
       expect(find.text('1매'), findsNothing);
+      // 미리 골라 두지 않는다
+      expect(find.text('누구 행사예요?'), findsOneWidget);
+      expect(find.text('받는 사람 이름'), findsNothing);
+      await tester.tap(find.text('다른 사람 행사'));
+      await tester.pump();
+      expect(find.text('받는 사람 이름'), findsOneWidget);
+      expect(start().onPressed, isNull);
 
       await tester.ensureVisible(find.text('식권도 기록'));
       await tester.tap(find.text('식권도 기록'));
@@ -598,7 +609,7 @@ void main() {
     expect(repo.entries, isEmpty);
   });
 
-  testWidgets('뒤로가기는 확인을 묻고, 대신 받는 중에는 결제 화면이 뜨지 않는다', (tester) async {
+  testWidgets('뒤로가기는 확인을 묻고, 다른 사람 행사를 받는 중에는 결제 화면이 뜨지 않는다', (tester) async {
     await open(tester);
 
     await tester.pageBack();
@@ -636,30 +647,31 @@ void main() {
       return repo;
     }
 
-    testWidgets('무료: 30명을 넘으면 안내와 결제 화면 → 닫으면 30명만 가져올지 묻는다', (tester) async {
+    testWidgets('무료: 50명을 넘으면 안내와 결제 화면 → 닫으면 50명만 가져올지 묻는다', (tester) async {
       final repo = await openImport(tester);
+      expect(find.text('무료로 50명까지 가져올 수 있어요'), findsOneWidget);
 
-      await tester.tap(find.text('31명 가져오기'));
+      await tester.tap(find.text('51명 가져오기'));
       await tester.pumpAndSettle();
       expect(find.byType(PaywallScreen), findsOneWidget);
-      expect(find.text('31명 중 30명까지 가져올 수 있어요.'), findsOneWidget);
+      expect(find.text('51명 중 50명까지 가져올 수 있어요.'), findsOneWidget);
       expect(repo.appliedLimits, isEmpty);
 
       await tester.ensureVisible(find.text('나중에 할게요'));
       await tester.tap(find.text('나중에 할게요'));
       await tester.pumpAndSettle();
-      expect(find.text('30명만 먼저 가져올까요?'), findsOneWidget);
+      expect(find.text('50명만 먼저 가져올까요?'), findsOneWidget);
 
-      await tester.tap(find.text('30명 가져오기'));
+      await tester.tap(find.text('50명 가져오기'));
       await tester.pumpAndSettle();
       expect(repo.appliedLimits, [FreeLimits.people]);
-      expect(find.text('30명을 가져왔어요'), findsOneWidget);
+      expect(find.text('50명을 가져왔어요'), findsOneWidget);
     });
 
     testWidgets('무료: 결제 화면을 닫고 취소하면 아무것도 저장하지 않는다', (tester) async {
       final repo = await openImport(tester);
 
-      await tester.tap(find.text('31명 가져오기'));
+      await tester.tap(find.text('51명 가져오기'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('나중에 할게요'));
       await tester.tap(find.text('나중에 할게요'));
@@ -672,24 +684,25 @@ void main() {
     testWidgets('프로: 결제 화면 없이 전부 가져온다', (tester) async {
       final repo = await openImport(tester, pro: true);
 
-      await tester.tap(find.text('31명 가져오기'));
+      expect(find.textContaining('무료로'), findsNothing);
+      await tester.tap(find.text('51명 가져오기'));
       await tester.pumpAndSettle();
       expect(find.byType(PaywallScreen), findsNothing);
       expect(repo.appliedLimits, [null]);
-      expect(find.text('31명을 가져왔어요'), findsOneWidget);
+      expect(find.text('51명을 가져왔어요'), findsOneWidget);
     });
   });
 
-  testWidgets('대신 받기는 40명을 넘게 받아도 결제 화면이 없고 사람 목록에 들어가지 않는다', (tester) async {
+  testWidgets('다른 사람 행사는 120명을 받아도 결제 화면이 없고 사람 목록에 들어가지 않는다', (tester) async {
     final repo = await open(tester);
-    for (var i = 0; i < 40; i++) {
+    for (var i = 0; i < 120; i++) {
       await tester.enterText(find.byType(TextField).first, '손님$i');
       await tester.tap(find.text('5만'));
       await tester.pumpAndSettle();
     }
-    expect(repo.entries.length, 40);
+    expect(repo.entries.length, 120);
     expect(find.byType(PaywallScreen), findsNothing);
     expect(repo.peopleInserted, 0);
-    expect(find.text('대신 받기 · 홍길동 결혼식'), findsOneWidget);
+    expect(find.text('다른 사람 행사 · 홍길동 결혼식'), findsOneWidget);
   });
 }

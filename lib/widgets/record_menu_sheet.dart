@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../screens/event_form_screen.dart';
-import '../screens/whose_event_screen.dart';
+import '../screens/pick_event_screen.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
@@ -38,9 +38,8 @@ Future<void> showRecordMenu(BuildContext context, WidgetRef ref,
       await Navigator.push(context,
           MaterialPageRoute<void>(builder: (_) => const EventFormScreen()));
     case _RecordAction.received:
-      // 받은 돈 적기: '누구 행사인가요?'부터 묻는다
-      await Navigator.push(context,
-          MaterialPageRoute<void>(builder: (_) => const WhoseEventScreen()));
+      // 받은 돈 적기: '어느 행사에 적을까요?' (행사가 없으면 바로 행사 만들기)
+      await openReceiveMoney(context, ref);
   }
 }
 

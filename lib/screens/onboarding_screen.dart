@@ -30,8 +30,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       _ButtonPicture(),
     ),
     (
-      '내 행사도, 대신 받을 때도',
-      '손님 이름을 적고 금액만 누르면 저장돼요. 대신 받았다면 끝나고 혼주에게 장부를 보내요',
+      '내 행사도, 다른 사람 행사도',
+      '손님 이름을 적고 금액만 누르면 저장돼요. 끝나면 장부를 글자로 보내요',
       _ReceptionPicture(),
     ),
     (

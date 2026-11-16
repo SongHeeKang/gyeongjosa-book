@@ -29,26 +29,26 @@ enum CoachScreen {
     CoachMark(CoachSpot.peopleCard, '주고받은 합계가 한눈에. 누르면 전체 기록'),
   ]),
   myEvents(
-      '내 행사',
+      '행사',
       [
-        CoachMark(CoachSpot.myEventsCreate, '결혼식·돌잔치처럼 내가 받는 행사를 만들어요'),
-        CoachMark(CoachSpot.myEventsFirst, '누르면 받은 명단과 받은 돈 적기 버튼이 나와요'),
+        CoachMark(CoachSpot.myEventsCreate, '내 행사 · 다른 사람 행사를 만들어 받은 돈을 적어요'),
+        CoachMark(CoachSpot.myEventsFirst, '누르면 받은 명단과 장부 보내기 버튼이 나와요'),
       ],
       auto: false),
   eventDetail('내 행사 상세', [
     CoachMark(CoachSpot.eventReceive, '당일 접수대에서도, 끝난 뒤 종이 장부를 옮길 때도 여기서'),
-    CoachMark(CoachSpot.eventImport, '대신 받아 준 사람이 보낸 장부 파일을 합쳐요'),
+    CoachMark(CoachSpot.eventImport, '받은 장부 메시지를 붙여 넣어 합쳐요'),
     CoachMark(CoachSpot.eventSend, '가족에게 명단을 보내요'),
   ]),
   stats('통계', [
     CoachMark(CoachSpot.statsPeriod, '연도를 바꿔 봐요'),
     CoachMark(CoachSpot.statsChart, '보낸 돈과 받은 돈을 비교해요'),
   ]),
-  // 내 행사 · 대신 받기 모두 첫 저장 전에만 자동으로 띄운다 (화면에서 직접 부른다).
+  // 내 행사 · 다른 사람 행사 모두 첫 저장 전에만 자동으로 띄운다 (화면에서 직접 부른다).
   receiveMoney('받은 돈 적기', [
     CoachMark(CoachSpot.receiveAmounts, '이름을 적고 금액을 누르면 바로 저장'),
     CoachMark(CoachSpot.receiveRecent, '방금 저장한 손님이 맨 위에'),
-    CoachMark(CoachSpot.receivePlace, '여기에 저장돼요(내 행사 / 대신 받기)'),
+    CoachMark(CoachSpot.receivePlace, '여기에 저장돼요(내 행사 / 다른 사람 행사)'),
   ]),
   quickEntry('빠른 연속 입력', [
     CoachMark(CoachSpot.quickAmounts, '이름 쓰고 금액을 누르면 저장, 바로 다음 사람'),

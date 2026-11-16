@@ -15,8 +15,10 @@
 - 단계별 요청문(기획서)은 `docs/`의 `경조사비 장부 앱 기획서 & Claude Code 개발 요청문 (3).md`에 있다(파일이 여러 개면 숫자가 가장 큰 것이 최신). 공개 저장소이므로 이 파일은 커밋하지 않는다(.gitignore). Claude Docs 링크는 VS Code에서 읽을 수 없으니 이 파일을 본다.
 - 앱 이름: 경조사 장부 / 패키지: com.heekangsong.gyeongjosa
 - DB 스키마 변경 시 `lib/data/database_helper.dart`의 `_dbVersion`을 올리고 `_migrations`에 단계를 추가한다. 기존 데이터를 지우는 마이그레이션은 금지.
-- 무료 한도: 사람 30명, 내 행사 1개. CSV 내보내기와 관계별·연도별 차트는 프로 전용 (`lib/services/limits.dart`).
-- 접수 모드와 장부 보내기는 무료·무제한이고, 접수 명단은 people에 넣지 않는다. 접수 중에는 결제 화면을 띄우지 않는다. 받은 장부를 가져올 때만 사람 30명 한도를 적용한다(넘으면 안내 후 결제 화면, 파일로 나중에 마저 가져오기).
+- 무료 한도: 사람 50명(`kFreePeopleLimit`, 이 상수 하나만 바꾸면 문구까지 바뀜), 내 행사 1개. CSV 내보내기와 관계별·연도별 차트는 프로 전용 (`lib/services/limits.dart`).
+- 행사는 만들 때 '누구 행사예요?'를 한 번 고른다(`reception_form_screen.dart`). 내 행사는 events + people/records('받음'), 다른 사람 행사는 receptions + reception_entries에만 저장하고 사람 탭 · 통계 · 한도에 넣지 않는다. 다른 사람 행사를 적는 중에는 결제 화면을 띄우지 않는다. 내 행사 한도는 [내 행사]를 고르는 순간 · [내 행사로 바꾸기]를 누르는 순간 검사한다.
+- 장부 보내기는 글자만(파일 없음, 무료). 보내는 글과 붙여넣어 가져오기는 `lib/services/ledger_text_format.dart` 한 곳에서 같은 형식을 쓴다(형식을 바꾸면 `test/ledger_text_test.dart` 왕복 테스트도). 100명(`kShareChunkSize`)씩 나눠 보낸다. share_plus에 subject를 넣지 않는다.
+- 붙여넣어 가져오기만 사람 한도를 적용한다(넘으면 "N명 중 n명까지" 결제 화면, 같은 메시지로 나중에 마저). 같은 줄(행사 이름 · 날짜 · 이름 · 금액 · 구분)은 두 번 저장하지 않는다. 예전 JSON 장부 파일은 [예전 장부 파일 가져오기]로 읽기만 한다. 파일 연결(intent-filter)은 없앴다.
 - 이미 입력한 기록의 보기·수정·삭제는 한도와 상관없이 항상 허용.
 - **Google Play 업로드 전 필수:** 설정의 테스트 도구(isPro 켜기/끄기 등)를 없앤다. `lib/services/app_config.dart`의 `testBuild`를 `false`로 바꾸면 APK·AAB에서 사라진다. 사용자가 출시·AAB·Play Console 업로드를 언급하면 먼저 이 작업을 하자고 요청할 것. `testBuild`가 `true`이면 `flutter build appbundle`은 일부러 실패한다. 이때 테스트 메뉴의 '더미데이터 추가'(`lib/data/dummy_data.dart`, 저장소의 더미 함수)도 사용자에게 알리고 코드째 지운다.
 - Google 드라이브 백업용 OAuth 클라이언트는 'gyeongjosa-book debug'만 등록돼 있다. 8단계 빌드가 끝나면 업로드 키 SHA-1을 알려주고 'gyeongjosa-book upload' 추가를, 첫 AAB 업로드 뒤에는 Play Console 앱 무결성 → 앱 서명 키 인증서 SHA-1로 'gyeongjosa-book play' 추가를 안내한다.

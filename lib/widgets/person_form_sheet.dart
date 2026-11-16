@@ -12,7 +12,7 @@ import 'amount_input.dart';
 import 'common.dart';
 
 /// 사람 추가/수정 창. 새로 추가하면 새 사람의 id, 수정이면 기존 id 를 돌려준다.
-/// 새로 추가할 때는 무료 한도(30명)를 먼저 확인한다.
+/// 새로 추가할 때는 무료 한도(kFreePeopleLimit명)를 먼저 확인한다.
 Future<int?> showPersonForm(BuildContext context, WidgetRef ref,
     {Person? existing}) async {
   if (existing == null && !await LimitService.canAddNewPerson(context, ref)) {

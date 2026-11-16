@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -10,7 +9,7 @@ import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/models/gift_record.dart';
 import 'package:gyeongjosa/services/backup_service.dart';
 import 'package:gyeongjosa/services/event_package.dart';
-import 'package:gyeongjosa/services/reception_file_service.dart';
+import 'package:gyeongjosa/services/ledger_text_format.dart';
 import 'package:gyeongjosa/services/reception_import.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:path/path.dart' as p;
@@ -45,117 +44,9 @@ void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  group('요약 메시지', () {
-    setUpAll(() => initializeDateFormatting('ko_KR'));
+  setUpAll(() => initializeDateFormatting('ko_KR'));
 
-    test('식권 기록을 끄면 식권이 없고, 현금만이면 합계도 나누지 않는다', () {
-      final package = ReceptionPackage(
-        Reception(
-          id: 'r9',
-          title: '돌잔치',
-          eventType: '돌',
-          date: DateTime(2026, 11, 1),
-          sides: const ['전체'],
-          operatorName: '',
-          startedAt: DateTime(2026, 11, 1),
-          mealTicketEnabled: false,
-          methodEnabled: false,
-        ),
-        [
-          ReceptionEntry(
-            id: 'e',
-            receptionId: 'r9',
-            name: '김철수',
-            amount: 50000,
-            side: '전체',
-            mealTickets: 0,
-            createdAt: DateTime(2026, 11, 1),
-          ),
-        ],
-      );
-      final text = ReceptionFileService.summaryMessage(package);
-      expect(text, isNot(contains('식권')));
-      expect(text, isNot(contains('계좌이체')));
-      expect(package.entries.single.recordMemo, isNot(contains('식권')));
-
-      // 파일로 보내고 받아도 설정이 유지된다
-      final parsed = ReceptionPackage.parse(package.toJsonString());
-      expect(parsed.reception.mealTicketEnabled, isFalse);
-      expect(parsed.reception.methodEnabled, isFalse);
-    });
-
-    test('계좌이체를 구분하면 요약에 현금 · 계좌 합계가 나온다', () {
-      final package = ReceptionPackage(
-        Reception(
-          id: 'r9',
-          title: '돌잔치',
-          eventType: '돌',
-          date: DateTime(2026, 11, 1),
-          sides: const ['전체'],
-          operatorName: '',
-          startedAt: DateTime(2026, 11, 1),
-        ),
-        [
-          ReceptionEntry(
-            id: 'a',
-            receptionId: 'r9',
-            name: '김철수',
-            amount: 50000,
-            side: '전체',
-            createdAt: DateTime(2026, 11, 1),
-          ),
-          ReceptionEntry(
-            id: 'b',
-            receptionId: 'r9',
-            name: '이영희',
-            amount: 100000,
-            side: '전체',
-            method: '계좌',
-            createdAt: DateTime(2026, 11, 1),
-          ),
-        ],
-      );
-      expect(ReceptionFileService.summaryMessage(package),
-          contains('현금 50,000원 · 계좌이체 100,000원'));
-    });
-
-    test('총액 · 구분별 소계 · 식권 · 앱 링크가 있고 전체 명단은 없다', () {
-      final text = ReceptionFileService.summaryMessage(ReceptionPackage(
-        reception(),
-        [
-          entry('a', '김철수', amount: 100000),
-          ReceptionEntry(
-              id: 'b',
-              receptionId: 'r1',
-              name: '이영희',
-              amount: 50000,
-              side: '신부측',
-              mealTickets: 2,
-              createdAt: DateTime(2026, 11, 1)),
-        ],
-      ));
-      expect(text, contains('[경조사 장부] 홍길동 결혼식 받은 명단'));
-      expect(text, contains('2026년 11월 1일 (일) · 받은 사람: 김민수'));
-      expect(text, contains('총 2명 · 150,000원'));
-      expect(text, contains('- 신랑측 1명 · 100,000원'));
-      expect(text, contains('- 신부측 1명 · 50,000원'));
-      expect(text, contains('식권 3장'));
-      expect(text,
-          contains('https://play.google.com/store/apps/details?id=com.heekangsong.gyeongjosa'));
-      expect(text, isNot(contains('김철수')));
-      // 받는 사람 안내 (추가 O)
-      expect(text, contains('[장부 파일 받는 방법]'));
-      expect(text, contains("② 함께 보낸 장부 파일(.json)을 눌러 '경조사 장부'로 열기"));
-      expect(text, contains('※ 무료는 30명까지 가져올 수 있어요(이 장부 2명)'));
-      expect(text, contains('※ 카카오톡 파일은 보관 기간이 지나면 받을 수 없어요'));
-      expect(text, isNot(contains('전체 명단은')));
-      // 첫 줄 제목은 한 번만
-      expect('받은 명단'.allMatches(text).length, 1);
-      expect(text, isNot(contains('이영희')));
-    });
-  });
-
-  group('파일 형식', () {
+  group('예전 장부 파일 형식', () {
     test('보내고 읽으면 내용이 같고, 지운 항목은 빠진다', () {
       final text = ReceptionPackage(reception(), [
         entry('a', '김철수', amount: 100000),
@@ -188,11 +79,6 @@ void main() {
         expect(() => ReceptionPackage.parse(bad), throwsFormatException,
             reason: bad);
       }
-    });
-
-    test('파일 이름 규칙: 경조사장부_행사이름_날짜_접수자.json', () {
-      expect(ReceptionFileService.fileName(reception(title: '홍길동/김영희 결혼식')),
-          '경조사장부_홍길동_김영희_결혼식_2026-11-01_김민수.json');
     });
   });
 
@@ -511,7 +397,7 @@ void main() {
       await helper.close();
     });
 
-    test('내 행사로 옮기기: 구분 · 식권이 기록에, 받기 설정이 새 내 행사에 옮겨진다', () async {
+    test('내 행사로 바꾸기: 구분 · 식권이 기록에, 받기 설정이 새 내 행사에 옮겨지고 원래 장부는 지워진다', () async {
       final helper = DatabaseHelper.forTest(p.join(dir.path, 'move.db'));
       final repo = Repository(helper);
       final r = Reception(
@@ -526,6 +412,7 @@ void main() {
         defaultMealTickets: 2,
         methodEnabled: true,
       );
+      await repo.insertReception(r);
       final package = ReceptionPackage(r, [
         ReceptionEntry(
             id: 'x',
@@ -549,7 +436,8 @@ void main() {
             mealTicketEnabled: r.mealTicketEnabled,
             defaultMealTickets: r.defaultMealTickets,
             methodEnabled: r.methodEnabled,
-          ));
+          ),
+          removeReception: true);
       final record = (await repo.recordsForEvent(result.eventId)).single;
       expect(record.side, '신부측');
       expect(record.mealTickets, 3);
@@ -560,11 +448,12 @@ void main() {
       expect(event.defaultMealTickets, 2);
       // 대신 받은 명단은 사람 목록과 따로이고, 옮긴 뒤에만 사람이 생긴다
       expect(await repo.countPeople(), 1);
+      // 바꾼 뒤에는 다른 사람 행사 목록에서 빠진다
+      expect(await repo.getReceptionPackage('r1'), isNull);
       await helper.close();
     });
 
-    test('내 행사 [장부 보내기] 파일은 예전과 같은 형식(version 1)이라 이전 버전 앱에서도 열린다',
-        () async {
+    test('내 행사 [장부 보내기] 글을 붙여넣어 읽으면 같은 명단', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final event = Event(
@@ -597,19 +486,17 @@ void main() {
             date: DateTime(2026, 10, 3),
             personName: '이영희'),
       ];
-      final json = eventPackage(prefs, event, records).toJsonString();
-      final root = jsonDecode(json) as Map;
-      expect(root['format'], 'gyeongjosa_reception');
-      expect(root['version'], 1);
-      // 이전 버전 앱과 같은 읽기 코드로 읽힌다
-      final back = ReceptionPackage.parse(json);
+      final text =
+          LedgerText.build(eventPackage(prefs, event, records)).single;
+      expect(text, startsWith('[경조사 장부] 우리 결혼식 받은 명단'));
+      final back = LedgerText.parse(text)!.toPackage();
+      expect(back.reception.title, '우리 결혼식');
       expect(back.entries.map((e) => e.name), ['김철수', '이영희']);
       expect(back.entries.first.side, '신랑측');
       expect(back.entries.first.mealTickets, 2);
       expect(back.entries.last.method, '계좌');
-      // 같은 내 행사를 다시 보내도 항목 ID가 같아 받는 쪽에서 두 번 들어가지 않는다
-      final again = ReceptionPackage.parse(
-          eventPackage(prefs, event, records).toJsonString());
+      // 같은 글을 다시 읽어도 항목 ID가 같아 두 번 들어가지 않는다
+      final again = LedgerText.parse(text)!.toPackage();
       expect(again.entries.map((e) => e.id), back.entries.map((e) => e.id));
     });
   });

@@ -302,7 +302,7 @@ class Repository {
         .toList();
   }
 
-  /// 대신 받은 장부와 지우지 않은 항목(최신이 앞). 없으면 null.
+  /// 다른 사람 행사 장부와 지우지 않은 항목(최신이 앞). 없으면 null.
   Future<ReceptionPackage?> getReceptionPackage(String id) async {
     final db = await _db;
     final rows = await db.query('receptions', where: 'id = ?', whereArgs: [id]);
@@ -429,11 +429,13 @@ class Repository {
 
   /// 계획대로 내 장부에 넣는다. 도중에 실패하면 아무것도 저장되지 않는다.
   /// [eventId]가 null이면 [newEvent]를 새 장부로 만든다.
+  /// [removeReception]이면 다른 사람 행사를 내 행사로 바꾸는 것이라, 모두 넣은 뒤 원래 장부를 지운다.
   Future<({int eventId, ImportPlan plan})> applyImport(
     ReceptionPackage package, {
     int? eventId,
     Event? newEvent,
     int? maxPeople,
+    bool removeReception = false,
   }) async {
     final db = await _db;
     return db.transaction((txn) async {
@@ -471,7 +473,10 @@ class Repository {
         await txn.insert(
             'imported_entries', {'entry_id': entry.id, 'imported_at': now});
       }
-      if (plan.skippedByLimit == 0) {
+      if (removeReception && plan.skippedByLimit == 0) {
+        await txn.delete('receptions',
+            where: 'id = ?', whereArgs: [package.reception.id]);
+      } else if (plan.skippedByLimit == 0) {
         // 이 기기에서 접수한 장부라면 '옮김'으로 표시
         await txn.update('receptions', {'imported': 1},
             where: 'id = ?', whereArgs: [package.reception.id]);

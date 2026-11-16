@@ -1,5 +1,5 @@
-// 추가 M · P · Q: 무료 한도(사람 30명 · 내 행사 1개)를 받은 돈 적기(내 행사)와
-// 내 행사가 생기는 모든 입구에 똑같이 적용한다.
+// 추가 M · P · Q · R: 무료 한도(사람 50명 · 내 행사 1개)를 받은 돈 적기(내 행사)와
+// 내 행사가 생기는 모든 입구에 똑같이 적용한다. 다른 사람 행사는 한도와 상관없다.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,15 +11,14 @@ import 'package:gyeongjosa/models/gift_record.dart';
 import 'package:gyeongjosa/models/person.dart';
 import 'package:gyeongjosa/models/reception.dart';
 import 'package:gyeongjosa/screens/event_detail_screen.dart';
-import 'package:gyeongjosa/screens/event_form_screen.dart';
 import 'package:gyeongjosa/screens/my_events_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
-import 'package:gyeongjosa/screens/pick_my_event_screen.dart';
+import 'package:gyeongjosa/screens/pick_event_screen.dart';
 import 'package:gyeongjosa/screens/receive_money_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
 import 'package:gyeongjosa/screens/reception_import_screen.dart';
-import 'package:gyeongjosa/screens/whose_event_screen.dart';
 import 'package:gyeongjosa/services/limit_service.dart';
+import 'package:gyeongjosa/services/limits.dart';
 import 'package:gyeongjosa/services/pro_service.dart';
 import 'package:gyeongjosa/services/receive_targets.dart';
 import 'package:gyeongjosa/services/reception_import.dart';
@@ -98,8 +97,9 @@ class _FakeRepository extends Repository {
   @override
   Future<List<EventSummary>> eventSummaries() async =>
       [if (event case final e?) EventSummary(event: e, count: 0, total: 0)];
+  List<ReceptionSummary> receptions = [];
   @override
-  Future<List<ReceptionSummary>> receptionSummaries() async => const [];
+  Future<List<ReceptionSummary>> receptionSummaries() async => receptions;
   @override
   Future<ImportPlan> planImport(ReceptionPackage package,
           {int? eventId, int? maxPeople}) async =>
@@ -110,7 +110,7 @@ void main() {
   setUpAll(() => initializeDateFormatting('ko_KR'));
 
   Future<_FakeRepository> open(WidgetTester tester, Widget home,
-      {int people = 28,
+      {int people = 48,
       bool pro = false,
       Event? event,
       int myEvents = 0}) async {
@@ -145,20 +145,22 @@ void main() {
 
   const myReceive = ReceiveMoneyScreen(target: MyEventTarget(1));
 
-  group('받은 돈 적기 > 내 행사: 사람 30명 한도', () {
-    testWidgets('사람 28명이면 29 · 30번째는 저장되고 31번째에서 결제 화면', (tester) async {
+  group('받은 돈 적기 > 내 행사: 사람 50명 한도', () {
+    testWidgets('사람 48명이면 49 · 50번째는 저장되고 51번째에서 결제 화면', (tester) async {
+      expect(FreeLimits.people, 50);
       final repo = await open(tester, myReceive);
       expect(find.text('무료로 2명 더 적을 수 있어요'), findsOneWidget);
       expect(find.text('내 행사 · 내 결혼식'), findsOneWidget);
 
       await save(tester, '새손님1', '5만');
       await save(tester, '새손님2', '5만');
-      expect(repo.people.length, 30);
+      expect(repo.people.length, 50);
       expect(find.byType(PaywallScreen), findsNothing);
 
       await save(tester, '새손님3', '10만');
       expect(find.byType(PaywallScreen), findsOneWidget);
-      expect(repo.people.length, 30);
+      expect(find.text('무료 버전은 50명까지 등록할 수 있어요.'), findsOneWidget);
+      expect(repo.people.length, 50);
       expect(repo.records.length, 2);
 
       // 결제 화면을 닫으면 적은 이름과 금액이 그대로 남아 있다
@@ -167,7 +169,7 @@ void main() {
       expect(find.byType(PaywallScreen), findsNothing);
       expect(find.text('새손님3'), findsOneWidget);
       expect(find.text('100,000'), findsOneWidget);
-      expect(find.text('무료 30명이 다 찼어요. 이미 등록한 사람은 계속 적을 수 있어요'),
+      expect(find.text('무료 50명이 다 찼어요. 이미 등록한 사람은 계속 적을 수 있어요'),
           findsOneWidget);
     });
 
@@ -185,23 +187,23 @@ void main() {
     });
 
     testWidgets('한도가 차도 이미 등록된 이름은 저장된다 (한도에 세지 않음)', (tester) async {
-      final repo = await open(tester, myReceive, people: 30);
+      final repo = await open(tester, myReceive, people: 50);
       await save(tester, '기존7', '5만');
       expect(find.byType(PaywallScreen), findsNothing);
-      expect(repo.people.length, 30);
+      expect(repo.people.length, 50);
       expect(repo.records.single.personId, 7);
     });
 
-    testWidgets('프로는 31번째도 결제 화면 없이 저장되고 남은 인원 안내가 없다', (tester) async {
-      final repo = await open(tester, myReceive, people: 30, pro: true);
+    testWidgets('프로는 51번째도 결제 화면 없이 저장되고 남은 인원 안내가 없다', (tester) async {
+      final repo = await open(tester, myReceive, people: 50, pro: true);
       expect(find.textContaining('무료로'), findsNothing);
       await save(tester, '새손님', '5만');
       expect(find.byType(PaywallScreen), findsNothing);
-      expect(repo.people.length, 31);
+      expect(repo.people.length, 51);
     });
 
     testWidgets('남은 인원이 6명 이상이면 안내를 보여주지 않는다', (tester) async {
-      await open(tester, myReceive, people: 24);
+      await open(tester, myReceive, people: 44);
       expect(find.textContaining('무료로'), findsNothing);
     });
   });
@@ -217,7 +219,6 @@ void main() {
       expect(find.text('행사장 접수'), findsNothing);
       await tester.tap(find.text('받은 돈 적기'));
       await tester.pumpAndSettle();
-      expect(find.byType(WhoseEventScreen), findsNothing);
       expect(find.byType(ReceiveMoneyScreen), findsOneWidget);
       expect(find.text('4+'), findsOneWidget);
       expect(find.text('계좌'), findsOneWidget);
@@ -246,31 +247,63 @@ void main() {
     });
   });
 
-  group('내 행사가 생기는 입구: 누르는 순간 결제 화면 (내 행사 1개 · 무료)', () {
-    testWidgets('내 행사 탭 [내 행사 만들기]에 자물쇠 · 프로 표시, 누르면 바로 결제 화면',
+  /// 행사 만들기 화면에서 '누구 행사예요?'를 고른다
+  Future<void> whose(WidgetTester tester, String label) async {
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
+  group('내 행사가 생기는 입구: [내 행사]를 고르는 순간 결제 화면 (내 행사 1개 · 무료)', () {
+    testWidgets('행사 탭 [행사 만들기] → 내 행사는 바로 결제 화면, 다른 사람 행사는 통과',
         (tester) async {
       await open(tester, const MyEventsScreen(), myEvents: 1);
-      expect(find.text('프로'), findsOneWidget);
-      await tester.tap(find.text('내 행사 만들기'));
+      expect(find.text('행사'), findsWidgets);
+      await tester.tap(find.text('행사 만들기'));
       await tester.pumpAndSettle();
+      expect(find.byType(ReceptionFormScreen), findsOneWidget);
+      expect(find.byType(PaywallScreen), findsNothing);
+      // 미리 골라 두지 않아 [받기 시작]을 누를 수 없다
+      expect(
+          tester.widget<FilledButton>(find.widgetWithText(FilledButton, '받기 시작'))
+              .onPressed,
+          isNull);
+
+      await whose(tester, '내 행사');
       expect(find.byType(PaywallScreen), findsOneWidget);
-      expect(find.byType(EventFormScreen), findsNothing);
+      expect(find.text('무료 버전은 내 행사를 1개까지 만들 수 있어요.'), findsOneWidget);
       await tester.tap(find.text('나중에 할게요'));
       await tester.pumpAndSettle();
-      expect(find.byType(MyEventsScreen), findsOneWidget);
+      expect(find.byType(ReceptionFormScreen), findsOneWidget);
+
+      await whose(tester, '다른 사람 행사');
+      expect(find.byType(PaywallScreen), findsNothing);
+      expect(find.text('받는 사람 이름'), findsOneWidget);
     });
 
-    testWidgets('받은 돈 적기 > 내 행사 [+ 새 내 행사]도 같다', (tester) async {
-      await open(tester, const PickMyEventScreen(), myEvents: 1);
+    testWidgets('받은 돈 적기 [+ 새 행사 만들기]도 같다', (tester) async {
+      await open(tester, const PickEventScreen(), myEvents: 1);
       expect(find.text('어느 행사에 적을까요?'), findsOneWidget);
-      expect(find.text('프로'), findsOneWidget);
-      await tester.tap(find.text('새 내 행사'));
+      await tester.tap(find.text('새 행사 만들기'));
       await tester.pumpAndSettle();
+      expect(find.byType(PaywallScreen), findsNothing);
+      await whose(tester, '내 행사');
       expect(find.byType(PaywallScreen), findsOneWidget);
-      expect(find.byType(EventFormScreen), findsNothing);
+      await tester.tap(find.text('나중에 할게요'));
+      await tester.pumpAndSettle();
+      await whose(tester, '다른 사람 행사');
+      expect(find.byType(PaywallScreen), findsNothing);
     });
 
-    testWidgets('장부 가져오기 · 내 행사로 옮기기의 새 내 행사 만들기도 같다', (tester) async {
+    testWidgets('내 행사가 없으면 결제 화면 없이 내 행사를 고르고, 받는 사람 이름은 묻지 않는다',
+        (tester) async {
+      await open(tester, const ReceptionFormScreen());
+      await whose(tester, '내 행사');
+      expect(find.byType(PaywallScreen), findsNothing);
+      expect(find.text('받는 사람 이름'), findsNothing);
+      expect(find.text('행사 이름'), findsOneWidget);
+    });
+
+    testWidgets('장부 가져오기의 새 내 행사로 만들기도 같다', (tester) async {
       await open(
           tester,
           ReceptionImportScreen(
@@ -289,58 +322,75 @@ void main() {
           ),
           myEvents: 1);
       expect(find.text('프로'), findsOneWidget);
-      await tester.tap(find.text('새 내 행사 만들기'));
+      await tester.tap(find.text('새 내 행사로 만들기'));
       await tester.pumpAndSettle();
       expect(find.byType(PaywallScreen), findsOneWidget);
     });
-
-    testWidgets('내 행사가 없으면 자물쇠가 없고 바로 만들기 화면', (tester) async {
-      final repo = await open(tester, const WhoseEventScreen());
-      repo.event = null;
-      await tester.tap(find.text('내 행사'));
-      await tester.pumpAndSettle();
-      expect(find.byType(PaywallScreen), findsNothing);
-      expect(find.byType(EventFormScreen), findsOneWidget);
-    });
   });
 
-  group('누구 행사인가요? 에서 고른 뒤 뒤로 가면 질문 화면으로 돌아온다', () {
-    testWidgets('다른 사람 행사 → 행사 설정 → 뒤로', (tester) async {
-      await open(tester, const WhoseEventScreen());
-      await tester.tap(find.text('다른 사람 행사'));
+  group('받은 돈 적기: 어느 행사에 적을까요?', () {
+    Widget opener() => Consumer(
+        builder: (context, ref, _) => Scaffold(
+            body: TextButton(
+                onPressed: () => openReceiveMoney(context, ref),
+                child: const Text('열기'))));
+
+    testWidgets('행사가 없으면 바로 행사 만들기, 뒤로 가면 원래 화면', (tester) async {
+      final repo = await open(tester, opener());
+      repo.event = null;
+      await tester.tap(find.text('열기'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PickEventScreen), findsNothing);
+      expect(find.byType(ReceptionFormScreen), findsOneWidget);
+      expect(find.text('누구 행사예요?'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('열기'), findsOneWidget);
+    });
+
+    testWidgets('내 행사 · 다른 사람 행사가 최근 순으로, 종류 표시와 함께', (tester) async {
+      final repo = await open(tester, opener(), myEvents: 1);
+      repo.receptions = [
+        ReceptionSummary(
+            Reception(
+              id: 'r1',
+              title: '누나 결혼식',
+              eventType: '결혼',
+              date: DateTime(2026, 12, 26),
+              sides: const ['신랑측'],
+              operatorName: '나',
+              startedAt: DateTime(2026, 12, 26),
+            ),
+            3,
+            150000),
+      ];
+      await tester.tap(find.text('열기'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PickEventScreen), findsOneWidget);
+      final other = tester.getTopLeft(find.text('누나 결혼식')).dy;
+      final mine = tester.getTopLeft(find.text('내 결혼식')).dy;
+      expect(other < mine, isTrue, reason: '12월 26일 행사가 위');
+      expect(find.text('내 행사'), findsOneWidget);
+      expect(find.text('다른 사람 행사'), findsOneWidget);
+
+      // 내 행사를 고른 뒤 뒤로 가면 목록으로
+      await tester.tap(find.text('내 결혼식'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ReceiveMoneyScreen), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('멈추기'));
+      await tester.pumpAndSettle();
+      expect(find.text('어느 행사에 적을까요?'), findsOneWidget);
+
+      // 새 행사 만들기 → 뒤로 → 목록
+      await tester.tap(find.text('새 행사 만들기'));
       await tester.pumpAndSettle();
       expect(find.byType(ReceptionFormScreen), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('누구 행사인가요?'), findsOneWidget);
-    });
-
-    testWidgets('내 행사(있음) → 어느 행사에 적을까요? → 뒤로', (tester) async {
-      await open(tester, const WhoseEventScreen(), myEvents: 1);
-      await tester.tap(find.text('내 행사'));
-      await tester.pumpAndSettle();
       expect(find.text('어느 행사에 적을까요?'), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(find.text('누구 행사인가요?'), findsOneWidget);
     });
-
-    testWidgets('내 행사(없음) → 만들기 화면 → 뒤로', (tester) async {
-      final repo = await open(tester, const WhoseEventScreen());
-      repo.event = null;
-      await tester.tap(find.text('내 행사'));
-      await tester.pumpAndSettle();
-      expect(find.byType(EventFormScreen), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(find.text('누구 행사인가요?'), findsOneWidget);
-    });
-  });
-
-  testWidgets('내 행사 만들기 화면에는 대신 받기 안내가 없다', (tester) async {
-    await open(tester, const EventFormScreen(initialIsMine: true));
-    expect(find.textContaining('대신 받나요'), findsNothing);
-    expect(find.textContaining('행사장 접수'), findsNothing);
   });
 
   group('한도 상태 (테스트 메뉴)', () {
@@ -362,7 +412,7 @@ void main() {
       expect(status.isPro, isFalse);
       expect(status.basis, '테스트 스위치');
       expect(status.people, 31);
-      expect(status.summary, contains('사람 31명 / 무료 30명'));
+      expect(status.summary, contains('사람 31명 / 무료 50명'));
     });
 
     test('스위치를 쓰지 않으면 실제 구매 여부를 따른다', () async {

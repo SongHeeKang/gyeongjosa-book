@@ -8,25 +8,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    /** 앱이 꺼져 있을 때 장부 파일로 열린 경우, 화면이 준비되면 가져간다. */
-    private var pendingFile: String? = null
-    private var incomingChannel: MethodChannel? = null
-
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        pendingFile = IncomingFile.read(applicationContext, intent)
-        incomingChannel =
-            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "gyeongjosa/incoming_file")
-                .apply {
-                    setMethodCallHandler { call, result ->
-                        if (call.method == "takePending") {
-                            result.success(pendingFile)
-                            pendingFile = null
-                        } else {
-                            result.notImplemented()
-                        }
-                    }
-                }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "gyeongjosa/notifications")
             .setMethodCallHandler { call, result ->
                 if (call.method == "openSettings") {
@@ -71,13 +54,5 @@ class MainActivity : FlutterActivity() {
                 .setData(android.net.Uri.fromParts("package", packageName, null))
         }
         startActivity(intent)
-    }
-
-    /** 앱이 켜져 있을 때 장부 파일로 다시 열린 경우 */
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        val path = IncomingFile.read(applicationContext, intent) ?: return
-        incomingChannel?.invokeMethod("fileReceived", path)
     }
 }

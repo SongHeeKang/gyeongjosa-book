@@ -3,7 +3,7 @@ import 'dart:convert';
 import '../services/format.dart';
 import 'constants.dart';
 
-/// 대신 받은 장부 1개. 접수 명단은 people 테이블과 분리되어 무료 한도에 걸리지 않는다.
+/// 다른 사람 행사 장부 1개. 접수 명단은 people 테이블과 분리되어 무료 한도에 걸리지 않는다.
 class Reception {
   final String id;
   final String title;
@@ -201,7 +201,7 @@ class ReceptionTotals {
   }
 }
 
-/// 대신 받은 장부 + 항목. 장부 보내기 · 가져오기의 단위이자 화면 표시용 묶음.
+/// 다른 사람 행사 장부 + 항목. 장부 보내기 · 가져오기의 단위이자 화면 표시용 묶음.
 class ReceptionPackage {
   static const formatName = 'gyeongjosa_reception';
   static const notOursMessage = '경조사 장부 파일이 아니에요. 기존 기록은 그대로예요.';
@@ -325,7 +325,7 @@ class ReceptionPackage {
   }
 }
 
-/// 장부 목록에 보여줄 대신 받은 장부 요약
+/// 장부 목록에 보여줄 다른 사람 행사 장부 요약
 class ReceptionSummary {
   final Reception reception;
   final int count;

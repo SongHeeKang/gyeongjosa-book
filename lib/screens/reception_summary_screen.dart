@@ -3,28 +3,82 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
 import '../models/constants.dart';
+import '../models/event.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
+import '../services/limit_service.dart';
 import '../services/receive_targets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
+import '../widgets/pro_gate.dart';
 import '../widgets/reception_entry_sheet.dart';
-import 'reception_import_screen.dart';
+import 'event_detail_screen.dart';
 import 'receive_money_screen.dart';
 import 'reception_send_screen.dart';
 
-/// 대신 받은 장부 상세 (받기 끝내기 뒤): 구분별 요약, [이어서 받기] [장부 보내기] [내 행사로 옮기기]
+/// 다른 사람 행사 상세 (받기 끝내기 화면도 이것): 구분별 요약,
+/// [이어서 받기] [장부 보내기] [내 행사로 바꾸기]
 class ReceptionSummaryScreen extends ConsumerWidget {
   const ReceptionSummaryScreen({super.key, required this.receptionId});
   final String receptionId;
 
-  /// 장부 보내기: 받는 사람에게 무엇이 보이는지 보여주는 화면에서 고른다.
+  /// 장부 보내기: 글자로 보내고, 다 보낸 뒤 보관 · 지우기를 묻는다.
   Future<void> _share(BuildContext context, ReceptionPackage package) =>
       Navigator.push(
           context,
           MaterialPageRoute<void>(
-              builder: (_) => ReceptionSendScreen(package: package)));
+              builder: (_) => ReceptionSendScreen(
+                  package: package, receptionId: receptionId)));
+
+  /// 잘못 고른 다른 사람 행사를 내 행사로 바꾼다. 누르는 순간 내 행사 한도와 사람 한도를 본다.
+  /// 한도에 걸려 결제하지 않으면 바꾸지 않는다(일부만 바꾸지 않음).
+  Future<void> _convert(BuildContext context, WidgetRef ref,
+      ReceptionPackage package) async {
+    if (!await LimitService.canCreateMyEvent(context, ref)) return;
+    if (!context.mounted) return;
+    final repo = ref.read(repositoryProvider);
+    final limit = LimitService.importPeopleLimit(ref);
+    if (limit != null) {
+      final plan = await repo.planImport(package, maxPeople: limit);
+      if (!context.mounted) return;
+      if (plan.skippedByLimit > 0 &&
+          !await showPaywall(context, ref,
+              reason:
+                  '${plan.remaining}명 중 ${plan.items.length}명까지 바꿀 수 있어요. 모두 바꾸려면 프로가 필요해요.')) {
+        return;
+      }
+    }
+    if (!context.mounted) return;
+    final ok = await confirmDialog(context,
+        title: '내 행사로 바꿀까요?',
+        message:
+            '손님 ${package.totals.count}명이 사람 탭에도 들어가요. 바꾼 뒤에는 행사 탭의 내 행사에서 볼 수 있어요.',
+        okText: '바꾸기');
+    if (!ok || !context.mounted) return;
+    final r = package.reception;
+    final result = await repo.applyImport(
+      package,
+      newEvent: Event(
+        type: EventTypes.all.contains(r.eventType) ? r.eventType : '기타',
+        title: r.title.isEmpty ? '받은 장부' : r.title,
+        date: r.date,
+        isMine: true,
+        notify: false,
+        receiveSides: r.sides,
+        mealTicketEnabled: r.mealTicketEnabled,
+        defaultMealTickets: r.defaultMealTickets,
+        methodEnabled: r.methodEnabled,
+      ),
+      removeReception: true,
+    );
+    ref.refreshData();
+    if (!context.mounted) return;
+    Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(
+            builder: (_) => EventDetailScreen(eventId: result.eventId)));
+  }
 
   Future<void> _reopen(BuildContext context, WidgetRef ref) async {
     await ref
@@ -41,8 +95,8 @@ class ReceptionSummaryScreen extends ConsumerWidget {
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final ok = await confirmDialog(context,
-        title: '대신 받은 장부 삭제',
-        message: '받은 명단이 모두 지워져요. 내 행사로 옮긴 내역은 그대로 남아요.\n삭제할까요?',
+        title: '다른 사람 행사 삭제',
+        message: '받은 명단이 모두 지워져요. 내 사람 탭 · 통계에는 영향이 없어요.\n삭제할까요?',
         okText: '삭제',
         destructive: true);
     if (!ok) return;
@@ -65,7 +119,7 @@ class ReceptionSummaryScreen extends ConsumerWidget {
         final totals = package.totals;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('대신 받은 장부'),
+            title: const Text('다른 사람 행사'),
             actions: [
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: AppColors.icon),
@@ -148,20 +202,17 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                     SizedBox(
                       height: AppSpacing.receptionButton,
                       child: TestId('btn_move_to_mine', child: OutlinedButton.icon(
-                        onPressed: totals.count == 0
+                        // 예전 버전에서 이미 옮긴 장부는 다시 바꾸지 않는다
+                        onPressed: r.imported
                             ? null
-                            : () => Navigator.push(
-                                context,
-                                MaterialPageRoute<void>(
-                                    builder: (_) => ReceptionImportScreen(
-                                        package: package))),
-                        icon: Icon(r.imported ? Icons.check : Icons.move_to_inbox),
-                        label: Text(r.imported ? '내 행사로 옮겼어요' : '내 행사로 옮기기'),
+                            : () => _convert(context, ref, package),
+                        icon: Icon(r.imported ? Icons.check : Icons.swap_horiz),
+                        label: Text(r.imported ? '내 행사로 옮겼어요' : '내 행사로 바꾸기'),
                       )),
                     ),
                     if (!r.imported) ...[
                       const SizedBox(height: 4),
-                      const Text('혼주 · 상주 본인 폰으로 받았다면 눌러 주세요.',
+                      const Text('내 행사인데 잘못 골랐다면 눌러 주세요.',
                           textAlign: TextAlign.center, style: AppText.sub),
                     ],
                   ],

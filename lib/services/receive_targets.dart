@@ -11,7 +11,7 @@ import '../models/reception.dart';
 import 'limit_service.dart';
 import 'settings_service.dart';
 
-/// 받은 돈 적기 화면의 한 줄 (내 행사 기록 또는 대신 받은 항목)
+/// 받은 돈 적기 화면의 한 줄 (내 행사 기록 또는 다른 사람 행사 항목)
 class ReceiveItem {
   const ReceiveItem({
     required this.id,
@@ -91,8 +91,8 @@ class ReceiveInput {
 }
 
 /// 받은 돈 적기 화면의 저장 위치. 화면은 하나이고 저장하는 부분만 다르다.
-/// - [MyEventTarget]: 내 행사 → people + records('받음'), 무료 30명 한도 적용
-/// - [ReceptionTarget]: 다른 사람 행사(대신 받기) → receptions + reception_entries, 결제 화면 없음
+/// - [MyEventTarget]: 내 행사 → people + records('받음'), 무료 사람 한도 적용
+/// - [ReceptionTarget]: 다른 사람 행사 → receptions + reception_entries, 결제 화면 없음
 sealed class ReceiveTarget {
   const ReceiveTarget();
 
@@ -105,7 +105,7 @@ sealed class ReceiveTarget {
   /// (화면이 잠깐 비지 않게).
   ReceiveSnapshot? watch(WidgetRef ref);
 
-  /// 저장했으면 true. 내 행사에서 31번째 새 사람의 결제 화면을 닫으면 false.
+  /// 저장했으면 true. 내 행사에서 한도를 넘는 새 사람의 결제 화면을 닫으면 false.
   Future<bool> save(BuildContext context, WidgetRef ref, ReceiveInput input);
 
   Future<void> undo(WidgetRef ref, ReceiveItem item);
@@ -172,7 +172,7 @@ class MyEventTarget extends ReceiveTarget {
     }
     if (person == null) {
       if (!context.mounted) return false;
-      // 31번째 새 사람부터 결제 화면. 닫으면 적은 이름 · 금액을 그대로 두고 돌아간다.
+      // 한도를 넘는 새 사람부터 결제 화면. 닫으면 적은 이름 · 금액을 그대로 두고 돌아간다.
       if (!await LimitService.canAddNewPerson(context, ref)) return false;
       final id = await repo.insertPerson(Person(
         name: input.name,
@@ -216,7 +216,7 @@ class ReceptionTarget extends ReceiveTarget {
   final String receptionId;
 
   @override
-  String get placeLabel => '대신 받기';
+  String get placeLabel => '다른 사람 행사';
   @override
   bool get isMine => false;
   @override
@@ -252,7 +252,7 @@ class ReceptionTarget extends ReceiveTarget {
     );
   }
 
-  /// 대신 받기는 사람 목록에 넣지 않으므로 한도 검사도, 결제 화면도 없다.
+  /// 다른 사람 행사는 사람 목록에 넣지 않으므로 한도 검사도, 결제 화면도 없다.
   @override
   Future<bool> save(
       BuildContext context, WidgetRef ref, ReceiveInput input) async {

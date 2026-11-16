@@ -7,6 +7,9 @@ import '../models/constants.dart';
 import '../models/event.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
+import '../services/limit_service.dart';
+import '../services/notification_permission.dart';
+import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
@@ -15,11 +18,15 @@ import '../widgets/common.dart';
 import '../services/receive_targets.dart';
 import 'receive_money_screen.dart';
 
-/// 행사 설정.
-/// - 다른 사람 행사(대신 받기): 행사 이름, 종류, 날짜, 구분, 받는 사람, 식권, 결제 방법
-///   → [받기 시작]을 누르면 receptions에 저장하고 받은 돈 적기 화면으로 간다.
-/// - 내 행사([ReceptionFormScreen.myEvent]): 구분, 식권, 결제 방법만. 행사마다 처음 한 번
-///   묻고, 받은 돈 적기 화면의 현황 줄에서 다시 바꿀 수 있다([editing]).
+/// 행사 만들기 · 받기 설정.
+/// - 행사 만들기([ReceptionFormScreen.new]): 맨 위에서 '누구 행사예요?'를 한 번만 고른다
+///   (미리 고르지 않음, 필수). 이어서 행사 이름 · 종류 · 날짜 · 구분 · 식권 · 결제 방법,
+///   다른 사람 행사면 받는 사람 이름도. [받기 시작]을 누르면
+///   내 행사는 events에, 다른 사람 행사는 receptions에 저장하고 받은 돈 적기 화면으로 간다.
+///   [내 행사]를 고르는 순간 내 행사 한도를 보고, 닿았으면 바로 결제 화면.
+/// - 예전 내 행사의 받기 설정([ReceptionFormScreen.myEvent]): 구분, 식권, 결제 방법만.
+///   받기 설정이 없는 예전 행사에서 처음 한 번 묻고, 받은 돈 적기 화면의 현황 줄에서
+///   다시 바꿀 수 있다([editing]).
 class ReceptionFormScreen extends ConsumerStatefulWidget {
   const ReceptionFormScreen({super.key})
       : event = null,
@@ -28,7 +35,7 @@ class ReceptionFormScreen extends ConsumerStatefulWidget {
   const ReceptionFormScreen.myEvent(
       {super.key, required Event this.event, this.editing = false});
 
-  /// 내 행사의 받기 설정이면 그 행사
+  /// 이미 있는 내 행사의 받기 설정이면 그 행사
   final Event? event;
 
   /// 이미 받고 있는 중에 설정만 바꾸는지 (저장 후 돌아간다)
@@ -52,9 +59,17 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   int _defaultMeals = 1;
   bool? _methodEnabled;
 
+  /// 행사 만들기에서 고른 '누구 행사예요?' (true: 내 행사, false: 다른 사람 행사, null: 아직)
+  bool? _whose;
+
   bool get _isFuneral => _type == '장례';
   bool get _isWedding => _type == '결혼';
-  bool get _isMine => widget.event != null;
+
+  /// 이미 있는 내 행사의 받기 설정만 바꾸는 화면
+  bool get _settingsOnly => widget.event != null;
+
+  /// 받는 사람 이름을 묻는지 (다른 사람 행사 만들기)
+  bool get _asksOperator => !_settingsOnly && _whose == false;
 
   @override
   void initState() {
@@ -119,6 +134,8 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
     '2매': 'meal_default_2',
     '현금만': 'method_cash_only',
     '계좌이체도 구분': 'method_split',
+    '내 행사': 'whose_mine',
+    '다른 사람 행사': 'whose_other',
   };
 
   Widget _choiceRow(List<(String, bool, VoidCallback)> choices) {
@@ -205,8 +222,49 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                 ReceiveMoneyScreen(target: MyEventTarget(event.id!))));
   }
 
+  /// '누구 행사예요?' [내 행사]: 누르는 순간 한도를 본다. 결제 화면을 닫으면 고르지 않은 채로.
+  Future<void> _chooseWhose(bool mine) async {
+    if (mine && _whose != true) {
+      if (!await LimitService.canCreateMyEvent(context, ref)) return;
+      if (!mounted) return;
+    }
+    setState(() => _whose = mine);
+  }
+
+  /// 새 내 행사를 만들고 받은 돈 적기로 간다.
+  Future<void> _createMyEvent(String title, List<String> sides) async {
+    // 고른 뒤 다른 곳에서 내 행사가 생겼을 수 있어 한 번 더 본다
+    if (!await LimitService.canCreateMyEvent(context, ref)) return;
+    if (!mounted) return;
+    setState(() => _saving = true);
+    final repo = ref.read(repositoryProvider);
+    final id = await repo.insertEvent(Event(
+      type: _type,
+      title: title,
+      date: _date,
+      isMine: true,
+      notify: ref.read(notificationPermissionProvider),
+      receiveSides: sides.isEmpty ? const [ReceptionDefaults.noSide] : sides,
+      mealTicketEnabled: _mealEnabled!,
+      defaultMealTickets: _defaultMeals,
+      methodEnabled: _methodEnabled!,
+    ));
+    final event = await repo.getEvent(id);
+    if (event != null) await NotificationService.instance.scheduleForEvent(event);
+    ref.refreshData();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(
+            builder: (_) => ReceiveMoneyScreen(target: MyEventTarget(id))));
+  }
+
   Future<void> _start() async {
     if (widget.event case final event?) return _saveMyEvent(event);
+    if (_whose == null) {
+      showSnack(context, '누구 행사인지 골라 주세요.');
+      return;
+    }
     final title = _title.text.trim();
     if (title.isEmpty) {
       showSnack(context, '행사 이름을 입력해 주세요.');
@@ -217,6 +275,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       showSnack(context, '상주 이름을 입력해 주세요.');
       return;
     }
+    if (_whose == true) return _createMyEvent(title, sides);
     final operatorName = _operator.text.trim();
     if (operatorName.isEmpty) {
       showSnack(context, '받는 사람 이름을 입력해 주세요.');
@@ -251,18 +310,41 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('행사 설정')),
+      appBar: AppBar(title: Text(_settingsOnly ? '행사 설정' : '행사 만들기')),
       body: ListView(
         padding:
             const EdgeInsets.fromLTRB(AppSpacing.page, 8, AppSpacing.page, 32),
         children: [
-          if (_isMine) ...[
+          if (_settingsOnly) ...[
             Text('내 행사 · ${widget.event!.title}', style: AppText.sectionTitle),
             const SizedBox(height: 4),
             const Text('이 행사에서 받을 때 쓸 설정이에요. 받는 중에도 바꿀 수 있어요.',
                 style: AppText.sub),
             const SizedBox(height: 20),
           ] else ...[
+          const FieldLabel('누구 행사예요?'),
+          _choiceRow([
+            ('내 행사', _whose == true, () => _chooseWhose(true)),
+            ('다른 사람 행사', _whose == false, () => _chooseWhose(false)),
+          ]),
+          const SizedBox(height: 6),
+          Text(
+              switch (_whose) {
+                true => '받은 손님이 사람 탭에도 들어가요 · 받은 만큼 챙기기 · 통계',
+                false => '장부에만 저장돼요(사람 탭에 안 들어감) · 끝나면 장부 보내기',
+                null => '내 결혼식 · 돌잔치면 내 행사, 가족 · 친구 행사에서 받아 주면 다른 사람 행사',
+              },
+              style: AppText.sub),
+          const SizedBox(height: 20),
+          TestId('input_event_title', child: TextField(
+            controller: _title,
+            style: AppText.receptionName,
+            decoration: InputDecoration(
+              labelText: '행사 이름',
+              hintText: _whose == true ? '예: 우리 결혼식' : '예: 누나 결혼식',
+            ),
+          )),
+          const SizedBox(height: 20),
           const FieldLabel('종류'),
           ChoiceChips(
             testIdPrefix: 'select_event_type',
@@ -270,15 +352,6 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
             selected: _type,
             onSelected: _selectType,
           ),
-          const SizedBox(height: 20),
-          TestId('input_event_title', child: TextField(
-            controller: _title,
-            style: AppText.receptionName,
-            decoration: const InputDecoration(
-              labelText: '행사 이름',
-              hintText: '예: 홍길동 · 김영희 결혼식',
-            ),
-          )),
           const SizedBox(height: 20),
           TestId('input_date', child: OutlinedButton.icon(
             onPressed: _pickDate,
@@ -311,7 +384,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                   : '쉼표(,)로 나눠 적어요. 비워 두면 구분 없이 받아요',
             ),
           )),
-          if (!_isMine) ...[
+          if (_asksOperator) ...[
             const SizedBox(height: 20),
             TestId('input_operator', child: TextField(
               controller: _operator,
@@ -351,7 +424,10 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
           TestId('btn_start_reception', child: SizedBox(
             height: AppSpacing.receptionButton,
             child: FilledButton(
-              onPressed: _saving || _mealEnabled == null || _methodEnabled == null
+              onPressed: _saving ||
+                      (!_settingsOnly && _whose == null) ||
+                      _mealEnabled == null ||
+                      _methodEnabled == null
                   ? null
                   : _start,
               style: FilledButton.styleFrom(

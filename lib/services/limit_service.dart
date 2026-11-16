@@ -6,11 +6,11 @@ import '../widgets/pro_gate.dart';
 import 'limits.dart';
 import 'pro_service.dart';
 
-/// 무료 한도(사람 30명) 검사를 한 곳에 모았다.
+/// 무료 한도(사람 kFreePeopleLimit명) 검사를 한 곳에 모았다.
 /// 새 사람이 생기는 모든 경로가 이것을 거친다:
 /// 사람 탭 추가 · 보냈어요 · '얼마 내셨어요?' 카드(모두 사람 추가 창), 일정 추가,
 /// 받은 돈 적기(내 행사), 확인 필요 내역의 '다른 사람', 장부 가져오기.
-/// 받은 돈 적기의 대신 받기는 사람 목록에 넣지 않으므로 검사하지 않는다.
+/// 다른 사람 행사는 사람 목록에 넣지 않으므로 검사하지 않는다.
 /// 이미 등록된 사람에게 기록을 더하거나 보기 · 수정 · 삭제하는 것은 막지 않는다.
 class LimitService {
   /// 무료로 더 등록할 수 있는 사람 수. 프로면 null(제한 없음).
@@ -31,9 +31,9 @@ class LimitService {
   }
 
   /// 내 행사를 하나 더 만들어도 되는지 (두 번째부터 결제 화면).
-  /// 버튼을 누르는 순간 검사한다: 내 행사 탭 [내 행사 만들기], 받은 돈 적기의 [+ 새 내 행사],
-  /// 장부 가져오기 · 파일로 열기 · 내 행사로 옮기기의 '새로 만들기'. 저장할 때도 한 번 더 본다.
-  /// 남의 행사(일정)와 대신 받은 장부는 세지 않는다.
+  /// 버튼을 누르는 순간 검사한다: 행사 만들기의 [내 행사], 장부 가져오기의 '새 내 행사로 만들기',
+  /// 다른 사람 행사의 [내 행사로 바꾸기]. 저장할 때도 한 번 더 본다.
+  /// 남의 행사(일정)와 다른 사람 행사는 세지 않는다.
   static Future<bool> canCreateMyEvent(BuildContext context, WidgetRef ref) async {
     if (ref.read(isProProvider)) return true;
     final count = await ref.read(repositoryProvider).countMyEvents();

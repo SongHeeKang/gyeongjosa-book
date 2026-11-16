@@ -16,7 +16,7 @@ import 'my_events_screen.dart';
 import 'people_screen.dart';
 import 'stats_screen.dart';
 
-/// 하단 탭 4개(홈 · 사람 · 내 행사 · 통계)와 모든 탭 같은 자리의 기록하기 버튼
+/// 하단 탭 4개(홈 · 사람 · 행사 · 통계)와 모든 탭 같은 자리의 기록하기 버튼
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 

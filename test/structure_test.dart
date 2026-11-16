@@ -319,10 +319,10 @@ void main() {
             of: find.byType(AppBottomNav), matching: find.byType(Text))))
           widget.data,
       ];
-      expect(labels, ['홈', '사람', '내 행사', '통계']);
+      expect(labels, ['홈', '사람', '행사', '통계']);
 
       final position = tester.getCenter(find.byType(RecordFab));
-      for (final tab in ['사람', '내 행사', '통계', '홈']) {
+      for (final tab in ['사람', '행사', '통계', '홈']) {
         await tester.tap(find.descendant(
             of: find.byType(AppBottomNav), matching: find.text(tab)));
         await tester.pumpAndSettle();
@@ -366,7 +366,7 @@ void main() {
     testWidgets('모든 탭 오른쪽 위 같은 자리에 설정 아이콘이 있다', (tester) async {
       await pump(tester, const MainShell());
       final position = tester.getCenter(find.byTooltip('설정'));
-      for (final tab in ['사람', '내 행사', '통계']) {
+      for (final tab in ['사람', '행사', '통계']) {
         await tester.tap(find.descendant(
             of: find.byType(AppBottomNav), matching: find.text(tab)));
         await tester.pumpAndSettle();
@@ -389,10 +389,11 @@ void main() {
       expect(find.text('보냈어요'), findsNothing);
     });
 
-    testWidgets('내 행사 탭에는 남의 행사 섹션이 없다', (tester) async {
+    testWidgets('행사 탭에는 남의 행사 섹션이 없다', (tester) async {
       await pump(tester, const MyEventsScreen());
       expect(find.textContaining('남의 행사'), findsNothing);
-      expect(find.text('내 행사 만들기'), findsOneWidget);
+      expect(find.text('행사 만들기'), findsOneWidget);
+      expect(find.text('받은 장부 가져오기'), findsOneWidget);
     });
 
     testWidgets('빈 화면 문구', (tester) async {
@@ -411,7 +412,7 @@ void main() {
       expect(arrow, findsNothing);
 
       await pump(tester, const MyEventsScreen());
-      expect(find.text('결혼식 · 돌잔치처럼 내가 받는 행사를 만들어 보세요'), findsOneWidget);
+      expect(find.text('결혼식 · 돌잔치에서 받은 돈을\n행사별로 적어 보세요'), findsOneWidget);
     });
 
     testWidgets('가이드: 건너뛰면 다시 뜨지 않고, 마지막 장에 시작하기가 있다', (tester) async {
@@ -446,10 +447,10 @@ void main() {
 
       // 새 3장: 접수 안내 그림
       expect(tester.takeException(), isNull);
-      expect(find.text('내 행사도, 대신 받을 때도'), findsOneWidget);
+      expect(find.text('내 행사도, 다른 사람 행사도'), findsOneWidget);
       expect(
           find.text(
-              '손님 이름을 적고 금액만 누르면 저장돼요. 대신 받았다면 끝나고 혼주에게 장부를 보내요'),
+              '손님 이름을 적고 금액만 누르면 저장돼요. 끝나면 장부를 글자로 보내요'),
           findsOneWidget);
       for (final t in [
         '42명 · 3,150,000원',
@@ -572,9 +573,9 @@ void main() {
       expect(event.personId, 7);
     });
 
-    testWidgets('일정 추가: 무료 30명이 차면 결제 화면이 뜨고, 닫으면 저장하지 않는다',
+    testWidgets('일정 추가: 무료 50명이 차면 결제 화면이 뜨고, 닫으면 저장하지 않는다',
         (tester) async {
-      final repo = FakeRepository()..people = 30;
+      final repo = FakeRepository()..people = 50;
       await pump(tester, const EventFormScreen(), repository: repo);
       await tester.enterText(find.byType(TextField).first, '김철수');
       await tester.pumpAndSettle();

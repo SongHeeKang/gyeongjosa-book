@@ -276,7 +276,7 @@ void main() {
       await tester.tap(find.byTooltip('도움말').first);
       await settle(tester);
       expect(find.text(homeText), findsOneWidget);
-      expect(find.text('엑셀 파일로 보내거나 폰에 저장해요'), findsOneWidget);
+      expect(find.text('공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'), findsOneWidget);
       // '얼마 내셨어요?'가 없는 상태
       expect(find.text('다녀온 행사는 금액만 누르면 기록돼요'), findsNothing);
     });

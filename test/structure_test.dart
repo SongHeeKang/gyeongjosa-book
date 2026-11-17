@@ -392,8 +392,12 @@ void main() {
     testWidgets('행사 탭에는 남의 행사 섹션이 없다', (tester) async {
       await pump(tester, const MyEventsScreen());
       expect(find.textContaining('남의 행사'), findsNothing);
-      expect(find.text('행사 만들기'), findsOneWidget);
-      expect(find.text('받은 장부 가져오기'), findsOneWidget);
+      // 빈 화면: 점선 카드 · 흐린 예시 줄 · 작은 링크. 큰 버튼은 없다
+      expect(find.text('행사를 추가해 주세요'), findsOneWidget);
+      expect(find.text('예) 우리 결혼식 · 2026.10.11 · 0명'), findsOneWidget);
+      expect(find.text('받은 장부 붙여넣어 가져오기'), findsOneWidget);
+      expect(find.text('행사 만들기'), findsNothing);
+      expect(find.text('받은 장부 가져오기'), findsNothing);
     });
 
     testWidgets('빈 화면 문구', (tester) async {
@@ -412,7 +416,8 @@ void main() {
       expect(arrow, findsNothing);
 
       await pump(tester, const MyEventsScreen());
-      expect(find.text('결혼식 · 돌잔치에서 받은 돈을\n행사별로 적어 보세요'), findsOneWidget);
+      expect(find.text('첫 행사 장부를 만들어 보세요'), findsOneWidget);
+      expect(find.text('결혼식 · 돌잔치 · 장례식\n받은 마음을 행사별로 모아 둬요'), findsOneWidget);
     });
 
     testWidgets('가이드: 건너뛰면 다시 뜨지 않고, 마지막 장에 시작하기가 있다', (tester) async {

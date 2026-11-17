@@ -15,23 +15,13 @@ import '../widgets/pro_gate.dart';
 import '../widgets/reception_entry_sheet.dart';
 import 'event_detail_screen.dart';
 import 'receive_money_screen.dart';
-import 'reception_send_screen.dart';
-import '../services/excel_export_service.dart';
-import '../widgets/excel_actions.dart';
+import '../widgets/share_download.dart';
 
 /// 다른 사람 행사 상세 (받기 끝내기 화면도 이것): 구분별 요약,
 /// [이어서 받기] [장부 보내기] [내 행사로 바꾸기]
 class ReceptionSummaryScreen extends ConsumerWidget {
   const ReceptionSummaryScreen({super.key, required this.receptionId});
   final String receptionId;
-
-  /// 장부 보내기: 글자로 보내고, 다 보낸 뒤 보관 · 지우기를 묻는다.
-  Future<void> _share(BuildContext context, ReceptionPackage package) =>
-      Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-              builder: (_) => ReceptionSendScreen(
-                  package: package, receptionId: receptionId)));
 
   /// 잘못 고른 다른 사람 행사를 내 행사로 바꾼다. 누르는 순간 내 행사 한도와 사람 한도를 본다.
   /// 한도에 걸려 결제하지 않으면 바꾸지 않는다(일부만 바꾸지 않음).
@@ -123,6 +113,11 @@ class ReceptionSummaryScreen extends ConsumerWidget {
           appBar: AppBar(
             title: const Text('다른 사람 행사'),
             actions: [
+              // [공유] [다운로드]: 이 행사 하나. 받은 사람이 없으면 회색
+              ShareDownloadButtons(
+                enabled: totals.count > 0,
+                target: () => ReceptionExport(ref, package: package),
+              ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: AppColors.icon),
                 onSelected: (v) {
@@ -195,34 +190,11 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                       child: TestId('btn_send', child: FilledButton.icon(
                         onPressed: totals.count == 0
                             ? null
-                            : () => _share(context, package),
-                        icon: const Icon(Icons.send),
-                        label: const Text('장부 보내기'),
-                      )),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: AppSpacing.receptionButton,
-                      child: TestId('btn_excel', child: ExcelButton(
-                        label: '엑셀 파일',
-                        enabled: totals.count > 0,
-                        onPressed: () {
-                          final ledger = LedgerExcel.fromReception(package);
-                          showExcelActions(
-                            context,
-                            fileName: ledger.fileName,
-                            build: () async =>
-                                ExcelExportService.buildLedger(ledger),
-                            // 글자로 보낼 때처럼 보낸 뒤 보관 · 지우기를 묻는다
-                            afterShare: () async {
-                              if (context.mounted) {
-                                await askKeepOrDeleteReception(context, ref,
-                                    receptionId: receptionId,
-                                    count: totals.count);
-                              }
-                            },
-                          );
-                        },
+                            : () => showExportSheet(context,
+                                mode: ExportMode.share,
+                                target: ReceptionExport(ref, package: package)),
+                        icon: const Icon(Icons.share_outlined),
+                        label: const Text('공유하기'),
                       )),
                     ),
                     const SizedBox(height: 8),

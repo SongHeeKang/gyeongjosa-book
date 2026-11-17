@@ -4,11 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/reception.dart';
-import '../services/excel_export_service.dart';
 import '../services/ledger_text_format.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
-import '../widgets/excel_actions.dart';
+import '../widgets/share_download.dart';
 import '../widgets/test_id.dart';
 
 /// 장부 보내기: 저장된 모든 값을 글자로 보낸다(파일 없음, 모두 무료).
@@ -17,12 +16,8 @@ import '../widgets/test_id.dart';
 /// 다른 사람 행사([receptionId])는 마지막 조각까지 보낸 뒤 앱으로 돌아오면 보관 · 지우기를 묻는다.
 /// (내 행사 상세 · 다른 사람 행사 상세 · 받기 끝내기 화면에서 연다)
 class ReceptionSendScreen extends ConsumerStatefulWidget {
-  const ReceptionSendScreen(
-      {super.key, required this.package, this.receptionId, this.excel});
+  const ReceptionSendScreen({super.key, required this.package, this.receptionId});
   final ReceptionPackage package;
-
-  /// 내 행사는 관계 · 연락처까지 넣으려고 엑셀 재료를 따로 만든다. 없으면 [package]로 만든다.
-  final Future<LedgerExcel> Function(LedgerOrder order)? excel;
 
   /// 다른 사람 행사면 그 장부 id (보낸 뒤 보관 · 지우기를 묻는다)
   final String? receptionId;
@@ -92,24 +87,6 @@ class _ReceptionSendScreenState extends ConsumerState<ReceptionSendScreen> {
 
   Future<void> _askKeepOrDelete() => askKeepOrDeleteReception(context, ref,
       receptionId: widget.receptionId!, count: widget.package.totals.count);
-
-  /// [엑셀 파일]: 지금 고른 순서대로 만든다. 다른 사람 행사는 보낸 뒤 보관 · 지우기를 묻는다.
-  Future<void> _excel() {
-    final order = _order;
-    final r = widget.package.reception;
-    return showExcelActions(
-      context,
-      fileName: ExcelExportService.ledgerFileName(r.title, r.date),
-      build: () async => ExcelExportService.buildLedger(
-          await widget.excel?.call(order) ??
-              LedgerExcel.fromReception(widget.package, order: order)),
-      afterShare: widget.receptionId == null
-          ? null
-          : () async {
-              if (mounted) await _askKeepOrDelete();
-            },
-    );
-  }
 
   Future<void> _copy(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
@@ -266,20 +243,6 @@ class _ReceptionSendScreenState extends ConsumerState<ReceptionSendScreen> {
               ),
             ],
           ],
-          const SizedBox(height: 16),
-          const AppDivider(),
-          const SizedBox(height: 16),
-          const Text('엑셀 파일로 보내거나 폰에 저장할 수도 있어요 (인원 제한 없이 파일 하나)',
-              style: AppText.sub),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: AppSpacing.receptionButton,
-            child: TestId('send_excel', child: ExcelButton(
-              label: '엑셀 파일',
-              enabled: widget.package.entries.any((e) => !e.deleted),
-              onPressed: _excel,
-            )),
-          ),
         ],
       ),
     );

@@ -11,8 +11,8 @@ enum CoachScreen {
   home('홈', [
     CoachMark(CoachSpot.recordButton, '모든 기록은 여기서 시작해요'),
     CoachMark(CoachSpot.homePending, '다녀온 행사는 금액만 누르면 기록돼요'),
-    // 한 화면 설명은 3개까지. '? 버튼' 안내는 도움말 맨 아래에 늘 있으니 [엑셀] 설명으로 바꾼다.
-    CoachMark(CoachSpot.homeExcel, '엑셀 파일로 보내거나 폰에 저장해요'),
+    // 한 화면 설명은 3개까지. '? 버튼' 안내는 도움말 맨 아래에 늘 있으니 공유 · 다운로드 설명으로 바꾼다.
+    CoachMark(CoachSpot.homeExcel, '공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'),
   ]),
   recordMenu(
       '기록하기 메뉴',
@@ -33,15 +33,15 @@ enum CoachScreen {
       '행사',
       [
         CoachMark(CoachSpot.myEventsCreate, '내 행사 · 다른 사람 행사를 만들어 받은 돈을 적어요'),
-        CoachMark(CoachSpot.myEventsFirst, '누르면 받은 명단과 장부 보내기 버튼이 나와요'),
+        CoachMark(CoachSpot.myEventsFirst, '누르면 받은 명단이 나와요'),
+        CoachMark(CoachSpot.myEventsShare, '공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'),
       ],
       auto: false),
   eventDetail('내 행사 상세', [
     CoachMark(CoachSpot.eventReceive, '당일 접수대에서도, 끝난 뒤 종이 장부를 옮길 때도 여기서'),
     CoachMark(CoachSpot.eventImport, '받은 장부 메시지를 붙여 넣어 합쳐요'),
-    // [장부 보내기] [엑셀 파일]을 한 줄에 두고 설명도 하나로 묶는다 (설명 3개까지)
-    CoachMark(CoachSpot.eventSend, '가족에게 명단을 보내요\n엑셀 파일로 보내거나 폰에 저장해요',
-        also: [CoachSpot.eventExcel]),
+    // 오른쪽 위 [공유] [다운로드] 아이콘 (이 행사 하나)
+    CoachMark(CoachSpot.eventSend, '공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'),
   ]),
   stats('통계', [
     CoachMark(CoachSpot.statsPeriod, '연도를 바꿔 봐요'),

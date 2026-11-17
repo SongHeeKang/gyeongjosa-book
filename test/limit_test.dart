@@ -215,7 +215,9 @@ void main() {
           event: _myEvent(meals: true), myEvents: 1);
       expect(find.text('받은 돈 적기'), findsOneWidget);
       expect(find.text('장부 가져오기'), findsOneWidget);
-      expect(find.text('장부 보내기'), findsOneWidget);
+      expect(find.text('장부 보내기'), findsNothing);
+      expect(find.byTooltip('공유하기'), findsOneWidget);
+      expect(find.byTooltip('폰에 저장'), findsOneWidget);
       expect(find.text('행사장 접수'), findsNothing);
       await tester.tap(find.text('받은 돈 적기'));
       await tester.pumpAndSettle();
@@ -254,11 +256,11 @@ void main() {
   }
 
   group('내 행사가 생기는 입구: [내 행사]를 고르는 순간 결제 화면 (내 행사 1개 · 무료)', () {
-    testWidgets('행사 탭 [행사 만들기] → 내 행사는 바로 결제 화면, 다른 사람 행사는 통과',
+    testWidgets('행사 탭 [+ 새 행사 만들기] → 내 행사는 바로 결제 화면, 다른 사람 행사는 통과',
         (tester) async {
       await open(tester, const MyEventsScreen(), myEvents: 1);
       expect(find.text('행사'), findsWidgets);
-      await tester.tap(find.text('행사 만들기'));
+      await tester.tap(find.text('+ 새 행사 만들기'));
       await tester.pumpAndSettle();
       expect(find.byType(ReceptionFormScreen), findsOneWidget);
       expect(find.byType(PaywallScreen), findsNothing);
@@ -429,6 +431,52 @@ void main() {
       final c = await make(
           {PrefKeys.proPurchased: true, PrefKeys.devProOverride: false});
       expect(c.read(isProProvider), isFalse);
+    });
+  });
+
+  group('추가 T: 공유 · 다운로드 아이콘 · 행사 탭', () {
+    IconButton icon(WidgetTester tester, String tooltip) => tester.widget<IconButton>(
+        find.ancestor(of: find.byTooltip(tooltip), matching: find.byType(IconButton)).first);
+
+    testWidgets('행사 상세: 손님 0명이면 회색 · 동작 없음, 기록이 생기면 바로 켜진다 (isPro 꺼짐)',
+        (tester) async {
+      final repo = await open(tester, const EventDetailScreen(eventId: 1), myEvents: 1, people: 0);
+      expect(find.text('장부 보내기'), findsNothing);
+      expect(find.text('엑셀 파일'), findsNothing);
+      expect(icon(tester, '공유하기').onPressed, isNull);
+      expect(icon(tester, '폰에 저장').onPressed, isNull);
+
+      repo.people.add(Person(id: 1, name: '김철수', createdAt: DateTime(2026)));
+      repo.records.add(GiftRecord(personId: 1, eventId: 1, direction: '받음',
+          amount: 50000, date: DateTime(2026, 10, 11)));
+      ProviderScope.containerOf(tester.element(find.byType(EventDetailScreen)))
+          .read(dbVersionProvider.notifier)
+          .bump();
+      await tester.pumpAndSettle();
+      expect(icon(tester, '공유하기').onPressed, isNotNull);
+      expect(icon(tester, '폰에 저장').onPressed, isNotNull);
+
+      // 결제 화면 없이 선택창이 열린다
+      await tester.tap(find.byTooltip('폰에 저장'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaywallScreen), findsNothing);
+      expect(find.text('내 결혼식 · 1명'), findsOneWidget);
+      expect(find.textContaining('엑셀 파일'), findsOneWidget);
+      expect(find.textContaining('메모장에서 열리는 .txt 파일'), findsOneWidget);
+      expect(find.text('취소'), findsOneWidget);
+    });
+
+    testWidgets('행사 탭(행사가 있을 때): 점선 줄 · 묶음 제목 옆 개수 · 합계 · 아래 링크, 아이콘 켜짐',
+        (tester) async {
+      await open(tester, const MyEventsScreen(), myEvents: 1);
+      expect(find.text('+ 새 행사 만들기'), findsOneWidget);
+      expect(find.text('행사 만들기'), findsNothing);
+      expect(find.text('1개 · 0원'), findsOneWidget);
+      expect(find.text('받은 장부 붙여넣어 가져오기'), findsOneWidget);
+      expect(icon(tester, '공유하기').onPressed, isNotNull);
+      await tester.tap(find.byTooltip('공유하기'));
+      await tester.pumpAndSettle();
+      expect(find.text('행사 장부 1개 전체'), findsOneWidget);
     });
   });
 }

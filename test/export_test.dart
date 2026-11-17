@@ -5,11 +5,12 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:gyeongjosa/models/event.dart';
 import 'package:gyeongjosa/models/gift_record.dart';
 import 'package:gyeongjosa/models/person.dart';
 import 'package:gyeongjosa/models/reception.dart';
-import 'package:gyeongjosa/services/excel_export_service.dart';
+import 'package:gyeongjosa/services/export_service.dart';
 import 'package:gyeongjosa/services/ledger_text_format.dart';
 
 /// 칸 값을 글자로 (빈 칸은 '')
@@ -42,6 +43,7 @@ String _sheetXml(List<int> bytes, String sheetName) {
 }
 
 void main() {
+  setUpAll(() => initializeDateFormatting('ko'));
   final reception = ReceptionPackage(
     Reception(
       id: 'r1',
@@ -81,7 +83,7 @@ void main() {
   group('행사 장부', () {
     test('다른 사람 행사 120명이 파일 하나에, 합계가 앱 계산과 같고 지운 손님은 빠진다', () {
       final ledger = LedgerExcel.fromReception(reception);
-      final bytes = ExcelExportService.buildLedger(ledger, now: DateTime(2026, 11, 17, 9));
+      final bytes = ExportService.buildLedger(ledger, now: DateTime(2026, 11, 17, 9));
       final book = Excel.decodeBytes(bytes);
       expect(book.tables.keys, containsAll(['명단', '합계', '정보']));
 
@@ -135,7 +137,7 @@ void main() {
 
     test('받은 순서로 고르면 그 순서대로', () {
       final ledger = LedgerExcel.fromReception(reception, order: LedgerOrder.received);
-      final list = Excel.decodeBytes(ExcelExportService.buildLedger(ledger))['명단'];
+      final list = Excel.decodeBytes(ExportService.buildLedger(ledger))['명단'];
       expect(_v(list, 4, 1), '손님120');
       expect(_v(list, 5, 1), '손님119');
     });
@@ -164,7 +166,7 @@ void main() {
       ];
       final ledger = LedgerExcel.fromEvent(event, records, people);
       expect(ledger.fileName, '경조사장부_우리 결혼식_20261011.xlsx');
-      final list = Excel.decodeBytes(ExcelExportService.buildLedger(ledger))['명단'];
+      final list = Excel.decodeBytes(ExportService.buildLedger(ledger))['명단'];
       final info = {for (var c = 0; c < 10; c++) _v(list, 0, c): _v(list, 1, c)};
       expect(info['행사 구분'], '내 행사');
       expect(info['장소'], '그랜드홀');
@@ -174,7 +176,7 @@ void main() {
       expect([for (var c = 0; c < 12; c++) _v(list, 5, c)],
           ['2', '강지은', '50000', '신부측', '계좌', '2', '회사 동료', '2026-10-11', '', '회사', '', '']);
       // 받은 사람이 없는 구분도 합계에 0명으로
-      final onlyGroom = Excel.decodeBytes(ExcelExportService.buildLedger(
+      final onlyGroom = Excel.decodeBytes(ExportService.buildLedger(
           LedgerExcel.fromEvent(event, [records.last], people)))['합계'];
       expect([for (var r = 1; r < 5; r++) _v(onlyGroom, r, 0)], containsAll(['신랑측', '신부측']));
     });
@@ -197,9 +199,9 @@ void main() {
       GiftRecord(id: 3, personId: 2, direction: '보냄', amount: 30000,
           date: DateTime(2026, 2, 1), eventType: '장례', personName: '이영희', personRelation: '회사'),
     ];
-    final bytes = ExcelExportService.buildHistory(
+    final bytes = ExportService.buildHistory(
         records: records, people: people, events: events, now: DateTime(2026, 11, 17));
-    expect(ExcelExportService.historyFileName(DateTime(2026, 11, 17)),
+    expect(ExportService.historyFileName(DateTime(2026, 11, 17)),
         '경조사장부_주고받은내역_20261117.xlsx');
     final book = Excel.decodeBytes(bytes);
     expect(book.tables.keys, containsAll(['내역', '사람별 합계', '행사 일정', '정보']));
@@ -232,7 +234,7 @@ void main() {
   });
 
   test('금액 칸은 천 단위 쉼표 형식, 열 제목 줄 고정, [정보] 시트는 숨김 · 형식 버전 1', () {
-    final bytes = ExcelExportService.buildLedger(LedgerExcel.fromReception(reception),
+    final bytes = ExportService.buildLedger(LedgerExcel.fromReception(reception),
         now: DateTime(2026, 11, 17, 9, 5));
     // 눈으로 확인할 수 있게 파일로도 남긴다
     File('${Directory.systemTemp.path}/gyeongjosa_excel_ledger.xlsx').writeAsBytesSync(bytes);
@@ -254,7 +256,77 @@ void main() {
   });
 
   test('파일 이름에 쓸 수 없는 글자는 _로', () {
-    expect(ExcelExportService.ledgerFileName('엄마/아빠: "회갑"?', DateTime(2026, 1, 2)),
+    expect(ExportService.ledgerFileName('엄마/아빠: "회갑"?', DateTime(2026, 1, 2)),
         '경조사장부_엄마_아빠_ _회갑___20260102.xlsx');
+  });
+
+  group('추가 T: 행사 전체 · 텍스트', () {
+    test('행사 전체 엑셀: [행사 목록](최신순) + 행사마다 시트(정보 → 명단 → 합계)', () {
+      final small = ReceptionPackage(
+        Reception(id: 'r2', title: '친구 돌잔치', eventType: '돌', date: DateTime(2027, 3, 1), sides: const [], operatorName: '', startedAt: DateTime(2027, 3, 1, 11)),
+        [
+          ReceptionEntry(id: 'a', receptionId: 'r2', name: '홍길동', amount: 30000, side: '', createdAt: DateTime(2027, 3, 1, 12)),
+        ],
+      );
+      final bytes = ExportService.buildAllEvents([
+        LedgerExcel.fromReception(reception),
+        LedgerExcel.fromReception(small),
+      ], now: DateTime(2026, 11, 17));
+      expect(ExportService.allEventsFileName(DateTime(2026, 11, 17)),
+          '경조사장부_행사전체_20261117.xlsx');
+      final book = Excel.decodeBytes(bytes);
+      expect(book.tables.keys, containsAll(['행사 목록', '누나 결혼식', '친구 돌잔치', '정보']));
+      final index = book['행사 목록'];
+      expect([for (var c = 0; c < 9; c++) _v(index, 0, c)], ExportService.eventListHeader);
+      expect(_v(index, 1, 0), '친구 돌잔치'); // 최신순
+      expect(_v(index, 2, 0), '누나 결혼식');
+      expect(_v(index, 2, 3), '다른 사람 행사');
+      expect(_v(index, 2, 4), '120');
+      final sheet = book['누나 결혼식'];
+      expect(_v(sheet, 3, 0), '번호');
+      expect(_v(sheet, 4, 1).isNotEmpty, isTrue);
+      expect(_sheetXml(bytes, '누나 결혼식'), contains('ySplit="4"'));
+      final info = book['정보'];
+      expect(_v(info, 1, 1), '행사 전체');
+    });
+
+    test('시트 이름: 쓸 수 없는 글자를 빼고 31자, 같은 이름은 (2)(3)', () {
+      final used = <String>{'행사 목록', '정보'};
+      expect(ExportService.uniqueSheetName('결혼식', used), '결혼식');
+      expect(ExportService.uniqueSheetName('결혼식', used), '결혼식(2)');
+      expect(ExportService.uniqueSheetName('결혼식', used), '결혼식(3)');
+      expect(ExportService.uniqueSheetName('[엄마]/아빠: 회갑*?', used), '엄마아빠 회갑');
+      final long = '가' * 40;
+      expect(ExportService.uniqueSheetName(long, used), '가' * 31);
+      expect(ExportService.uniqueSheetName(long, used), '${'가' * 28}(2)');
+      expect(ExportService.uniqueSheetName('', used), '행사');
+    });
+
+    test('행사 텍스트: 공유는 행사마다(100명 넘으면 나눔), 다운로드는 .txt 하나', () {
+      final parts = ExportService.allEventsTextParts([reception, reception]);
+      expect(parts.length, 4); // 120명 = 2개씩
+      final file = ExportService.ledgersTextFile([reception, reception]);
+      expect('\n\n'.allMatches(file).isNotEmpty, isTrue);
+      expect(ExportService.ledgerFileName('누나 결혼식', DateTime(2026, 12, 26), ext: 'txt'),
+          '경조사장부_누나 결혼식_20261226.txt');
+      // 붙여넣어 가져오기로 다시 읽힌다
+      expect(LedgerText.parse(parts.first), isNotNull);
+    });
+
+    test('주고받은 내역 텍스트: 머리 · 합계 · 한 줄씩(빈 값 빼고), 100줄씩 나눔', () {
+      final records = [
+        for (var i = 0; i < 150; i++)
+          GiftRecord(id: i, personId: 1, direction: i.isEven ? '보냄' : '받음', amount: 10000,
+              date: DateTime(2026, 1, 1).add(Duration(days: i)), personName: '김철수',
+              personRelation: i == 149 ? '친구' : null, memo: i == 149 ? '꽃' : null),
+      ];
+      final parts = ExportService.historyText(records: records, now: DateTime(2026, 11, 17));
+      expect(parts.length, 2);
+      final lines = parts.first.split('\n');
+      expect(lines[0], '[경조사 장부] 주고받은 내역 · 2026-11-17 (1/2)');
+      expect(lines[1], '보냄 75건 750,000원 / 받음 75건 750,000원');
+      expect(lines[3], '1. 2026-05-30 · 받음 · 김철수(친구) · 10,000원 · 현금 · 메모: 꽃');
+      expect(parts.last.split('\n').where((l) => RegExp(r'^\d+\. ').hasMatch(l)).length, 50);
+    });
   });
 }

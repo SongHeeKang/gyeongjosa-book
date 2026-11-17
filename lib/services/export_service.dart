@@ -19,11 +19,12 @@ import 'ledger_text_format.dart';
 /// 두 파일 모두 숨긴 [정보] 시트에 파일 종류와 형식 버전을 넣어, 나중에 엑셀 가져오기에서 쓸 수 있게 한다.
 /// 앱에 저장된 값은 빠짐없이 넣고(내부 id 제외), 값이 없는 열도 빈칸으로 남겨 열 위치를 늘 같게 둔다.
 /// 금액은 숫자 칸 + 천 단위 쉼표, 합계는 수식이 아니라 앱에서 계산한 값(폰 뷰어에서도 보이게).
-class ExcelExportService {
+class ExportService {
   static const formatVersion = 1;
   static const appName = '경조사 장부';
   static const kindLedger = '장부';
   static const kindHistory = '주고받은 내역';
+  static const kindAllEvents = '행사 전체';
 
   /// 파일 이름에 쓸 수 없는 글자를 '_'로 바꾼다.
   static String safeFileName(String name) =>
@@ -31,13 +32,17 @@ class ExcelExportService {
 
   static String _yyyymmdd(DateTime d) => DateFormat('yyyyMMdd').format(d);
 
-  /// 경조사장부_{행사이름}_{행사날짜}.xlsx
-  static String ledgerFileName(String title, DateTime date) =>
-      safeFileName('경조사장부_${title}_${_yyyymmdd(date)}.xlsx');
+  /// 경조사장부_{행사이름}_{행사날짜}.xlsx (텍스트는 [ext] = 'txt')
+  static String ledgerFileName(String title, DateTime date, {String ext = 'xlsx'}) =>
+      safeFileName('경조사장부_${title}_${_yyyymmdd(date)}.$ext');
+
+  /// 경조사장부_행사전체_{오늘}.xlsx
+  static String allEventsFileName(DateTime today, {String ext = 'xlsx'}) =>
+      safeFileName('경조사장부_행사전체_${_yyyymmdd(today)}.$ext');
 
   /// 경조사장부_주고받은내역_{오늘}.xlsx
-  static String historyFileName(DateTime today) =>
-      safeFileName('경조사장부_주고받은내역_${_yyyymmdd(today)}.xlsx');
+  static String historyFileName(DateTime today, {String ext = 'xlsx'}) =>
+      safeFileName('경조사장부_주고받은내역_${_yyyymmdd(today)}.$ext');
 
   // ───────────────────────── ① 행사 장부 ─────────────────────────
 
@@ -50,22 +55,36 @@ class ExcelExportService {
   static Uint8List buildLedger(LedgerExcel ledger, {DateTime? now}) {
     final book = _Book();
     final list = book.sheet('명단');
-    // 1~2행: 행사 정보 (값이 있는 것만)
+    _writeInfo(list, ledger, 0); // 1~2행: 행사 정보
+    _writeList(list, ledger, 3); // 4행: 열 제목, 5행부터 손님
+    list.freezeRows = 4;
+    final sum = book.sheet('합계');
+    _writeTotals(sum, ledger, 0);
+    sum.freezeRows = 1;
+    book.info(kindLedger, now ?? DateTime.now());
+    return book.encode();
+  }
+
+  /// [row]행에 제목, 다음 행에 값 (값이 있는 것만)
+  static void _writeInfo(_Sheet sheet, LedgerExcel ledger, int row) {
     final info = [
       for (final (label, value) in ledger.info)
         if (value.trim().isNotEmpty) (label, value),
     ];
     for (var i = 0; i < info.length; i++) {
-      list.text(0, i, info[i].$1, bold: true);
-      list.text(1, i, info[i].$2);
+      sheet.text(row, i, info[i].$1, bold: true);
+      sheet.text(row + 1, i, info[i].$2);
     }
-    // 4행: 열 제목, 5행부터 손님
-    list.header(3, ledgerHeader);
+  }
+
+  /// [headerRow]행에 열 제목, 그 아래 손님 줄. 다음 빈 행 번호를 돌려준다.
+  static int _writeList(_Sheet sheet, LedgerExcel ledger, int headerRow) {
+    sheet.header(headerRow, ledgerHeader);
     final rows = ledger.rows;
     for (var i = 0; i < rows.length; i++) {
       final r = rows[i];
-      final row = 4 + i;
-      list
+      final row = headerRow + 1 + i;
+      sheet
         ..number(row, 0, i + 1, money: false)
         ..text(row, 1, r.name)
         ..number(row, 2, r.amount)
@@ -79,20 +98,22 @@ class ExcelExportService {
         ..text(row, 10, r.phone)
         ..text(row, 11, r.needsReview ? '확인 필요' : '');
     }
-    list.freezeRows = 4;
+    return headerRow + 1 + rows.length;
+  }
 
-    // [합계] 시트
-    final sum = book.sheet('합계');
-    sum.header(0, const ['항목', '인원', '금액', '식권']);
-    var row = 1;
+  /// 합계 표: 총계 → 구분별 → 결제 방법별 (열: 항목 · 인원 · 금액 · 식권)
+  static void _writeTotals(_Sheet sheet, LedgerExcel ledger, int startRow) {
+    final rows = ledger.rows;
+    sheet.header(startRow, const ['항목', '인원', '금액', '식권']);
+    var row = startRow + 1;
     void line(String label, Iterable<LedgerExcelRow> part, {bool meals = true}) {
-      sum
+      sheet
         ..text(row, 0, label)
         ..number(row, 1, part.length, money: false)
         ..number(row, 2, part.fold(0, (s, r) => s + r.amount));
       final known = part.where((r) => r.mealTickets != null);
       if (meals && known.isNotEmpty) {
-        sum.number(row, 3, known.fold(0, (s, r) => s + r.mealTickets!), money: false);
+        sheet.number(row, 3, known.fold(0, (s, r) => s + r.mealTickets!), money: false);
       }
       row++;
     }
@@ -113,10 +134,128 @@ class ExcelExportService {
     for (final m in methods) {
       line(m, rows.where((r) => r.method == m), meals: false);
     }
-    sum.freezeRows = 1;
+  }
 
-    book.info(kindLedger, now ?? DateTime.now());
+  // ───────────────────────── ② 행사 전체 (행사 탭) ─────────────────────────
+
+  static const eventListHeader = [
+    '행사 이름', '종류', '날짜', '내/다른 사람 행사', '인원', '총액', '식권', '장소', '메모',
+  ];
+
+  /// [행사 목록] 시트(날짜 최신순) + 행사마다 시트 하나(위 행사 정보 → 명단 → 아래 합계)
+  static Uint8List buildAllEvents(List<LedgerExcel> ledgers, {DateTime? now}) {
+    final book = _Book();
+    final sorted = [...ledgers]..sort((a, b) => b.date.compareTo(a.date));
+    final index = book.sheet('행사 목록');
+    index.header(0, eventListHeader);
+    for (var i = 0; i < sorted.length; i++) {
+      final l = sorted[i];
+      final known = l.rows.where((r) => r.mealTickets != null);
+      final row = 1 + i;
+      index
+        ..text(row, 0, l.title)
+        ..text(row, 1, l.type)
+        ..text(row, 2, toDbDate(l.date))
+        ..text(row, 3, l.isMine ? '내 행사' : '다른 사람 행사')
+        ..number(row, 4, l.rows.length, money: false)
+        ..number(row, 5, l.rows.fold(0, (s, r) => s + r.amount));
+      known.isEmpty
+          ? index.text(row, 6, '')
+          : index.number(row, 6, known.fold(0, (s, r) => s + r.mealTickets!),
+              money: false);
+      index
+        ..text(row, 7, l.place)
+        ..text(row, 8, l.memo);
+    }
+    index.freezeRows = 1;
+
+    final used = {'행사 목록', '정보'};
+    for (final l in sorted) {
+      final sheet = book.sheet(uniqueSheetName(l.title, used));
+      _writeInfo(sheet, l, 0);
+      final next = _writeList(sheet, l, 3);
+      _writeTotals(sheet, l, next + 1);
+      sheet.freezeRows = 4;
+    }
+    book.info(kindAllEvents, now ?? DateTime.now());
     return book.encode();
+  }
+
+  /// 엑셀 시트 이름: [ ] : * ? / \ 를 빼고 31자까지, 같은 이름은 (2) (3)…
+  static String uniqueSheetName(String title, Set<String> used) {
+    var base = title.replaceAll(RegExp(r'[\[\]:*?/\\]'), '').trim();
+    if (base.isEmpty) base = '행사';
+    String cut(String s, int max) =>
+        s.runes.length <= max ? s : String.fromCharCodes(s.runes.take(max));
+    var name = cut(base, 31);
+    for (var n = 2; used.contains(name); n++) {
+      final suffix = '($n)';
+      name = cut(base, 31 - suffix.length) + suffix;
+    }
+    used.add(name);
+    return name;
+  }
+
+  // ───────────────────────── 텍스트 ─────────────────────────
+
+  /// 행사 전체 공유: 행사마다 메시지 하나(100명이 넘는 행사만 나눔). 붙여넣어 가져오기와 같은 형식.
+  static List<String> allEventsTextParts(List<ReceptionPackage> packages) => [
+        for (final p in packages) ...LedgerText.build(p),
+      ];
+
+  /// 행사 하나 · 행사 전체 다운로드: 나누지 않고 .txt 하나 (행사 사이는 빈 줄)
+  static String ledgersTextFile(List<ReceptionPackage> packages) => [
+        for (final p in packages) LedgerText.build(p, chunkSize: 1 << 30).single,
+      ].join('\n\n');
+
+  /// 주고받은 내역 텍스트. [chunkSize]줄을 넘으면 나눠서 여러 메시지로 (보기용, 앱으로 가져오기는 안 됨)
+  static List<String> historyText({
+    required List<GiftRecord> records,
+    DateTime? now,
+    int chunkSize = kShareChunkSize,
+  }) {
+    final sorted = [...records]..sort((a, b) {
+        final byDate = b.date.compareTo(a.date);
+        return byDate != 0 ? byDate : (b.id ?? 0).compareTo(a.id ?? 0);
+      });
+    String total(String direction) {
+      final part = records.where((r) => r.direction == direction);
+      return '$direction ${part.length}건 ${formatWon(part.fold(0, (s, r) => s + r.amount))}';
+    }
+
+    final lines = [
+      for (var i = 0; i < sorted.length; i++)
+        '${i + 1}. ${historyLine(sorted[i])}',
+    ];
+    final count = lines.isEmpty ? 1 : (lines.length + chunkSize - 1) ~/ chunkSize;
+    final today = toDbDate(now ?? DateTime.now());
+    return [
+      for (var i = 0; i < count; i++)
+        [
+          '[경조사 장부] 주고받은 내역 · $today${count > 1 ? ' (${i + 1}/$count)' : ''}',
+          '${total(Direction.sent)} / ${total(Direction.received)}',
+          '',
+          ...lines.skip(i * chunkSize).take(chunkSize),
+          if (i < count - 1) '(${i + 1}/$count) 다음 메시지에 이어져요',
+        ].join('\n'),
+    ];
+  }
+
+  /// 날짜 · 보냄/받음 · 이름(관계) · 금액 · 결제 방법 · 행사 종류 · 행사 이름 · 메모 (빈 값은 뺀다)
+  static String historyLine(GiftRecord r) {
+    final name = r.personName ?? '';
+    final relation = r.personRelation ?? '';
+    final memo = (r.memo ?? '').trim();
+    return [
+      toDbDate(r.date),
+      r.direction,
+      relation.isEmpty ? name : '$name($relation)',
+      formatWon(r.amount),
+      r.method,
+      r.eventType ?? '',
+      r.eventTitle ?? '',
+      if (memo.isNotEmpty) '메모: ${LedgerText.clean(memo)}',
+    ].where((v) => v.trim().isNotEmpty).join(' · ');
   }
 
   // ───────────────────────── ② 주고받은 내역 ─────────────────────────
@@ -290,9 +429,19 @@ class LedgerExcel {
     required this.info,
     required this.rows,
     this.sides = const [],
+    this.type = '',
+    this.isMine = false,
+    this.place = '',
+    this.memo = '',
   });
   final String title;
   final DateTime date;
+
+  /// [행사 목록] 시트에 쓰는 값
+  final String type;
+  final bool isMine;
+  final String place;
+  final String memo;
 
   /// 행사에 정한 구분 (합계 시트에 0명이어도 넣는다)
   final List<String> sides;
@@ -301,7 +450,7 @@ class LedgerExcel {
   final List<(String, String)> info;
   final List<LedgerExcelRow> rows;
 
-  String get fileName => ExcelExportService.ledgerFileName(title, date);
+  String get fileName => ExportService.ledgerFileName(title, date);
 
   static String _time(DateTime? d) =>
       d == null ? '' : DateFormat('yyyy-MM-dd HH:mm').format(d);
@@ -359,6 +508,7 @@ class LedgerExcel {
         ('받기 끝', _time(r.finishedAt)),
       ],
       rows: _ordered(rows, order),
+      type: r.eventType,
       sides: [
         for (final s in r.sides)
           if (s != ReceptionDefaults.noSide) s,
@@ -404,6 +554,10 @@ class LedgerExcel {
         ('전날 알림', event.notify ? '켬' : ''),
       ],
       rows: _ordered(rows, order),
+      type: event.type,
+      isMine: event.isMine,
+      place: event.place ?? '',
+      memo: event.memo ?? '',
       sides: [
         for (final s in event.sides)
           if (s != ReceptionDefaults.noSide) s,
@@ -436,11 +590,11 @@ class _Book {
     final s = sheet('정보');
     s
       ..text(0, 0, '앱 이름', bold: true)
-      ..text(0, 1, ExcelExportService.appName)
+      ..text(0, 1, ExportService.appName)
       ..text(1, 0, '파일 종류', bold: true)
       ..text(1, 1, kind)
       ..text(2, 0, '형식 버전', bold: true)
-      ..number(2, 1, ExcelExportService.formatVersion, money: false)
+      ..number(2, 1, ExportService.formatVersion, money: false)
       ..text(3, 0, '만든 날짜', bold: true)
       ..text(3, 1, DateFormat('yyyy-MM-dd HH:mm').format(now));
     s.hidden = true;

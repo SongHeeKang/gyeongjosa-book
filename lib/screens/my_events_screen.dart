@@ -8,7 +8,6 @@ import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/coach_mark.dart';
-import '../widgets/dashed_box.dart';
 import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 import '../widgets/share_download.dart';
@@ -19,7 +18,7 @@ import 'ledger_import_screen.dart';
 import 'pick_event_screen.dart';
 
 /// 행사 탭: '내 행사'와 '다른 사람 행사' 두 묶음. 남의 행사(일정)는 홈의 일정으로 간다.
-/// [행사 만들기]에서 누구 행사인지 고르고, 내 행사 한도는 그때 검사한다.
+/// 묶음 제목의 [+ 추가]로 그 종류의 행사를 만든다(내 행사는 누르는 순간 한도 검사).
 class MyEventsScreen extends ConsumerWidget {
   const MyEventsScreen({super.key});
 
@@ -32,95 +31,51 @@ class MyEventsScreen extends ConsumerWidget {
         ),
       );
 
-  /// 행사가 없을 때: 둥근 배경 아이콘 · 안내 · 점선 카드 · 흐린 예시 줄 · 가져오기 링크
+  /// 행사가 없을 때: 홈 '다가오는 일정이 없어요'와 같은 빈 화면 위젯([EmptyView]) + 가져오기 링크
   Widget _empty(BuildContext context) => ListView(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page, AppSpacing.section * 2, AppSpacing.page, 0),
+        padding: const EdgeInsets.only(top: AppSpacing.section),
         children: [
-          Center(
-            child: Container(
-              width: 88,
-              height: 88,
-              decoration: const BoxDecoration(
-                  color: AppColors.primarySoft, shape: BoxShape.circle),
-              child: const Icon(Icons.celebration_outlined,
-                  size: 42, color: AppColors.primary),
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text('첫 행사 장부를 만들어 보세요',
-              textAlign: TextAlign.center, style: AppText.appTitle),
-          const SizedBox(height: 8),
-          Text('결혼식 · 돌잔치 · 장례식\n받은 마음을 행사별로 모아 둬요',
-              textAlign: TextAlign.center,
-              style: AppText.sub.copyWith(fontSize: 15, height: 1.5)),
-          const SizedBox(height: AppSpacing.section),
-          CoachTarget(
-            spot: CoachSpot.myEventsCreate,
-            child: TestId(
-              'btn_new_event',
-              child: DashedBox(
-                onTap: () => openCreateEvent(context),
-                child: const Padding(
-                  padding: EdgeInsets.all(18),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: AppColors.primary,
-                        child: Icon(Icons.add, color: AppColors.background),
-                      ),
-                      SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('행사를 추가해 주세요', style: AppText.sectionTitle),
-                            SizedBox(height: 2),
-                            Text('내 행사 · 다른 사람 행사', style: AppText.sub),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          // 누를 수 없는 흐린 예시 줄
-          ExcludeSemantics(
-            child: Opacity(
-              opacity: 0.45,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Text('예) 우리 결혼식 · 2026.10.11 · 0명', style: AppText.body),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.section),
-          _importLink(context),
+          TestId('events_empty', child: EmptyView(
+            icon: Icons.event_available,
+            message: '아직 행사가 없어요.',
+            detail: '연필 버튼 > 받은 돈 적기에서 만들어요',
+            action: _importLink(context),
+          )),
           fabBottomSpace,
         ],
       );
 
-  /// 묶음 제목 옆의 개수 · 합계 (예: '11개 · 1,850,000원')
-  Widget _groupTitle(String title, int count, int total) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page, AppSpacing.section, AppSpacing.page, 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(title, style: AppText.sectionTitle),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text('$count개 · ${formatWon(total)}',
-                  style: AppText.sub, overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
-      );
+  /// 묶음 제목 줄: 왼쪽 '내 행사 1개 · 0원', 오른쪽 파란 글자 [+ 추가](누르는 영역 48dp)
+  Widget _groupTitle(BuildContext context, WidgetRef ref,
+          {required bool mine, required int count, required int total}) {
+    final add = TestId(
+      mine ? 'btn_add_my_event' : 'btn_add_other_event',
+      child: TextButton(
+        style: TextButton.styleFrom(
+            minimumSize: const Size(48, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 12)),
+        onPressed: () => openCreateEventOf(context, ref, mine: mine),
+        child: const Text('+ 추가', style: AppText.link),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page, AppSpacing.section - 12, 12, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(mine ? '내 행사' : '다른 사람 행사', style: AppText.sectionTitle),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('$count개 · ${formatWon(total)}',
+                style: AppText.sub, overflow: TextOverflow.ellipsis),
+          ),
+          // 도움말은 첫 묶음(내 행사)의 [+ 추가]를 가리킨다
+          if (mine) CoachTarget(spot: CoachSpot.myEventsCreate, child: add) else add,
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -153,33 +108,12 @@ class MyEventsScreen extends ConsumerWidget {
           if (mine.isEmpty && receptions.isEmpty) return _empty(context);
           return ListView(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.page, 12, AppSpacing.page, 0),
-                child: CoachTarget(
-                  spot: CoachSpot.myEventsCreate,
-                  child: TestId(
-                    'btn_new_event',
-                    child: DashedBox(
-                      radius: 12,
-                      onTap: () => openCreateEvent(context),
-                      child: const SizedBox(
-                        height: 52,
-                        child: Center(
-                          child: Text('+ 새 행사 만들기',
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (mine.isNotEmpty) ...[
-                _groupTitle('내 행사', mine.length,
-                    mine.fold(0, (s, e) => s + e.total)),
+              // 한 묶음이 비어 있어도 제목 줄('다른 사람 행사 0개 · 0원 + 추가')은 보인다
+              _groupTitle(context, ref,
+                  mine: true,
+                  count: mine.length,
+                  total: mine.fold(0, (s, e) => s + e.total)),
+              ...[
                 for (final (i, s) in mine.indexed)
                   _firstTarget(
                     i,
@@ -197,13 +131,13 @@ class MyEventsScreen extends ConsumerWidget {
                     )),
                   ),
               ],
-              if (receptions.isNotEmpty) ...[
-                if (mine.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.section - 6),
-                  const AppDivider(),
-                ],
-                _groupTitle('다른 사람 행사', receptions.length,
-                    receptions.fold(0, (s, r) => s + r.total)),
+              const SizedBox(height: AppSpacing.section - 14),
+              const AppDivider(),
+              _groupTitle(context, ref,
+                  mine: false,
+                  count: receptions.length,
+                  total: receptions.fold(0, (s, r) => s + r.total)),
+              ...[
                 for (final (i, s) in receptions.indexed)
                   mine.isEmpty
                       ? _firstTarget(i, _receptionRow(context, s))

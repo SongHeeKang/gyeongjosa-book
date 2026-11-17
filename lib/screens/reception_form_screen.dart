@@ -28,12 +28,16 @@ import 'receive_money_screen.dart';
 ///   받기 설정이 없는 예전 행사에서 처음 한 번 묻고, 받은 돈 적기 화면의 현황 줄에서
 ///   다시 바꿀 수 있다([editing]).
 class ReceptionFormScreen extends ConsumerStatefulWidget {
-  const ReceptionFormScreen({super.key})
+  const ReceptionFormScreen({super.key, this.whose})
       : event = null,
         editing = false;
 
   const ReceptionFormScreen.myEvent(
-      {super.key, required Event this.event, this.editing = false});
+      {super.key, required Event this.event, this.editing = false})
+      : whose = null;
+
+  /// 행사 탭 묶음의 [+ 추가]로 열면 미리 골라 둔 '누구 행사예요?' (true: 내 행사, false: 다른 사람 행사)
+  final bool? whose;
 
   /// 이미 있는 내 행사의 받기 설정이면 그 행사
   final Event? event;
@@ -74,6 +78,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   @override
   void initState() {
     super.initState();
+    _whose = widget.whose;
     final event = widget.event;
     if (event != null) {
       _title.text = event.title;

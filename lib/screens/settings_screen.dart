@@ -41,6 +41,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _backup = BackupService(DatabaseHelper.instance);
   bool _working = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // 알림 줄의 켜짐 / 꺼짐을 지금 상태로 (휴대폰 설정에서 바꾸고 돌아오면 MainShell이 다시 확인)
+    Future.microtask(
+        () => ref.read(notificationPermissionProvider.notifier).refresh());
+  }
+
   Future<void> _run(Future<void> Function() task) async {
     if (_working) return;
     setState(() => _working = true);
@@ -169,6 +177,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             const AppDivider(),
             const SectionTitle('기타'),
+            _notificationTile(),
             TestId('btn_help_menu', child: ListTile(
               leading: const Icon(Icons.help_outline, size: 24),
               title: const Text('사용 방법'),
@@ -201,6 +210,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  /// 알림: 켜짐 / 꺼짐 + [설정 열기](휴대폰 설정의 이 앱 알림 화면)
+  Widget _notificationTile() {
+    final on = ref.watch(notificationPermissionProvider);
+    return TestId('settings_notification', child: ListTile(
+      leading: Icon(
+          on ? Icons.notifications_outlined : Icons.notifications_off_outlined,
+          size: 24),
+      title: const Text('알림'),
+      subtitle: Text(on ? '켜짐 · 행사 전날 오전 9시에 알려드려요' : '꺼짐 · 행사 알림을 받을 수 없어요'),
+      trailing: TestId('btn_notification_settings', child: TextButton(
+        onPressed: openNotificationSettings,
+        child: const Text('설정 열기'),
+      )),
+    ));
   }
 
   Widget _autoBackupTile() {

@@ -16,7 +16,7 @@
 - 앱 이름: 경조사 장부 / 패키지: com.heekangsong.gyeongjosa
 - DB 스키마 변경 시 `lib/data/database_helper.dart`의 `_dbVersion`을 올리고 `_migrations`에 단계를 추가한다. 기존 데이터를 지우는 마이그레이션은 금지.
 - 무료 한도: 사람 50명(`kFreePeopleLimit`, 이 상수 하나만 바꾸면 문구까지 바뀜), 내 행사 1개. 관계별·연도별 차트만 프로 전용 (`lib/services/limits.dart`). 공유 · 다운로드(엑셀 .xlsx · 텍스트)는 무료: 홈(주고받은 내역) · 행사 탭(행사 장부 전체) · 행사 상세(그 행사) 오른쪽 위 [공유] [다운로드] 아이콘(사람 탭에는 없음). 기록이 없으면 회색. 받기 끝내기 화면의 [공유하기]도 같은 선택창. 만드는 코드는 `lib/services/export_service.dart` 한 곳(행사 텍스트는 `ledger_text_format.dart` 재사용), 아이콘 · 선택창은 `lib/widgets/share_download.dart`. 다운로드는 `FilePicker.saveFile`(권한 요청 없음). 보관/지우기 질문은 다른 사람 행사 상세에서 공유한 뒤에만(행사 탭 공유 뒤엔 묻지 않음). 숨긴 [정보] 시트에 파일 종류 · 형식 버전(1)을 넣는다. 설정의 CSV 내보내기는 없앴다.
-- 행사는 만들 때 '누구 행사예요?'를 한 번 고른다(`reception_form_screen.dart`). 내 행사는 events + people/records('받음'), 다른 사람 행사는 receptions + reception_entries에만 저장하고 사람 탭 · 통계 · 한도에 넣지 않는다. 다른 사람 행사를 적는 중에는 결제 화면을 띄우지 않는다. 내 행사 한도는 [내 행사]를 고르는 순간 · [내 행사로 바꾸기]를 누르는 순간 검사한다.
+- 행사는 만들 때 '누구 행사예요?'를 한 번 고른다(`reception_form_screen.dart`). 행사 탭 묶음 제목의 [+ 추가]는 그 종류로 골라 둔 채 연다(`openCreateEventOf`, 내 행사는 누르는 순간 한도 검사). 행사 0개 · 홈 일정 없음은 같은 `EmptyView`. 내 행사는 events + people/records('받음'), 다른 사람 행사는 receptions + reception_entries에만 저장하고 사람 탭 · 통계 · 한도에 넣지 않는다. 다른 사람 행사를 적는 중에는 결제 화면을 띄우지 않는다. 내 행사 한도는 [내 행사]를 고르는 순간 · [내 행사로 바꾸기]를 누르는 순간 검사한다.
 - 장부 보내기는 글자만(파일 없음, 무료). 보내는 글과 붙여넣어 가져오기는 `lib/services/ledger_text_format.dart` 한 곳에서 같은 형식을 쓴다(형식을 바꾸면 `test/ledger_text_test.dart` 왕복 테스트도). 100명(`kShareChunkSize`)씩 나눠 보낸다. share_plus에 subject를 넣지 않는다.
 - 붙여넣어 가져오기만 사람 한도를 적용한다(넘으면 "N명 중 n명까지" 결제 화면, 같은 메시지로 나중에 마저). 같은 줄(행사 이름 · 날짜 · 이름 · 금액 · 구분)은 두 번 저장하지 않는다. 예전 JSON 장부 파일은 [예전 장부 파일 가져오기]로 읽기만 한다. 파일 연결(intent-filter)은 없앴다.
 - 이미 입력한 기록의 보기·수정·삭제는 한도와 상관없이 항상 허용.
@@ -28,7 +28,8 @@
 - 자동 백업: 기록이 바뀌면(`dbVersionProvider`) 5초 뒤 Download/경조사장부/에 저장한다(`lib/services/auto_backup_service.dart`, `DownloadBackup.kt`). 빈 장부로는 백업하지 않고, 이번 앱 데이터에서 만든 파일만 덮어쓴다. Android 10 이상에서만 동작한다.
 - 자동화 테스트는 이 저장소 밖의 별도 프로젝트(AutoTest: Python + behave + Appium + Allure)에 있다. 주요 위젯은 `lib/widgets/test_id.dart`의 `TestId('이름', child: ...)`로 감싸 resource-id를 붙인다. 화면을 고칠 때 이 식별자를 지우거나 이름을 바꾸지 않는다(바꾸면 README 표와 시나리오도 함께 고친다). 자동화용 APK는 debug 빌드.
 - 인앱 상품 ID: `pro_lifetime` (일회성 제품, 4,900원).
-- 알림은 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle)만 사용.
+- 알림은 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle)만 사용. 앱을 켤 때 거절해도 스낵바 없음. 홈 일정 아래 '알림이 꺼져 있어요 · 켜기', 설정에 켜짐/꺼짐 + [설정 열기].
+- 사람 탭 인원은 헤더가 아니라 칩 아래 제목 줄('전체 n명', 무료면 '· 무료 50명까지' + 막대).
 
 ## 디자인 (A 클린 화이트 + 아이콘 1)
 

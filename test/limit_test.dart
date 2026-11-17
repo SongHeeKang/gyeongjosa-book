@@ -256,30 +256,36 @@ void main() {
   }
 
   group('내 행사가 생기는 입구: [내 행사]를 고르는 순간 결제 화면 (내 행사 1개 · 무료)', () {
-    testWidgets('행사 탭 [+ 새 행사 만들기] → 내 행사는 바로 결제 화면, 다른 사람 행사는 통과',
+    testWidgets('행사 탭 \'내 행사 + 추가\' → 누르는 순간 결제 화면, \'다른 사람 행사 + 추가\' → 질문 없이 만들기',
         (tester) async {
       await open(tester, const MyEventsScreen(), myEvents: 1);
-      expect(find.text('행사'), findsWidgets);
-      await tester.tap(find.text('+ 새 행사 만들기'));
+      expect(find.text('+ 새 행사 만들기'), findsNothing);
+      // 첫 묶음(내 행사)의 [+ 추가]
+      await tester.tap(find.text('+ 추가').first);
       await tester.pumpAndSettle();
-      expect(find.byType(ReceptionFormScreen), findsOneWidget);
-      expect(find.byType(PaywallScreen), findsNothing);
-      // 미리 골라 두지 않아 [받기 시작]을 누를 수 없다
-      expect(
-          tester.widget<FilledButton>(find.widgetWithText(FilledButton, '받기 시작'))
-              .onPressed,
-          isNull);
-
-      await whose(tester, '내 행사');
       expect(find.byType(PaywallScreen), findsOneWidget);
       expect(find.text('무료 버전은 내 행사를 1개까지 만들 수 있어요.'), findsOneWidget);
       await tester.tap(find.text('나중에 할게요'));
       await tester.pumpAndSettle();
-      expect(find.byType(ReceptionFormScreen), findsOneWidget);
+      expect(find.byType(ReceptionFormScreen), findsNothing);
 
-      await whose(tester, '다른 사람 행사');
+      await tester.tap(find.text('+ 추가').last);
+      await tester.pumpAndSettle();
       expect(find.byType(PaywallScreen), findsNothing);
+      expect(find.byType(ReceptionFormScreen), findsOneWidget);
+      // '다른 사람 행사'가 이미 골라져 있다
       expect(find.text('받는 사람 이름'), findsOneWidget);
+    });
+
+    testWidgets('내 행사가 없으면 \'내 행사 + 추가\'는 결제 화면 없이 내 행사로 골라진 채 열린다',
+        (tester) async {
+      await open(tester, const MyEventsScreen(), myEvents: 0);
+      await tester.tap(find.text('+ 추가').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(PaywallScreen), findsNothing);
+      expect(find.byType(ReceptionFormScreen), findsOneWidget);
+      expect(find.text('받는 사람 이름'), findsNothing);
+      expect(find.text('받은 손님이 사람 탭에도 들어가요 · 받은 만큼 챙기기 · 통계'), findsOneWidget);
     });
 
     testWidgets('받은 돈 적기 [+ 새 행사 만들기]도 같다', (tester) async {
@@ -462,16 +468,24 @@ void main() {
       expect(find.byType(PaywallScreen), findsNothing);
       expect(find.text('내 결혼식 · 1명'), findsOneWidget);
       expect(find.textContaining('엑셀 파일'), findsOneWidget);
-      expect(find.textContaining('메모장에서 열리는 .txt 파일'), findsOneWidget);
-      expect(find.text('취소'), findsOneWidget);
+      expect(find.text('메모장에서 열리는 .txt'), findsOneWidget);
+      expect(find.text('표로 정리 · .xlsx'), findsOneWidget);
+      // 취소 줄 없이 오른쪽 위 X로 닫는다
+      expect(find.text('취소'), findsNothing);
+      await tester.tap(find.byTooltip('닫기'));
+      await tester.pumpAndSettle();
+      expect(find.text('표로 정리 · .xlsx'), findsNothing);
     });
 
     testWidgets('행사 탭(행사가 있을 때): 점선 줄 · 묶음 제목 옆 개수 · 합계 · 아래 링크, 아이콘 켜짐',
         (tester) async {
       await open(tester, const MyEventsScreen(), myEvents: 1);
-      expect(find.text('+ 새 행사 만들기'), findsOneWidget);
-      expect(find.text('행사 만들기'), findsNothing);
+      expect(find.text('+ 새 행사 만들기'), findsNothing);
       expect(find.text('1개 · 0원'), findsOneWidget);
+      // 비어 있는 묶음도 제목 줄과 [+ 추가]가 보인다
+      expect(find.text('다른 사람 행사'), findsOneWidget);
+      expect(find.text('0개 · 0원'), findsOneWidget);
+      expect(find.text('+ 추가'), findsNWidgets(2));
       expect(find.text('받은 장부 붙여넣어 가져오기'), findsOneWidget);
       expect(icon(tester, '공유하기').onPressed, isNotNull);
       await tester.tap(find.byTooltip('공유하기'));

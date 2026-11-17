@@ -89,7 +89,8 @@ class ShareDownloadButtons extends StatelessWidget {
   }
 }
 
-/// 아래에서 올라오는 선택창: 제목 + 범위 + [엑셀 파일] [텍스트] [취소]
+/// 아래에서 올라오는 선택창: 제목 + 범위 한 줄, 오른쪽 위 X, 아래에 큰 카드 두 개 [엑셀 파일] [텍스트].
+/// 바깥을 누르거나 뒤로 가기로도 닫힌다.
 Future<void> showExportSheet(
   BuildContext context, {
   required ExportMode mode,
@@ -99,43 +100,81 @@ Future<void> showExportSheet(
   final choice = await showModalBottomSheet<String>(
     context: context,
     useSafeArea: true,
-    showDragHandle: true,
     builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.page, 0, AppSpacing.page, 4),
-            child: Text(share ? '공유하기' : '폰에 저장', style: AppText.appTitle),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.page, 0, AppSpacing.page, 8),
-            child: TestId('export_range',
-                child: Text(target.rangeLabel, style: AppText.sub)),
-          ),
-          TestId('export_excel', child: ListTile(
-            minTileHeight: 64,
-            leading: const Icon(Icons.grid_on_outlined, size: 26, color: AppColors.primary),
-            title: const Text('엑셀 파일', style: AppText.sectionTitle),
-            subtitle: const Text('모든 값 · 시트로 정리'),
-            onTap: () => Navigator.pop(ctx, 'excel'),
-          )),
-          TestId('export_text', child: ListTile(
-            minTileHeight: 64,
-            leading: const Icon(Icons.notes, size: 26, color: AppColors.primary),
-            title: const Text('텍스트', style: AppText.sectionTitle),
-            subtitle: Text(share ? '카톡 · 문자에 글자로' : '메모장에서 열리는 .txt 파일'),
-            onTap: () => Navigator.pop(ctx, 'text'),
-          )),
-          TestId('export_cancel', child: ListTile(
-            minTileHeight: 56,
-            leading: const Icon(Icons.close, size: 26),
-            title: const Text('취소'),
-            onTap: () => Navigator.pop(ctx),
-          )),
-          const SizedBox(height: 8),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.page, 12, 12, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(share ? '공유하기' : '폰에 저장', style: AppText.appTitle),
+                        const SizedBox(height: 4),
+                        TestId('export_range',
+                            child: Text(target.rangeLabel, style: AppText.sub)),
+                      ],
+                    ),
+                  ),
+                ),
+                // 누르는 영역 48dp, 연한 회색 동그라미 안 X
+                TestId('export_close', child: IconButton(
+                  tooltip: '닫기',
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                        color: AppColors.closeCircle, shape: BoxShape.circle),
+                    child: const Icon(Icons.close, size: 20, color: AppColors.icon),
+                  ),
+                )),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.page - 12),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _ExportCard(
+                        id: 'export_excel',
+                        icon: Icons.table_chart_outlined,
+                        color: AppColors.exportExcel,
+                        background: AppColors.exportExcelSoft,
+                        title: '엑셀 파일',
+                        detail: '표로 정리 · .xlsx',
+                        onTap: () => Navigator.pop(ctx, 'excel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ExportCard(
+                        id: 'export_text',
+                        icon: Icons.chat_bubble_outline,
+                        color: AppColors.exportText,
+                        background: AppColors.exportTextSoft,
+                        title: '텍스트',
+                        detail: share ? '카톡 · 문자에 글자로' : '메모장에서 열리는 .txt',
+                        onTap: () => Navigator.pop(ctx, 'text'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -169,6 +208,62 @@ Future<void> showExportSheet(
     }
   } catch (e) {
     if (context.mounted) showSnack(context, '파일을 만들지 못했어요: $e');
+  }
+}
+
+/// 선택창의 큰 카드: 둥근 네모(40dp) 안 아이콘 + 굵은 제목 + 설명. 얇은 테두리, 누르면 물결.
+class _ExportCard extends StatelessWidget {
+  const _ExportCard({
+    required this.id,
+    required this.icon,
+    required this.color,
+    required this.background,
+    required this.title,
+    required this.detail,
+    required this.onTap,
+  });
+  final String id;
+  final IconData icon;
+  final Color color;
+  final Color background;
+  final String title;
+  final String detail;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: const BorderSide(color: AppColors.divider),
+    );
+    return TestId(id, child: Material(
+      color: AppColors.background,
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        customBorder: shape,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                    color: background, borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, size: 22, color: color),
+              ),
+              const SizedBox(height: 12),
+              Text(title, style: AppText.sectionTitle),
+              const SizedBox(height: 2),
+              Text(detail, style: AppText.sub),
+            ],
+          ),
+        ),
+      ),
+    ));
   }
 }
 

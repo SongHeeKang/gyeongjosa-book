@@ -22,6 +22,8 @@ import 'package:gyeongjosa/screens/onboarding_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/screens/stats_screen.dart';
 import 'package:gyeongjosa/services/format.dart';
+import 'package:gyeongjosa/screens/people_screen.dart';
+import 'package:gyeongjosa/screens/settings_screen.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:gyeongjosa/widgets/app_bottom_nav.dart';
@@ -98,7 +100,8 @@ class FakeRepository extends Repository {
   @override
   Future<List<Person>> allPeople() async => const [];
   @override
-  Future<List<PersonSummary>> peopleSummaries() async => const [];
+  Future<List<PersonSummary>> peopleSummaries() async => summaries;
+  List<PersonSummary> summaries = [];
   @override
   Future<List<Person>> findPeopleByExactName(String name) async => const [];
   @override
@@ -392,9 +395,12 @@ void main() {
     testWidgets('행사 탭에는 남의 행사 섹션이 없다', (tester) async {
       await pump(tester, const MyEventsScreen());
       expect(find.textContaining('남의 행사'), findsNothing);
-      // 빈 화면: 점선 카드 · 흐린 예시 줄 · 작은 링크. 큰 버튼은 없다
-      expect(find.text('행사를 추가해 주세요'), findsOneWidget);
-      expect(find.text('예) 우리 결혼식 · 2026.10.11 · 0명'), findsOneWidget);
+      // 빈 화면: 홈 '다가오는 일정이 없어요'와 같은 EmptyView + 작은 링크. 점선 카드 · 예시 줄 없음
+      expect(find.text('아직 행사가 없어요.'), findsOneWidget);
+      expect(find.text('연필 버튼 > 받은 돈 적기에서 만들어요'), findsOneWidget);
+      expect(find.byType(EmptyView), findsOneWidget);
+      expect(find.text('행사를 추가해 주세요'), findsNothing);
+      expect(find.text('+ 추가'), findsNothing);
       expect(find.text('받은 장부 붙여넣어 가져오기'), findsOneWidget);
       expect(find.text('행사 만들기'), findsNothing);
       expect(find.text('받은 장부 가져오기'), findsNothing);
@@ -416,8 +422,7 @@ void main() {
       expect(arrow, findsNothing);
 
       await pump(tester, const MyEventsScreen());
-      expect(find.text('첫 행사 장부를 만들어 보세요'), findsOneWidget);
-      expect(find.text('결혼식 · 돌잔치 · 장례식\n받은 마음을 행사별로 모아 둬요'), findsOneWidget);
+      expect(find.text('아직 행사가 없어요.'), findsOneWidget);
     });
 
     testWidgets('가이드: 건너뛰면 다시 뜨지 않고, 마지막 장에 시작하기가 있다', (tester) async {
@@ -657,7 +662,8 @@ void main() {
       NotificationService.debugRequest = null;
     });
 
-    Future<void> pumpApp(WidgetTester tester, Widget home) async {
+    Future<void> pumpApp(WidgetTester tester, Widget home,
+        {FakeRepository? repo}) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.625;
       addTearDown(tester.view.reset);
@@ -669,7 +675,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           prefsProvider.overrideWithValue(prefs),
-          repositoryProvider.overrideWithValue(FakeRepository()),
+          repositoryProvider.overrideWithValue(repo ?? FakeRepository()),
         ],
         child: MaterialApp(theme: buildAppTheme(), home: home),
       ));
@@ -695,12 +701,15 @@ void main() {
       expect(find.text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.'), findsNothing);
     });
 
-    testWidgets('허용하지 않으면 안내하고, 행사 전날 알림 스위치를 쓸 수 없다', (tester) async {
+    testWidgets('허용하지 않아도 스낵바 없음, 행사 전날 알림 스위치를 쓸 수 없다', (tester) async {
       await pumpApp(tester, const MainShell());
       await tester.tap(find.text('허용 안 함'));
       await tester.pumpAndSettle();
       expect(requests, 0);
-      expect(find.text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.'), findsOneWidget);
+      expect(find.text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.'), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+      // 일정이 없으면 '알림이 꺼져 있어요' 줄도 없다
+      expect(find.text('알림이 꺼져 있어요'), findsNothing);
 
       await pumpApp(tester, const EventFormScreen());
       final sw = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
@@ -708,6 +717,39 @@ void main() {
       expect(sw.onChanged, isNull);
       expect(find.text('알림 권한이 없어 쓸 수 없어요'), findsOneWidget);
       expect(find.text('알림 허용하기'), findsOneWidget);
+    });
+
+    testWidgets('홈: 일정이 있고 알림이 꺼져 있으면 일정 아래 \'알림이 꺼져 있어요 · 켜기\', 켜면 사라진다',
+        (tester) async {
+      final repo = FakeRepository()
+        ..upcoming = [
+          Event(id: 7, type: '결혼', title: '철수 결혼식',
+              date: DateTime.now().add(const Duration(days: 3)), isMine: false),
+        ];
+      await pumpApp(tester, const MainShell(), repo: repo);
+      await tester.tap(find.text('허용 안 함'));
+      await tester.pumpAndSettle();
+      expect(find.text('알림이 꺼져 있어요'), findsOneWidget);
+      // 일정 바로 아래
+      expect(tester.getTopLeft(find.text('알림이 꺼져 있어요')).dy,
+          greaterThan(tester.getTopLeft(find.text('철수 결혼식')).dy));
+      enabled = true;
+      await tester.tap(find.text('켜기'));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(requests, 1);
+      expect(find.text('알림이 꺼져 있어요'), findsNothing);
+    });
+
+    testWidgets('설정: 알림 줄에 켜짐 / 꺼짐과 [설정 열기]', (tester) async {
+      await pumpApp(tester, const SettingsScreen());
+      await tester.scrollUntilVisible(find.text('설정 열기'), 200);
+      expect(find.textContaining('꺼짐'), findsOneWidget);
+      enabled = true;
+      await tester.pumpWidget(const SizedBox());
+      await pumpApp(tester, const SettingsScreen());
+      await tester.scrollUntilVisible(find.text('설정 열기'), 200);
+      expect(find.textContaining('켜짐'), findsOneWidget);
     });
 
     testWidgets('일정 화면의 [알림 허용하기]로 허용하면 스위치가 켜진다', (tester) async {
@@ -723,6 +765,65 @@ void main() {
       expect(sw.value, isTrue);
       expect(sw.onChanged, isNotNull);
       expect(find.text('알림 허용하기'), findsNothing);
+    });
+  });
+
+  group('사람 탭 인원 제목 줄 (추가 U)', () {
+    Future<void> pumpPeople(WidgetTester tester, {required bool pro}) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.625;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({
+        'flutter.${PrefKeys.notifPermissionAsked}': true,
+        'flutter.${PrefKeys.devProOverride}': pro,
+        'flutter.coach_seen_people': true,
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final repo = FakeRepository()
+        ..summaries = [
+          PersonSummary(
+              person: Person(id: 1, name: '김철수', relation: '가족', createdAt: DateTime(2026)),
+              sentTotal: 0,
+              receivedTotal: 0),
+        ];
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          repositoryProvider.overrideWithValue(repo),
+        ],
+        child: MaterialApp(theme: buildAppTheme(), home: const PeopleScreen()),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('무료: 헤더는 사람 + ? + 설정만, \'전체 1명 · 무료 50명까지\' + 막대', (tester) async {
+      await pumpPeople(tester, pro: false);
+      expect(find.text('1 / 50명'), findsNothing);
+      expect(find.text('사람 추가'), findsNothing);
+      expect(find.text('전체 1명'), findsOneWidget);
+      expect(find.text('· 무료 50명까지'), findsOneWidget);
+      expect(find.text('+ 추가'), findsOneWidget);
+      final bar = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
+      expect(bar.value, closeTo(1 / 50, 1e-9));
+
+      // 칩을 고르면 '가족 1명', 무료 표시 · 막대는 '전체'일 때만
+      await tester.tap(find.widgetWithText(ChoiceChip, '가족'));
+      await tester.pumpAndSettle();
+      expect(find.text('가족 1명'), findsOneWidget);
+      expect(find.text('· 무료 50명까지'), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, '전체'));
+      await tester.enterText(find.byType(TextField), '없는이름');
+      await tester.pumpAndSettle();
+      expect(find.text('검색 결과 0명'), findsOneWidget);
+    });
+
+    testWidgets('프로: \'전체 1명\'만, 막대 없음', (tester) async {
+      await pumpPeople(tester, pro: true);
+      expect(find.text('전체 1명'), findsOneWidget);
+      expect(find.text('· 무료 50명까지'), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
     });
   });
 }

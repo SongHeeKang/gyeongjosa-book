@@ -52,6 +52,57 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
     }
   }
 
+  /// 칩 아래 · 목록 위 제목 줄: '전체 n명'(무료면 '· 무료 50명까지' + 얇은 막대) / '가족 n명' /
+  /// '검색 결과 n명', 오른쪽 [+ 추가]. 프로여도 인원은 늘 보인다.
+  Widget _countHeader(List<PersonSummary> all, {required bool isPro}) {
+    final searching = _search.text.trim().isNotEmpty;
+    final label = searching ? '검색 결과' : (_relation ?? '전체');
+    final count = searching || _relation != null ? _filter(all).length : all.length;
+    final showFree = !isPro && !searching && _relation == null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, 12, 0),
+          child: Row(
+            children: [
+              TestId('people_count', child: Text('$label $count명',
+                  style: AppText.sectionTitle)),
+              if (showFree) ...[
+                const SizedBox(width: 6),
+                const Expanded(
+                  child: Text('· 무료 ${FreeLimits.people}명까지',
+                      style: AppText.sub, overflow: TextOverflow.ellipsis),
+                ),
+              ] else
+                const Spacer(),
+              TestId('btn_add_person', child: TextButton(
+                style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 12)),
+                onPressed: _add,
+                child: const Text('+ 추가', style: AppText.link),
+              )),
+            ],
+          ),
+        ),
+        if (showFree)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.page, 0, AppSpacing.page, 12),
+            child: TestId('people_limit_bar', child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: (count / FreeLimits.people).clamp(0.0, 1.0),
+                minHeight: 4,
+                color: AppColors.primary,
+                backgroundColor: AppColors.divider,
+              ),
+            )),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final people = ref.watch(peopleSummariesProvider);
@@ -60,24 +111,6 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
       appBar: AppBar(
         title: const Text('사람'),
         actions: [
-          if (!isPro)
-            Center(
-              child: Text(
-                '${people.value?.length ?? 0} / ${FreeLimits.people}명',
-                style: AppText.sub,
-              ),
-            ),
-          // 좁은 폰 · 큰 글씨에서는 글자 대신 아이콘으로 줄인다
-          TestId(
-            'btn_add_person',
-            child: isNarrowScreen(context)
-                ? IconButton(
-                    tooltip: '사람 추가',
-                    icon: const Icon(Icons.person_add_alt_1_outlined),
-                    onPressed: _add,
-                  )
-                : TextButton(onPressed: _add, child: const Text('사람 추가')),
-          ),
           const HelpButton(screen: CoachScreen.people),
           const SettingsButton(),
           SettingsButton.trailingGap,
@@ -125,6 +158,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
               ],
             ),
           ),
+          _countHeader(people.value ?? const [], isPro: isPro),
           const AppDivider(),
           Expanded(
             child: AsyncBody(

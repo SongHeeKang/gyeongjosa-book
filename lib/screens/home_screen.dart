@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
 import '../services/format.dart';
+import '../services/notification_permission.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
@@ -97,6 +98,7 @@ class HomeScreen extends ConsumerWidget {
                             builder: (_) => EventDetailScreen(
                                 eventId: data.upcoming[i].id!))),
                   ),
+              if (data.upcoming.isNotEmpty) const _NotificationOffLine(),
               const SizedBox(height: AppSpacing.section - 6),
               const AppDivider(),
             ],
@@ -183,6 +185,34 @@ class _BackupBanner extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    ));
+  }
+}
+
+/// 다가오는 일정 아래: 알림이 꺼져 있으면 작은 회색 한 줄 "알림이 꺼져 있어요" + [켜기].
+/// [켜기]는 허용 창을 다시 띄우고, 더 띄울 수 없으면 휴대폰 알림 설정을 연다.
+/// 앱으로 돌아오면 MainShell이 상태를 다시 확인하고, 켜져 있으면 이 줄은 사라진다.
+class _NotificationOffLine extends ConsumerWidget {
+  const _NotificationOffLine();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(notificationPermissionProvider)) return const SizedBox.shrink();
+    return TestId('home_notification_off', child: Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, 8, 0),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_off_outlined,
+              size: 18, color: AppColors.textSub),
+          const SizedBox(width: 6),
+          const Flexible(child: Text('알림이 꺼져 있어요', style: AppText.sub)),
+          TestId('btn_notification_on', child: TextButton(
+            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+            onPressed: () => requestNotificationsOrOpenSettings(ref),
+            child: const Text('켜기', style: AppText.link),
+          )),
+        ],
       ),
     ));
   }

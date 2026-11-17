@@ -42,9 +42,16 @@ class AsyncBody<T> extends StatelessWidget {
 
 class EmptyView extends StatelessWidget {
   const EmptyView(
-      {super.key, required this.icon, required this.message, this.action});
+      {super.key,
+      required this.icon,
+      required this.message,
+      this.detail,
+      this.action});
   final IconData icon;
   final String message;
+
+  /// 문구 아래 작은 글자 한 줄 (예: 행사 탭 '연필 버튼 > 받은 돈 적기에서 만들어요')
+  final String? detail;
 
   /// 문구 아래에 놓는 버튼이나 화살표
   final Widget? action;
@@ -62,6 +69,12 @@ class EmptyView extends StatelessWidget {
           Text(message,
               textAlign: TextAlign.center,
               style: AppText.sub.copyWith(height: 1.5)),
+          if (detail != null) ...[
+            const SizedBox(height: 2),
+            Text(detail!,
+                textAlign: TextAlign.center,
+                style: AppText.sub.copyWith(fontSize: 12, height: 1.5)),
+          ],
           if (action != null) ...[
             const SizedBox(height: 16),
             action!,

@@ -46,8 +46,9 @@ Future<void> openNotificationSettings() async {
 /// 알림 화면으로 보낸다. [atLaunch]는 앱을 켤 때 묻는 경우(문구만 다르다).
 Future<bool> askNotificationPermission(BuildContext context, WidgetRef ref,
     {bool atLaunch = false}) async {
-  final permission = ref.read(notificationPermissionProvider.notifier);
-  if (await permission.refresh()) return true;
+  if (await ref.read(notificationPermissionProvider.notifier).refresh()) {
+    return true;
+  }
   if (!context.mounted) return false;
 
   final prefs = ref.read(prefsProvider);
@@ -73,16 +74,26 @@ Future<bool> askNotificationPermission(BuildContext context, WidgetRef ref,
     ),
   );
   await prefs.setBool(PrefKeys.notifPermissionAsked, true);
-  if (ok != true) {
-    if (context.mounted && atLaunch) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.')));
-    }
-    return false;
+  // '허용 안 함'이면 조용히 넘어간다(스낵바 없음). 홈 일정 아래 '알림이 꺼져 있어요 · 켜기'로 다시 켤 수 있다.
+  if (ok != true) return false;
+  final granted = await requestNotificationsOrOpenSettings(ref);
+  // 앱을 켤 때는 허용 창에서 거절해도 스낵바를 띄우지 않는다.
+  if (!granted && !atLaunch && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.')));
   }
+  return granted;
+}
 
+/// 설명 없이 바로 알림 허용 창을 띄운다. 더 이상 허용 창을 띄울 수 없는 상태면
+/// 휴대폰 설정의 이 앱 알림 화면을 연다(돌아오면 [NotificationPermission.refresh]로 다시 확인).
+/// 홈의 '알림이 꺼져 있어요 · [켜기]'와 위 [askNotificationPermission]에서 쓴다.
+Future<bool> requestNotificationsOrOpenSettings(WidgetRef ref) async {
+  final permission = ref.read(notificationPermissionProvider.notifier);
+  final prefs = ref.read(prefsProvider);
+  final denied = prefs.getInt(PrefKeys.notifDeniedCount) ?? 0;
   if (denied >= 2) {
-    // 허용 창이 더 이상 뜨지 않으므로 설정 화면으로. 돌아오면 다시 확인한다.
+    // 안드로이드는 두 번 거절하면 허용 창을 더 띄우지 않으므로 설정 화면으로.
     await openNotificationSettings();
     return false;
   }
@@ -98,9 +109,6 @@ Future<bool> askNotificationPermission(BuildContext context, WidgetRef ref,
   if (DateTime.now().difference(started) < const Duration(milliseconds: 400)) {
     await prefs.setInt(PrefKeys.notifDeniedCount, 2);
     await openNotificationSettings();
-  } else if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.')));
   }
   return false;
 }

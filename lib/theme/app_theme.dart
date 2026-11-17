@@ -28,6 +28,11 @@ class AppColors {
   static const menuScheduleSoft = guideChip;
   static const menuReceive = success;
   static const menuReceiveSoft = Color(0xFFDCFCE7);
+  static const exportExcel = Color(0xFF15803D); // 공유 · 다운로드 선택창: 엑셀 카드 표 아이콘 (진한 초록)
+  static const exportExcelSoft = menuReceiveSoft; // 그 둥근 네모 바탕 (연한 초록)
+  static const exportText = link; // 텍스트 카드 말풍선 (진한 파랑)
+  static const exportTextSoft = guideChip; // 그 둥근 네모 바탕 (연한 파랑)
+  static const closeCircle = Color(0xFFF3F4F6); // 선택창 X 버튼의 연한 회색 동그라미
 
   /// 받은 돈 = 포인트색, 보낸 돈 = 기본 글자색
   static Color amount(bool isSent) => isSent ? text : primary;

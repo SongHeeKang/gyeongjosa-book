@@ -16,6 +16,8 @@ import '../widgets/reception_entry_sheet.dart';
 import 'event_detail_screen.dart';
 import 'receive_money_screen.dart';
 import 'reception_send_screen.dart';
+import '../services/excel_export_service.dart';
+import '../widgets/excel_actions.dart';
 
 /// 다른 사람 행사 상세 (받기 끝내기 화면도 이것): 구분별 요약,
 /// [이어서 받기] [장부 보내기] [내 행사로 바꾸기]
@@ -196,6 +198,31 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                             : () => _share(context, package),
                         icon: const Icon(Icons.send),
                         label: const Text('장부 보내기'),
+                      )),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: AppSpacing.receptionButton,
+                      child: TestId('btn_excel', child: ExcelButton(
+                        label: '엑셀 파일',
+                        enabled: totals.count > 0,
+                        onPressed: () {
+                          final ledger = LedgerExcel.fromReception(package);
+                          showExcelActions(
+                            context,
+                            fileName: ledger.fileName,
+                            build: () async =>
+                                ExcelExportService.buildLedger(ledger),
+                            // 글자로 보낼 때처럼 보낸 뒤 보관 · 지우기를 묻는다
+                            afterShare: () async {
+                              if (context.mounted) {
+                                await askKeepOrDeleteReception(context, ref,
+                                    receptionId: receptionId,
+                                    count: totals.count);
+                              }
+                            },
+                          );
+                        },
                       )),
                     ),
                     const SizedBox(height: 8),

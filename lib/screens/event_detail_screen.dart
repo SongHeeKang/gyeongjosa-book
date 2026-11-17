@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
+import '../models/person.dart';
 import '../services/event_package.dart';
 import '../services/format.dart';
 import '../services/notification_permission.dart';
@@ -18,6 +19,13 @@ import 'quick_entry_screen.dart';
 import 'ledger_import_screen.dart';
 import 'reception_send_screen.dart';
 import 'event_routes.dart';
+import '../services/excel_export_service.dart';
+import '../widgets/excel_actions.dart';
+
+/// 엑셀에 손님의 관계 · 연락처를 넣으려고 사람 정보를 불러온다
+Future<Map<int?, Person>> _people(WidgetRef ref) async => {
+      for (final p in await ref.read(repositoryProvider).allPeople()) p.id: p,
+    };
 
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({super.key, required this.eventId});
@@ -155,22 +163,52 @@ class EventDetailScreen extends ConsumerWidget {
                         )),
                       ),
                       const SizedBox(height: 8),
-                      CoachTarget(
-                        spot: CoachSpot.eventSend,
-                        child: TestId('btn_event_send', child: OutlinedButton.icon(
-                          onPressed: main.isEmpty
-                              ? null
-                              : () => Navigator.push(
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: CoachTarget(
+                              spot: CoachSpot.eventSend,
+                              child: TestId('btn_event_send', child: OutlinedButton.icon(
+                                onPressed: main.isEmpty
+                                    ? null
+                                    : () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute<void>(
+                                            builder: (_) => ReceptionSendScreen(
+                                                package: eventPackage(
+                                                    ref.read(prefsProvider),
+                                                    e,
+                                                    main),
+                                                excel: (order) async =>
+                                                    LedgerExcel.fromEvent(
+                                                        e, main, await _people(ref),
+                                                        order: order)))),
+                                icon: const Icon(Icons.send_outlined),
+                                label: const Text('장부 보내기'),
+                              )),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: CoachTarget(
+                              spot: CoachSpot.eventExcel,
+                              child: TestId('btn_event_excel', child: ExcelButton(
+                                label: '엑셀 파일',
+                                enabled: main.isNotEmpty,
+                                onPressed: () => showExcelActions(
                                   context,
-                                  MaterialPageRoute<void>(
-                                      builder: (_) => ReceptionSendScreen(
-                                          package: eventPackage(
-                                              ref.read(prefsProvider),
-                                              e,
-                                              main)))),
-                          icon: const Icon(Icons.send_outlined),
-                          label: const Text('장부 보내기'),
-                        )),
+                                  fileName: ExcelExportService.ledgerFileName(
+                                      e.title, e.date),
+                                  build: () async => ExcelExportService.buildLedger(
+                                      LedgerExcel.fromEvent(
+                                          e, main, await _people(ref))),
+                                ),
+                              )),
+                            ),
+                          ),
+                        ],
                       ),
                     ] else
                       FilledButton.icon(

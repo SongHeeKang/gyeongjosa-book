@@ -10,7 +10,6 @@ import '../data/sample_data.dart';
 import '../services/app_config.dart';
 import '../services/auto_backup_service.dart';
 import '../services/backup_service.dart';
-import '../services/csv_service.dart';
 import '../services/format.dart';
 import '../services/notification_permission.dart';
 import '../services/notification_service.dart';
@@ -96,28 +95,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
       });
 
-  Future<void> _exportCsv() async {
-    if (!await LimitService.canUseProFeature(context, ref,
-        reason: '엑셀(CSV) 내보내기는 프로 기능이에요.')) {
-      return;
-    }
-    await _run(() async {
-      final repo = ref.read(repositoryProvider);
-      final records = await repo.allRecords();
-      // 다른 사람 행사도 함께 넣는다
-      final receptions = [
-        for (final s in await repo.receptionSummaries())
-          if (!s.reception.imported) await repo.getReceptionPackage(s.reception.id),
-      ].nonNulls.where((p) => p.entries.isNotEmpty).toList();
-      if (records.isEmpty && receptions.isEmpty) {
-        if (mounted) showSnack(context, '내보낼 내역이 없어요.');
-        return;
-      }
-      await CsvService.exportAndShare(
-          records: records, events: await repo.allEvents(), receptions: receptions);
-    });
-  }
-
   Future<void> _open(Uri uri) async {
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) showSnack(context, '열 수 없어요: $uri');
@@ -167,18 +144,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: Text(
                   '휴대폰의 Google 백업이 켜져 있으면 기록이 내 Google 계정에 자동 백업되고, 새 폰을 설정할 때 복원돼요.'),
             ),
-            const SizedBox(height: 12),
-            const AppDivider(),
-            const SectionTitle('내보내기'),
-            TestId('btn_csv_export', child: ListTile(
-              leading: const Icon(Icons.table_view, size: 24),
-              title: Row(children: [
-                const Flexible(child: Text('엑셀(CSV)로 내보내기')),
-                if (!pro.isPro) ...[const SizedBox(width: 8), const ProBadge()],
-              ]),
-              subtitle: const Text('이름, 관계, 보냄/받음, 금액, 행사, 날짜, 메모'),
-              onTap: _exportCsv,
-            )),
             const SizedBox(height: 12),
             const AppDivider(),
             const SectionTitle('프로'),

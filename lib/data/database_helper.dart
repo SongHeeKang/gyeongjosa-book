@@ -172,7 +172,7 @@ class DatabaseHelper {
       await db.execute(
           'ALTER TABLE receptions ADD COLUMN method_enabled INTEGER NOT NULL DEFAULT 1');
     },
-    // v6: 받은 기록의 구분 · 식권 (CSV 내보내기에서 씀). 기존 기록은 빈 값.
+    // v6: 받은 기록의 구분 · 식권 (엑셀 파일에서 씀). 기존 기록은 빈 값.
     6: (db) async {
       await db.execute('ALTER TABLE records ADD COLUMN side TEXT');
       await db.execute('ALTER TABLE records ADD COLUMN meal_tickets INTEGER');

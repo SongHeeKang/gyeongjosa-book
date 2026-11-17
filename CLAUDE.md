@@ -15,7 +15,7 @@
 - 단계별 요청문(기획서)은 `docs/`의 `경조사비 장부 앱 기획서 & Claude Code 개발 요청문 (3).md`에 있다(파일이 여러 개면 숫자가 가장 큰 것이 최신). 공개 저장소이므로 이 파일은 커밋하지 않는다(.gitignore). Claude Docs 링크는 VS Code에서 읽을 수 없으니 이 파일을 본다.
 - 앱 이름: 경조사 장부 / 패키지: com.heekangsong.gyeongjosa
 - DB 스키마 변경 시 `lib/data/database_helper.dart`의 `_dbVersion`을 올리고 `_migrations`에 단계를 추가한다. 기존 데이터를 지우는 마이그레이션은 금지.
-- 무료 한도: 사람 50명(`kFreePeopleLimit`, 이 상수 하나만 바꾸면 문구까지 바뀜), 내 행사 1개. CSV 내보내기와 관계별·연도별 차트는 프로 전용 (`lib/services/limits.dart`).
+- 무료 한도: 사람 50명(`kFreePeopleLimit`, 이 상수 하나만 바꾸면 문구까지 바뀜), 내 행사 1개. 관계별·연도별 차트만 프로 전용 (`lib/services/limits.dart`). 엑셀 파일(.xlsx)은 무료: 홈 [엑셀](주고받은 내역) · 행사 상세 · 장부 보내기 [엑셀 파일](행사 장부). 만드는 코드는 `lib/services/excel_export_service.dart` 한 곳, 공유/폰에 저장 선택창은 `lib/widgets/excel_actions.dart`. 숨긴 [정보] 시트에 파일 종류 · 형식 버전(1)을 넣는다. 설정의 CSV 내보내기는 없앴다.
 - 행사는 만들 때 '누구 행사예요?'를 한 번 고른다(`reception_form_screen.dart`). 내 행사는 events + people/records('받음'), 다른 사람 행사는 receptions + reception_entries에만 저장하고 사람 탭 · 통계 · 한도에 넣지 않는다. 다른 사람 행사를 적는 중에는 결제 화면을 띄우지 않는다. 내 행사 한도는 [내 행사]를 고르는 순간 · [내 행사로 바꾸기]를 누르는 순간 검사한다.
 - 장부 보내기는 글자만(파일 없음, 무료). 보내는 글과 붙여넣어 가져오기는 `lib/services/ledger_text_format.dart` 한 곳에서 같은 형식을 쓴다(형식을 바꾸면 `test/ledger_text_test.dart` 왕복 테스트도). 100명(`kShareChunkSize`)씩 나눠 보낸다. share_plus에 subject를 넣지 않는다.
 - 붙여넣어 가져오기만 사람 한도를 적용한다(넘으면 "N명 중 n명까지" 결제 화면, 같은 메시지로 나중에 마저). 같은 줄(행사 이름 · 날짜 · 이름 · 금액 · 구분)은 두 번 저장하지 않는다. 예전 JSON 장부 파일은 [예전 장부 파일 가져오기]로 읽기만 한다. 파일 연결(intent-filter)은 없앴다.

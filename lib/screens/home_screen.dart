@@ -16,9 +16,29 @@ import 'all_schedules_screen.dart';
 import 'event_detail_screen.dart';
 import 'person_detail_screen.dart';
 import 'settings_screen.dart';
+import '../services/excel_export_service.dart';
+import '../widgets/excel_actions.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
+
+  /// 홈 [엑셀]: 주고받은 내역 · 사람별 합계 · 행사 일정
+  Future<void> _exportHistory(BuildContext context, WidgetRef ref) {
+    final now = DateTime.now();
+    return showExcelActions(
+      context,
+      fileName: ExcelExportService.historyFileName(now),
+      build: () async {
+        final repo = ref.read(repositoryProvider);
+        return ExcelExportService.buildHistory(
+          records: await repo.allRecords(),
+          people: await repo.allPeople(),
+          events: await repo.allEvents(),
+          now: now,
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,6 +48,16 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('경조사 장부'),
         actions: [
+          // [엑셀]: 개인으로 보내고 받은 모든 내역 (무료)
+          CoachTarget(
+            spot: CoachSpot.homeExcel,
+            child: TestId('btn_home_excel', child: ExcelButton(
+              label: '엑셀',
+              compact: true,
+              enabled: (home.value?.recordCount ?? 0) > 0,
+              onPressed: () => _exportHistory(context, ref),
+            )),
+          ),
           const CoachTarget(
             spot: CoachSpot.homeHelp,
             child: HelpButton(screen: CoachScreen.home),

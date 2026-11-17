@@ -43,7 +43,7 @@ class LimitService {
         reason: '무료 버전은 내 행사를 ${FreeLimits.myEvents}개까지 만들 수 있어요.');
   }
 
-  /// CSV 내보내기 · 상세 차트처럼 프로 전용 기능을 눌렀을 때
+  /// 상세 통계(관계별 · 연도별)처럼 프로 전용 기능을 눌렀을 때
   static Future<bool> canUseProFeature(BuildContext context, WidgetRef ref,
       {required String reason}) async {
     if (ref.read(isProProvider)) return true;

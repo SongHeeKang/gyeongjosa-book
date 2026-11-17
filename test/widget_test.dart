@@ -1,6 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gyeongjosa/models/gift_record.dart';
-import 'package:gyeongjosa/services/csv_service.dart';
 import 'package:gyeongjosa/services/format.dart';
 import 'package:gyeongjosa/services/notification_service.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
@@ -54,23 +52,6 @@ void main() {
     });
   });
 
-  test('CSV는 UTF-8 BOM으로 시작하고, 쉼표가 든 값은 큰따옴표로 감싼다', () {
-    final csv = CsvService.buildCsv(records: [
-      GiftRecord(
-        personId: 1,
-        direction: '받음',
-        amount: 50000,
-        date: DateTime(2026, 5, 2),
-        eventType: '결혼',
-        personName: '김철수',
-        personRelation: '친구',
-        memo: '봉투, 꽃',
-      ),
-    ], events: const []);
-    expect(csv.startsWith('﻿'), isTrue);
-    expect(csv, contains('번호,이름,관계,구분,금액,결제 방법,식권,메모,날짜'));
-    expect(csv, contains('1,김철수,친구,,50000,현금,,"봉투, 꽃",2026-05-02'));
-  });
 
   test('알림은 행사 전날 오전 9시', () {
     expect(NotificationService.reminderTime(DateTime(2026, 3, 1)),

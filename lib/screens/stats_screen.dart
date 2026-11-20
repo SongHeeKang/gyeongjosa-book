@@ -1,25 +1,19 @@
-import 'dart:math' as math;
-
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
 import '../models/constants.dart';
-import '../services/format.dart';
 import '../services/pro_service.dart';
 import '../services/limit_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
+import '../widgets/grouped_bar_chart.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
 import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 
-/// 차트 색: 보냄 = 회색, 받음 = 포인트색
-const _sentBar = AppColors.chartSent;
-const _receivedBar = AppColors.primary;
 
 /// 통계 탭: 월별 막대그래프(무료) + 관계별 · 연도별 차트(프로)
 class StatsScreen extends ConsumerStatefulWidget {
@@ -89,11 +83,11 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                       receivedLabel: '받은 돈')),
                   const SizedBox(height: AppSpacing.section),
                   const AppDivider(),
-                  const SectionTitle('월별 보냄 · 받음', trailing: _Legend()),
+                  const SectionTitle('월별 보냄 · 받음', trailing: SentReceivedLegend()),
                   CoachTarget(
                     spot: CoachSpot.statsChart,
                     child: TestId('stats_monthly_chart', child: _ChartCard(
-                      child: _GroupedBarChart(
+                      child: GroupedBarChart(
                         labels: [for (final r in rows) '${r.month}'],
                         sent: [for (final r in rows) r.sent],
                         received: [for (final r in rows) r.received],
@@ -115,7 +109,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               builder: (rows) {
                 final byRel = {for (final r in rows) r.relation: r};
                 return _ChartCard(
-                  child: _GroupedBarChart(
+                  child: GroupedBarChart(
                     labels: Relations.all,
                     sent: [for (final r in Relations.all) byRel[r]?.sent ?? 0],
                     received: [
@@ -137,7 +131,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               builder: (rows) => rows.isEmpty
                   ? const EmptyView(icon: Icons.bar_chart, message: '아직 기록이 없어요.')
                   : _ChartCard(
-                      child: _GroupedBarChart(
+                      child: GroupedBarChart(
                         labels: [for (final r in rows) '${r.year}'],
                         sent: [for (final r in rows) r.sent],
                         received: [for (final r in rows) r.received],
@@ -149,28 +143,6 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
         ],
       ),
     );
-  }
-}
-
-class _Legend extends StatelessWidget {
-  const _Legend();
-
-  @override
-  Widget build(BuildContext context) {
-    Widget dot(Color c, String t) => Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                  color: c, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(width: 4),
-          Text(t, style: AppText.sub),
-          const SizedBox(width: 8),
-        ]);
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      dot(_sentBar, '보냄'),
-      dot(_receivedBar, '받음'),
-    ]);
   }
 }
 
@@ -218,112 +190,3 @@ class _LockedChart extends ConsumerWidget {
   }
 }
 
-/// 눈금 간격을 1 · 2 · 5 × 10ⁿ 원(최소 1만 원)으로 맞춘다.
-double _niceInterval(num raw) {
-  var step = 10000.0;
-  while (true) {
-    for (final m in [1, 2, 5]) {
-      if (step * m >= raw) return step * m;
-    }
-    step *= 10;
-  }
-}
-
-/// 보냄/받음 두 막대씩 묶인 그래프
-class _GroupedBarChart extends StatelessWidget {
-  const _GroupedBarChart({
-    required this.labels,
-    required this.sent,
-    required this.received,
-    this.labelSuffix = '',
-  });
-  final List<String> labels;
-  final List<int> sent;
-  final List<int> received;
-  final String labelSuffix;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxValue = [...sent, ...received].fold(0, math.max);
-    final interval = _niceInterval(maxValue == 0 ? 100000 : maxValue / 4);
-    final maxY = maxValue == 0
-        ? interval * 4
-        : ((maxValue / interval).floor() + 1) * interval;
-    final barWidth = labels.length > 8 ? 7.0 : 14.0;
-
-    return BarChart(
-      BarChartData(
-        maxY: maxY,
-        alignment: BarChartAlignment.spaceAround,
-        gridData: FlGridData(
-          drawVerticalLine: false,
-          horizontalInterval: interval,
-          getDrawingHorizontalLine: (_) =>
-              const FlLine(color: AppColors.divider, strokeWidth: 1),
-        ),
-        borderData: FlBorderData(show: false),
-        barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (_) => AppColors.text,
-            getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
-              '${labels[groupIndex]}$labelSuffix ${rodIndex == 0 ? '보냄' : '받음'}\n${formatWon(rod.toY.round())}',
-              const TextStyle(
-                  fontFamily: AppText.fontFamily, color: Colors.white, fontSize: 13),
-            ),
-          ),
-        ),
-        titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 48,
-              interval: interval,
-              getTitlesWidget: (value, meta) {
-                return SideTitleWidget(
-                  meta: meta,
-                  child: Text(value == 0 ? '0' : '${formatNumber((value / 10000).round())}만',
-                      style: AppText.sub.copyWith(fontSize: 11)),
-                );
-              },
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-              getTitlesWidget: (value, meta) {
-                final i = value.toInt();
-                if (i < 0 || i >= labels.length) return const SizedBox.shrink();
-                return SideTitleWidget(
-                  meta: meta,
-                  child: Text(labels[i], style: AppText.sub.copyWith(fontSize: 12)),
-                );
-              },
-            ),
-          ),
-        ),
-        barGroups: [
-          for (var i = 0; i < labels.length; i++)
-            BarChartGroupData(
-              x: i,
-              barsSpace: 2,
-              barRods: [
-                BarChartRodData(
-                    toY: sent[i].toDouble(),
-                    color: _sentBar,
-                    width: barWidth,
-                    borderRadius: BorderRadius.circular(2)),
-                BarChartRodData(
-                    toY: received[i].toDouble(),
-                    color: _receivedBar,
-                    width: barWidth,
-                    borderRadius: BorderRadius.circular(2)),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-}

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gyeongjosa/widgets/backup_guide.dart';
 import 'package:gyeongjosa/services/format.dart';
 import 'package:gyeongjosa/services/notification_service.dart';
-import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
@@ -18,40 +18,43 @@ void main() {
     expect(formatReadableWon(150000000), '1억 5,000만원');
   });
 
-  group('백업 배너', () {
-    final now = DateTime(2026, 11, 3);
-    test('기록 20개 미만, 백업 안 함 → 안 보임', () {
+  group('홈 백업 아이콘 상태 (추가 W)', () {
+    final now = DateTime(2026, 11, 20, 15);
+    test('7일 이내 백업 → 초록 체크', () {
       expect(
-          shouldShowBackupBanner(
-              recordCount: 19, lastBackup: null, dismissedAt: null, now: now),
-          isFalse);
+          backupStatus(
+              recordCount: 3,
+              lastBackup: now.subtract(const Duration(days: 7)),
+              now: now),
+          BackupStatus.ok);
     });
-    test('기록 20개 이상, 백업 안 함 → 보임', () {
-      expect(
-          shouldShowBackupBanner(
-              recordCount: 20, lastBackup: null, dismissedAt: null, now: now),
-          isTrue);
+    test('기록이 있는데 백업 없음 → 주황 점', () {
+      expect(backupStatus(recordCount: 1, lastBackup: null, now: now),
+          BackupStatus.due);
     });
-    test('마지막 백업 후 30일 지남 → 보임', () {
+    test('기록이 없고 백업 없음 → 회색', () {
+      expect(backupStatus(recordCount: 0, lastBackup: null, now: now),
+          BackupStatus.normal);
+    });
+    test('8~30일 → 회색, 30일 지남 → 주황 점', () {
       expect(
-          shouldShowBackupBanner(
+          backupStatus(
               recordCount: 5,
-              lastBackup: now.subtract(const Duration(days: 30)),
-              dismissedAt: null,
+              lastBackup: now.subtract(const Duration(days: 20)),
               now: now),
-          isTrue);
-    });
-    test('닫은 지 7일 안 → 안 보임', () {
+          BackupStatus.normal);
       expect(
-          shouldShowBackupBanner(
-              recordCount: 50,
-              lastBackup: null,
-              dismissedAt: now.subtract(const Duration(days: 2)),
+          backupStatus(
+              recordCount: 5,
+              lastBackup: now.subtract(const Duration(days: 31)),
               now: now),
-          isFalse);
+          BackupStatus.due);
+    });
+    test('마지막 백업 시각 표시', () {
+      expect(formatBackupTime(DateTime(2026, 11, 20, 15, 12)),
+          '2026.11.20 오후 3:12');
     });
   });
-
 
   test('알림은 행사 전날 오전 9시', () {
     expect(NotificationService.reminderTime(DateTime(2026, 3, 1)),

@@ -188,12 +188,16 @@ class _ReceptionImportScreenState extends ConsumerState<ReceptionImportScreen> {
       if (!mounted) return;
       final maxPeople = await _resolvePeopleLimit();
       if (!maxPeople.proceed) return;
-      final result = await repo.applyImport(
+      if (!mounted) return;
+      // 저장 순간 안전장치: 새 내 행사가 한도를 넘으면 가져오지 않고 결제 화면
+      final result = await LimitService.saveMyEvent(context, ref, (max) => repo.applyImport(
         widget.package,
         eventId: _eventId,
         newEvent: _eventId == null ? _newEvent() : null,
         maxPeople: maxPeople.limit,
-      );
+        maxMyEvents: max,
+      ));
+      if (result == null) return;
       ref.refreshData();
       if (!mounted) return;
       await _showResult(result.plan);

@@ -119,6 +119,7 @@ class ImportFakeRepository extends Repository {
     Event? newEvent,
     int? maxPeople,
     bool removeReception = false,
+    int? maxMyEvents,
   }) async {
     appliedLimits.add(maxPeople);
     return (eventId: 1, plan: _plan(maxPeople));

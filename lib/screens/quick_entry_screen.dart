@@ -372,7 +372,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                                   contentPadding: EdgeInsets.zero,
                                   title: Text(r.personName ?? ''),
                                   subtitle: Text(
-                                      signedWon(r.amount, isSent: r.isSent)),
+                                      signedWon(r.amount, isSent: r.isSent),
+                                      style: TextStyle(
+                                          color: AppColors.amount(r.isSent))),
                                   onTap: () => _edit(r),
                                   trailing: TextButton(
                                     onPressed: () => _undo(r),

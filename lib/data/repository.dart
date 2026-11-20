@@ -237,15 +237,50 @@ class Repository {
     return rows.map(Event.fromMap).toList();
   }
 
-  Future<int> insertEvent(Event event) async {
+  /// 행사를 저장한다. 내 행사이고 [maxMyEvents]가 있으면(무료) 같은 트랜잭션 안에서
+  /// 내 행사 수를 다시 세어, 이미 그만큼 있으면 저장하지 않고 [MyEventLimitReached]를 던진다
+  /// (버튼을 빠르게 여러 번 눌러도 두 개가 생기지 않게 하는 저장 순간 안전장치).
+  Future<int> insertEvent(Event event, {int? maxMyEvents}) async {
     final db = await _db;
-    return db.insert('events', event.toMap()..remove('id'));
+    if (!event.isMine || maxMyEvents == null) {
+      return db.insert('events', event.toMap()..remove('id'));
+    }
+    return db.transaction((txn) async {
+      await _ensureMyEventRoom(txn, maxMyEvents);
+      return txn.insert('events', event.toMap()..remove('id'));
+    });
   }
 
-  Future<void> updateEvent(Event event) async {
+  /// 행사를 고친다. 남의 행사를 내 행사로 바꾸는 경우 [maxMyEvents]로 한도를 다시 본다.
+  Future<void> updateEvent(Event event, {int? maxMyEvents}) async {
     final db = await _db;
-    await db.update('events', event.toMap(),
-        where: 'id = ?', whereArgs: [event.id]);
+    if (!event.isMine || maxMyEvents == null) {
+      await db.update('events', event.toMap(),
+          where: 'id = ?', whereArgs: [event.id]);
+      return;
+    }
+    await db.transaction((txn) async {
+      // 이미 내 행사인 것을 고치는 건 늘 된다. 남의 행사를 내 행사로 바꿀 때만 센다.
+      final wasMine = Sqflite.firstIntValue(await txn.rawQuery(
+              'SELECT is_mine FROM events WHERE id = ?', [event.id])) ==
+          1;
+      if (!wasMine) {
+        await _ensureMyEventRoom(txn, maxMyEvents, exceptId: event.id);
+      }
+      await txn.update('events', event.toMap(),
+          where: 'id = ?', whereArgs: [event.id]);
+    });
+  }
+
+  /// 내 행사(is_mine = 1)가 이미 [max]개 이상이면 [MyEventLimitReached].
+  /// 다른 사람 행사(receptions)와 남의 행사(일정)는 세지 않는다. 지운 행사는 표에 없으므로 세지 않는다.
+  Future<void> _ensureMyEventRoom(DatabaseExecutor db, int max,
+      {int? exceptId}) async {
+    final count = Sqflite.firstIntValue(await db.rawQuery(
+            'SELECT COUNT(*) FROM events WHERE is_mine = 1 AND id != ?',
+            [exceptId ?? -1])) ??
+        0;
+    if (count >= max) throw const MyEventLimitReached();
   }
 
   /// 내 행사의 받기 설정 (구분 · 식권 · 결제 방법)
@@ -436,9 +471,14 @@ class Repository {
     Event? newEvent,
     int? maxPeople,
     bool removeReception = false,
+    int? maxMyEvents,
   }) async {
     final db = await _db;
     return db.transaction((txn) async {
+      // 새 내 행사를 만들 때는 저장 순간에도 내 행사 한도를 다시 본다
+      if (eventId == null && maxMyEvents != null) {
+        await _ensureMyEventRoom(txn, maxMyEvents);
+      }
       final targetId =
           eventId ?? await txn.insert('events', newEvent!.toMap()..remove('id'));
       final event = (await txn.query('events',
@@ -596,4 +636,9 @@ class Repository {
       ..add(DateTime.now().year);
     return years.toList()..sort();
   }
+}
+
+/// 저장 순간 내 행사 한도에 걸렸을 때 (무료 · 내 행사가 이미 있음). 저장은 하지 않았다.
+class MyEventLimitReached implements Exception {
+  const MyEventLimitReached();
 }

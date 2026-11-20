@@ -92,6 +92,19 @@ class _FakeRepository extends Repository {
       ];
   @override
   Future<int> countMyEvents() async => myEventCount;
+
+  /// 저장 순간 안전장치를 흉내 낸다: 한도가 있으면 넘을 때 [MyEventLimitReached]
+  final insertedEvents = <Event>[];
+  @override
+  Future<int> insertEvent(Event event, {int? maxMyEvents}) async {
+    if (event.isMine && maxMyEvents != null && myEventCount >= maxMyEvents) {
+      throw const MyEventLimitReached();
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    insertedEvents.add(event);
+    if (event.isMine) myEventCount++;
+    return 10 + insertedEvents.length;
+  }
   @override
   Future<List<Event>> myEvents() async => [?event];
   @override
@@ -491,6 +504,64 @@ void main() {
       await tester.tap(find.byTooltip('공유하기'));
       await tester.pumpAndSettle();
       expect(find.text('행사 장부 1개 전체'), findsOneWidget);
+    });
+  });
+
+  group('추가 W: 내 행사 한도 결함', () {
+    testWidgets('[받기 시작]을 빠르게 여러 번 눌러도 내 행사는 하나만 생긴다', (tester) async {
+      final repo = await open(tester, const ReceptionFormScreen(whose: true),
+          myEvents: 0);
+      await tester.enterText(find.byType(TextField).first, '우리 결혼식');
+      for (final t in ['식권 기록 안 함', '현금만']) {
+        await tester.ensureVisible(find.text(t));
+        await tester.tap(find.text(t));
+        await tester.pumpAndSettle();
+      }
+      final start = find.widgetWithText(FilledButton, '받기 시작');
+      await tester.ensureVisible(start);
+      await tester.tap(start);
+      await tester.tap(start, warnIfMissed: false);
+      await tester.tap(start, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(repo.insertedEvents.where((e) => e.isMine).length, 1);
+      expect(find.byType(PaywallScreen), findsNothing);
+    });
+
+    testWidgets('이미 내 행사가 1개면 [내 행사]를 고르는 순간 결제 화면, 닫으면 선택이 비어 있다',
+        (tester) async {
+      final repo = await open(tester, const ReceptionFormScreen(), myEvents: 1);
+      await tester.tap(find.text('다른 사람 행사'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('내 행사'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaywallScreen), findsOneWidget);
+      await tester.tap(find.text('나중에 할게요'));
+      await tester.pumpAndSettle();
+      // '누구 행사예요?' 선택이 비어 있어 [받기 시작]을 누를 수 없다
+      expect(
+          tester.widget<FilledButton>(find.widgetWithText(FilledButton, '받기 시작'))
+              .onPressed,
+          isNull);
+      expect(repo.insertedEvents, isEmpty);
+    });
+
+    testWidgets('프로면 내 행사가 있어도 결제 화면 없이 만든다', (tester) async {
+      final repo = await open(tester, const ReceptionFormScreen(),
+          myEvents: 3, pro: true);
+      await tester.tap(find.text('내 행사'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaywallScreen), findsNothing);
+      await tester.enterText(find.byType(TextField).first, '둘째 돌잔치');
+      for (final t in ['식권 기록 안 함', '현금만']) {
+        await tester.ensureVisible(find.text(t));
+        await tester.tap(find.text(t));
+        await tester.pumpAndSettle();
+      }
+      final start = find.widgetWithText(FilledButton, '받기 시작');
+      await tester.ensureVisible(start);
+      await tester.tap(start);
+      await tester.pumpAndSettle();
+      expect(repo.insertedEvents.single.isMine, isTrue);
     });
   });
 }

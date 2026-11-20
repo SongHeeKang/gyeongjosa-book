@@ -157,6 +157,26 @@ class AutoBackupNotifier extends Notifier<AutoBackupState> {
     }
   }
 
+  /// 테스트 메뉴: 지금 바로 새 자동 백업 파일을 하나 만든다(오늘 파일을 덮어쓰지 않음).
+  /// 8번 만들면 폴더에 최근 7개만 남는지 확인할 때 쓴다. 저장된 이름, 실패하면 null.
+  Future<String?> backupNowAsNewFile() async {
+    final repository = ref.read(repositoryProvider);
+    final prefs = ref.read(prefsProvider);
+    try {
+      final now = DateTime.now();
+      final saved = await ref
+          .read(autoBackupWriterProvider)
+          .save(repository, fileName: autoBackupFileName(now));
+      await prefs.setString(PrefKeys.autoBackupFileName, saved);
+      await prefs.setString(PrefKeys.lastAutoBackupAt, now.toIso8601String());
+      state = AutoBackupState(enabled: state.enabled, lastAt: now);
+      return saved;
+    } catch (e) {
+      debugPrint('자동 백업 실패: $e');
+      return null;
+    }
+  }
+
   Future<void> setEnabled(bool value) async {
     await ref.read(prefsProvider).setBool(PrefKeys.autoBackupEnabled, value);
     state = AutoBackupState(enabled: value, lastAt: state.lastAt);

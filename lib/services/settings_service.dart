@@ -87,39 +87,4 @@ class LastBackupNotifier extends Notifier<DateTime?> {
 final lastBackupProvider =
     NotifierProvider<LastBackupNotifier, DateTime?>(LastBackupNotifier.new);
 
-/// 홈 백업 배너를 닫은 시각 (닫으면 7일 동안 다시 안 보임)
-class BannerDismissNotifier extends Notifier<DateTime?> {
-  @override
-  DateTime? build() {
-    final s =
-        ref.watch(prefsProvider).getString(PrefKeys.backupBannerDismissedAt);
-    return s == null ? null : DateTime.tryParse(s);
-  }
-
-  Future<void> dismiss() async {
-    final now = DateTime.now();
-    await ref.read(prefsProvider).setString(
-        PrefKeys.backupBannerDismissedAt, now.toIso8601String());
-    state = now;
-  }
-}
-
-final bannerDismissProvider =
-    NotifierProvider<BannerDismissNotifier, DateTime?>(
-        BannerDismissNotifier.new);
-
-/// 백업 알림 배너를 보여줄지 결정.
-/// 기록 20개 이상인데 수동 백업을 한 번도 안 했거나, 마지막 백업 후 30일이 지나면 표시.
-bool shouldShowBackupBanner({
-  required int recordCount,
-  required DateTime? lastBackup,
-  required DateTime? dismissedAt,
-  DateTime? now,
-}) {
-  final today = now ?? DateTime.now();
-  if (dismissedAt != null && today.difference(dismissedAt).inDays < 7) {
-    return false;
-  }
-  if (lastBackup == null) return recordCount >= 20;
-  return today.difference(lastBackup).inDays >= 30;
-}
+// 홈 백업 배너는 추가 W에서 없앴다(홈 요약 줄의 백업 아이콘이 대신함). 저장된 닫은 시각(backupBannerDismissedAt)은 읽지 않는다.

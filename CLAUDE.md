@@ -21,7 +21,9 @@
 - 붙여넣어 가져오기만 사람 한도를 적용한다(넘으면 "N명 중 n명까지" 결제 화면, 같은 메시지로 나중에 마저). 같은 줄(행사 이름 · 날짜 · 이름 · 금액 · 구분)은 두 번 저장하지 않는다. 예전 JSON 장부 파일은 [예전 장부 파일 가져오기]로 읽기만 한다. 파일 연결(intent-filter)은 없앴다.
 - 이미 입력한 기록의 보기·수정·삭제는 한도와 상관없이 항상 허용.
 - **Google Play 업로드 전 필수:** 설정의 테스트 도구(isPro 켜기/끄기 등)를 없앤다. `lib/services/app_config.dart`의 `testBuild`를 `false`로 바꾸면 APK·AAB에서 사라진다. 사용자가 출시·AAB·Play Console 업로드를 언급하면 먼저 이 작업을 하자고 요청할 것. `testBuild`가 `true`이면 `flutter build appbundle`은 일부러 실패한다. 이때 테스트 메뉴의 '더미데이터 추가'(`lib/data/dummy_data.dart`, 저장소의 더미 함수)도 사용자에게 알리고 코드째 지운다.
-- Google 드라이브 백업용 OAuth 클라이언트는 'gyeongjosa-book debug'만 등록돼 있다. 8단계 빌드가 끝나면 업로드 키 SHA-1을 알려주고 'gyeongjosa-book upload' 추가를, 첫 AAB 업로드 뒤에는 Play Console 앱 무결성 → 앱 서명 키 인증서 SHA-1로 'gyeongjosa-book play' 추가를 안내한다.
+- Google 드라이브 백업은 v1에서 뺐다(추가 W). Drive API · google_sign_in · OAuth 설정을 쓰지 않는다. 백업은 ① 다운로드 자동 백업(최근 7개) ② 안드로이드 자동 백업(allowBackup, backup_rules · data_extraction_rules에 DB · 설정 포함) ③ 백업 파일 → 공유창.
+- 내 행사 한도: 버튼을 누르는 순간 `LimitService.canCreateMyEvent`, 저장 순간 `LimitService.saveMyEvent` + 저장소의 `maxMyEvents`(트랜잭션 안에서 다시 세어 넘으면 `MyEventLimitReached`). 내 행사를 만드는 새 입구를 만들면 둘 다 거치게 하고, 저장 버튼은 첫 await 전에 막는다(빠른 연속 누르기).
+- 홈: 요약 줄 오른쪽 백업 아이콘(`lib/widgets/backup_guide.dart`, 7일 이내 초록 · 기록 있는데 없거나 30일 지나면 주황 점), '최근 6개월' 그래프는 통계 탭과 같은 `GroupedBarChart`(`lib/widgets/grouped_bar_chart.dart`).
 - 화면별 도움말: 내용은 `lib/widgets/screen_coach.dart`의 `CoachScreen`, 모양은 `coach_mark.dart`. 새 자리는 `CoachTarget`으로 감싼다. 자동 표시는 화면별로 한 번이고, 접수 화면은 첫 저장 전에만 띄운다. 한 화면의 설명은 최대 3개이고, 설명이 적힌 항목이 모여 있으면 하나로 묶는다.
 - 행사장 접수와 받은 명단 직접 입력의 금액칸 · 금액 버튼 · 최근 저장은 `lib/widgets/amount_pad.dart`의 공통 위젯을 쓴다. 식권 · 계좌 칩과 구분은 접수에만 있다.
 - 안드로이드 설정의 '데이터 삭제'는 `manageSpaceActivity`로 안내 화면(`lib/screens/manage_space_screen.dart`)을 연다. 앱 본체와 다른 Flutter 엔진에서 돌므로 DB는 `DatabaseHelper.separateConnection()`으로 연다.
@@ -35,5 +37,5 @@
 
 - 색 · 글자 · 간격은 `lib/theme/app_theme.dart`(AppColors / AppText / AppSpacing)만 사용. 화면에 색 코드를 직접 쓰지 않는다.
 - 카드 박스 · 그림자 대신 1px 구분선(AppDivider)으로 섹션을 나눈다. 좌우 여백 24, 섹션 간격 28.
-- 금액: 받은 돈 '+50,000원' 포인트색, 보낸 돈 '−50,000원' 기본 글자색 (`signedWon`).
+- 금액: 받은 돈 '+50,000원' 파랑(`AppColors.received`), 보낸 돈 '−50,000원' 코랄(`AppColors.sent`, #D85A30). 그래프 보냄 막대도 코랄. 빨강(`error`)은 오류 · 경고 전용 (`signedWon`, `AppColors.amount`).
 - 글꼴은 assets/fonts의 Noto Sans KR(400/500/700). 하단 메뉴 아이콘은 assets/icons의 SVG를 SvgTheme(currentColor)로 칠한다 (colorFilter 금지).

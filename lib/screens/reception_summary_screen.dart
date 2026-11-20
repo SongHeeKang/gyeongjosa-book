@@ -27,6 +27,20 @@ class ReceptionSummaryScreen extends ConsumerWidget {
   /// 한도에 걸려 결제하지 않으면 바꾸지 않는다(일부만 바꾸지 않음).
   Future<void> _convert(BuildContext context, WidgetRef ref,
       ReceptionPackage package) async {
+    // 빠르게 두 번 눌러도 한 번만 (두 번째 내 행사가 생기지 않게)
+    if (_converting) return;
+    _converting = true;
+    try {
+      await _convertOnce(context, ref, package);
+    } finally {
+      _converting = false;
+    }
+  }
+
+  static bool _converting = false;
+
+  Future<void> _convertOnce(BuildContext context, WidgetRef ref,
+      ReceptionPackage package) async {
     if (!await LimitService.canCreateMyEvent(context, ref)) return;
     if (!context.mounted) return;
     final repo = ref.read(repositoryProvider);
@@ -49,8 +63,10 @@ class ReceptionSummaryScreen extends ConsumerWidget {
         okText: '바꾸기');
     if (!ok || !context.mounted) return;
     final r = package.reception;
-    final result = await repo.applyImport(
+    // 저장 순간 안전장치: 한도를 넘으면 바꾸지 않고 결제 화면
+    final result = await LimitService.saveMyEvent(context, ref, (max) => repo.applyImport(
       package,
+      maxMyEvents: max,
       newEvent: Event(
         type: EventTypes.all.contains(r.eventType) ? r.eventType : '기타',
         title: r.title.isEmpty ? '받은 장부' : r.title,
@@ -63,7 +79,8 @@ class ReceptionSummaryScreen extends ConsumerWidget {
         methodEnabled: r.methodEnabled,
       ),
       removeReception: true,
-    );
+    ));
+    if (result == null) return;
     ref.refreshData();
     if (!context.mounted) return;
     Navigator.pushReplacement(

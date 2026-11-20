@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../services/format.dart';
 import '../services/notification_permission.dart';
-import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/backup_guide.dart';
+import '../widgets/grouped_bar_chart.dart';
 import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
@@ -16,7 +17,6 @@ import 'all_records_screen.dart';
 import 'all_schedules_screen.dart';
 import 'event_detail_screen.dart';
 import 'person_detail_screen.dart';
-import 'settings_screen.dart';
 import '../widgets/share_download.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -49,11 +49,17 @@ class HomeScreen extends ConsumerWidget {
         value: home,
         builder: (data) => ListView(
           children: [
-            _BackupBanner(recordCount: data.recordCount),
+            // 요약 카드 제목 줄: 왼쪽 '2026년 나의 경조사', 오른쪽 백업 아이콘(백업 배너 대신)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page, 12, AppSpacing.page, 12),
-              child: Text('$year년 나의 경조사', style: AppText.label),
+                  AppSpacing.page, 4, AppSpacing.page - 8, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                      child: Text('$year년 나의 경조사', style: AppText.label)),
+                  BackupStatusButton(recordCount: data.recordCount),
+                ],
+              ),
             ),
             SummaryRow(
               sent: data.sent,
@@ -102,6 +108,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.section - 6),
               const AppDivider(),
             ],
+            const _RecentMonthsSection(),
             SectionTitle(
               '최근 기록',
               trailing: data.recent.isEmpty
@@ -139,53 +146,54 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// 기록 20개 이상인데 백업을 안 했거나 30일이 지나면 보이는 배너
-class _BackupBanner extends ConsumerWidget {
-  const _BackupBanner({required this.recordCount});
-  final int recordCount;
+/// 홈 '최근 6개월': 이번 달을 포함한 6개월의 보냄 / 받음 막대(통계 탭 월별 그래프와 같은 위젯을 작게).
+/// 그래프나 '통계 ›'를 누르면 통계 탭으로. 6개월 동안 기록이 없으면 숨긴다. 무료 · 프로 모두.
+class _RecentMonthsSection extends ConsumerWidget {
+  const _RecentMonthsSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final show = shouldShowBackupBanner(
-      recordCount: recordCount,
-      lastBackup: ref.watch(lastBackupProvider),
-      dismissedAt: ref.watch(bannerDismissProvider),
-    );
-    if (!show) return const SizedBox.shrink();
-    return TestId('backup_banner', child: Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, AppSpacing.page, 8),
-      child: Material(
-        color: AppColors.primarySoft,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
+    final rows = ref.watch(recentMonthsProvider).value;
+    if (rows == null || rows.every((r) => r.sent == 0 && r.received == 0)) {
+      return const SizedBox.shrink();
+    }
+    void openStats() => ref.read(tabRequestProvider.notifier).go(AppTabs.stats);
+    return TestId('home_recent_months', child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          '최근 6개월',
+          trailing: TestId('btn_home_stats',
+              child: LinkText('통계 ›', onTap: openStats)),
+        ),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: openStats,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
-            child: Row(
-              children: [
-                const Icon(Icons.cloud_upload_outlined,
-                    size: 22, color: AppColors.primary),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text('백업해 두면 폰을 바꿔도 기록이 안전해요',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.text)),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page - 12, 8, AppSpacing.page, 0),
+            child: SizedBox(
+              height: 160,
+              // 막대를 눌러도 말풍선 대신 통계 탭으로 가도록 그래프 터치는 끈다
+              child: IgnorePointer(
+                child: GroupedBarChart(
+                  labels: [for (final r in rows) '${r.month}월'],
+                  sent: [for (final r in rows) r.sent],
+                  received: [for (final r in rows) r.received],
+                  compact: true,
                 ),
-                IconButton(
-                  tooltip: '닫기',
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () =>
-                      ref.read(bannerDismissProvider.notifier).dismiss(),
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(AppSpacing.page, 6, AppSpacing.page, 0),
+          child: Align(
+              alignment: Alignment.centerRight, child: SentReceivedLegend()),
+        ),
+        const SizedBox(height: AppSpacing.section - 6),
+        const AppDivider(),
+      ],
     ));
   }
 }

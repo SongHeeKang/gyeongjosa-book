@@ -305,6 +305,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             if (mounted) showSnack(context, '샘플 데이터를 넣었어요.');
           }),
         )),
+        TestId('test_auto_backup_now', child: ListTile(
+          leading: const Icon(Icons.download_for_offline_outlined, size: 24),
+          title: const Text('자동 백업 새 파일 만들기'),
+          subtitle: const Text('다운로드 > 경조사장부에 새 파일을 하나 더 만들어요. 8번 만들면 최근 7개만 남는지 확인'),
+          onTap: () => _run(() async {
+            final saved =
+                await ref.read(autoBackupProvider.notifier).backupNowAsNewFile();
+            if (mounted) {
+              showSnack(context, saved == null ? '자동 백업을 만들지 못했어요.' : '만들었어요: $saved');
+            }
+          }),
+        )),
         TestId('test_notify', child: ListTile(
           leading: const Icon(Icons.notifications_active_outlined, size: 24),
           title: const Text('알림 테스트 (지금 바로)'),

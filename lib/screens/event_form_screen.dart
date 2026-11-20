@@ -151,7 +151,17 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       personId: personId,
       pendingHidden: widget.existing?.pendingHidden ?? false,
     );
-    if (widget.existing == null) {
+    if (becomesMine) {
+      // 저장 순간 안전장치: 한도를 넘으면 저장하지 않고 결제 화면
+      final toSave = event;
+      final saved = await LimitService.saveMyEvent(context, ref, (max) async {
+        if (widget.existing == null) return repo.insertEvent(toSave, maxMyEvents: max);
+        await repo.updateEvent(toSave, maxMyEvents: max);
+        return toSave.id!;
+      });
+      if (saved == null) return;
+      event = (await repo.getEvent(saved))!;
+    } else if (widget.existing == null) {
       final id = await repo.insertEvent(event);
       event = (await repo.getEvent(id))!;
     } else {

@@ -131,11 +131,15 @@ class SummaryColumn extends StatelessWidget {
     required this.amount,
     this.count,
     this.highlight = false,
+    this.color,
     this.testId,
   });
   final String label;
   final int amount;
   final int? count;
+
+  /// 금액 글자 색 (보낸 마음은 [AppColors.sent]). 없으면 [highlight]로 정한다.
+  final Color? color;
 
   /// 자동화 테스트용 식별자
   final String? testId;
@@ -161,7 +165,8 @@ class SummaryColumn extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(formatWon(amount),
                 style: AppText.summaryAmount.copyWith(
-                    color: highlight ? AppColors.primary : AppColors.text)),
+                    color: color ??
+                        (highlight ? AppColors.received : AppColors.text))),
           ),
           if (count != null) ...[
             const SizedBox(height: 2),
@@ -206,6 +211,7 @@ class SummaryRow extends StatelessWidget {
               label: sentLabel,
               amount: sent,
               count: sentCount,
+              color: AppColors.sent,
               testId: sentId),
           const SizedBox(width: 16),
           SummaryColumn(

@@ -285,7 +285,7 @@ void main() {
       final (prefs, _) = await pump(tester, const HelpScreen(),
           prefsValues: {'coach_seen_home': true, 'coach_seen_stats': true});
       await settle(tester);
-      expect(find.text('처음 4장 가이드'), findsOneWidget);
+      expect(find.text('처음 5장 가이드'), findsOneWidget);
       expect(find.text('받은 돈 적기'), findsOneWidget);
       await tester.tap(find.text('도움말 처음부터 다시 보기'));
       await tester.pump();

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
+import '../data/repository.dart';
 import '../widgets/pro_gate.dart';
 import 'limits.dart';
 import 'pro_service.dart';
@@ -31,17 +32,37 @@ class LimitService {
   }
 
   /// 내 행사를 하나 더 만들어도 되는지 (두 번째부터 결제 화면).
-  /// 버튼을 누르는 순간 검사한다: 행사 만들기의 [내 행사], 장부 가져오기의 '새 내 행사로 만들기',
-  /// 다른 사람 행사의 [내 행사로 바꾸기]. 저장할 때도 한 번 더 본다.
-  /// 남의 행사(일정)와 다른 사람 행사는 세지 않는다.
+  /// 버튼을 누르는 순간 검사한다: 행사 탭 '내 행사 + 추가', 행사 만들기의 [내 행사],
+  /// 장부 가져오기의 '새 내 행사로 만들기', 다른 사람 행사의 [내 행사로 바꾸기],
+  /// 행사 수정에서 남의 행사 → 내 행사. 저장 순간에도 [saveMyEvent]로 한 번 더 본다.
+  /// 내 행사(is_mine = 1)만 센다. 남의 행사(일정)와 다른 사람 행사는 세지 않는다.
   static Future<bool> canCreateMyEvent(BuildContext context, WidgetRef ref) async {
     if (ref.read(isProProvider)) return true;
     final count = await ref.read(repositoryProvider).countMyEvents();
     if (count < FreeLimits.myEvents) return true;
     if (!context.mounted) return false;
-    return showPaywall(context, ref,
-        reason: '무료 버전은 내 행사를 ${FreeLimits.myEvents}개까지 만들 수 있어요.');
+    return showPaywall(context, ref, reason: myEventReason);
   }
+
+  /// 저장 순간 안전장치에 넘길 내 행사 한도. 프로면 null(제한 없음).
+  static int? myEventSaveLimit(WidgetRef ref) =>
+      ref.read(isProProvider) ? null : FreeLimits.myEvents;
+
+  /// 내 행사를 저장한다. [save]는 받은 한도로 저장소에 저장한다(넘으면 [MyEventLimitReached]).
+  /// 저장 순간 한도에 걸리면 저장하지 않고 결제 화면을 띄우고, 구매하면 한도 없이 다시 저장한다.
+  /// 닫으면 null.
+  static Future<T?> saveMyEvent<T>(BuildContext context, WidgetRef ref,
+      Future<T> Function(int? maxMyEvents) save) async {
+    try {
+      return await save(myEventSaveLimit(ref));
+    } on MyEventLimitReached {
+      if (!context.mounted) return null;
+      if (!await showPaywall(context, ref, reason: myEventReason)) return null;
+      return save(null);
+    }
+  }
+
+  static const myEventReason = '무료 버전은 내 행사를 ${FreeLimits.myEvents}개까지 만들 수 있어요.';
 
   /// 상세 통계(관계별 · 연도별)처럼 프로 전용 기능을 눌렀을 때
   static Future<bool> canUseProFeature(BuildContext context, WidgetRef ref,
@@ -60,11 +81,15 @@ class LimitStatus {
   const LimitStatus({
     required this.people,
     required this.myEvents,
+    required this.otherEvents,
     required this.isPro,
     required this.basis,
   });
   final int people;
   final int myEvents;
+
+  /// 다른 사람 행사(receptions) 수. 한도에 세지 않는다.
+  final int otherEvents;
   final bool isPro;
 
   /// '테스트 스위치' · 'Google Play 구매' · '구매 없음'
@@ -73,6 +98,7 @@ class LimitStatus {
   String get summary => [
         '사람 $people명 / 무료 ${FreeLimits.people}명',
         '내 행사 $myEvents개 / 무료 ${FreeLimits.myEvents}개',
+        '다른 사람 행사 $otherEvents개 (한도에 세지 않음)',
         'isPro ${isPro ? '켜짐' : '꺼짐'} (근거: $basis)',
       ].join('\n');
 }
@@ -84,6 +110,7 @@ final limitStatusProvider = FutureProvider<LimitStatus>((ref) async {
   return LimitStatus(
     people: await repo.countPeople(),
     myEvents: await repo.countMyEvents(),
+    otherEvents: (await repo.receptionSummaries()).length,
     isPro: pro.isPro,
     basis: pro.devOverride != null
         ? '테스트 스위치'

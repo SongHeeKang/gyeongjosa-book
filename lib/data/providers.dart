@@ -154,6 +154,49 @@ final monthlyTotalsProvider =
   return ref.watch(repositoryProvider).monthlyTotals(year);
 });
 
+/// 홈 '최근 6개월': 이번 달을 포함한 6개월(오래된 달 → 이번 달)의 보냄 / 받음 합계
+final recentMonthsProvider = FutureProvider<
+    List<({int year, int month, int sent, int received})>>((ref) async {
+  ref.watch(dbVersionProvider);
+  final repo = ref.watch(repositoryProvider);
+  final now = DateTime.now();
+  final byYear = <int, List<({int month, int sent, int received})>>{};
+  return [
+    for (var i = 5; i >= 0; i--)
+      await () async {
+        final d = DateTime(now.year, now.month - i);
+        final rows = byYear[d.year] ??= await repo.monthlyTotals(d.year);
+        final r = rows.where((x) => x.month == d.month).firstOrNull;
+        return (
+          year: d.year,
+          month: d.month,
+          sent: r?.sent ?? 0,
+          received: r?.received ?? 0,
+        );
+      }(),
+  ];
+});
+
+/// 다른 화면에서 하단 탭을 바꿔 달라고 할 때 (홈 '최근 6개월' → 통계 탭).
+/// MainShell이 듣고 탭을 바꾼다. 같은 탭을 다시 요청해도 알리도록 번호를 함께 둔다.
+class TabRequest extends Notifier<({int tab, int seq})?> {
+  @override
+  ({int tab, int seq})? build() => null;
+
+  void go(int tab) => state = (tab: tab, seq: (state?.seq ?? 0) + 1);
+}
+
+final tabRequestProvider =
+    NotifierProvider<TabRequest, ({int tab, int seq})?>(TabRequest.new);
+
+/// 하단 탭 번호
+abstract final class AppTabs {
+  static const home = 0;
+  static const people = 1;
+  static const events = 2;
+  static const stats = 3;
+}
+
 final relationTotalsProvider = FutureProvider.family<
     List<({String relation, int sent, int received})>, int>((ref, year) {
   ref.watch(dbVersionProvider);

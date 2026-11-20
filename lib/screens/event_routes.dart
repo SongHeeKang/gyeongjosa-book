@@ -17,13 +17,22 @@ Future<void> openCreateEvent(BuildContext context) => Navigator.push(
 /// 내 행사는 누르는 순간 한도를 보고, 닿았으면 바로 결제 화면(닫으면 열지 않음). 다른 사람 행사는 늘 통과.
 Future<void> openCreateEventOf(BuildContext context, WidgetRef ref,
     {required bool mine}) async {
-  if (mine && !await LimitService.canCreateMyEvent(context, ref)) return;
-  if (!context.mounted) return;
+  // 빠르게 두 번 눌러 결제 화면 · 만들기 화면이 두 번 뜨지 않게
+  if (_openingCreate) return;
+  _openingCreate = true;
+  try {
+    if (mine && !await LimitService.canCreateMyEvent(context, ref)) return;
+    if (!context.mounted) return;
+  } finally {
+    _openingCreate = false;
+  }
   await Navigator.push(
       context,
       MaterialPageRoute<void>(
           builder: (_) => ReceptionFormScreen(whose: mine)));
 }
+
+bool _openingCreate = false;
 
 /// 내 행사의 받은 돈 적기를 연다. 받기 설정이 없는 예전 내 행사면 설정(구분 · 식권 · 결제 방법)부터 묻는다.
 Route<void> myEventReceiveRoute(Event event) => MaterialPageRoute<void>(

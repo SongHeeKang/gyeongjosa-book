@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 
-/// 첫 실행 가이드 4장. 설정의 [사용 방법]에서 다시 볼 수 있다.
+/// 첫 실행 가이드 5장(마지막이 백업 장, 끝나면 알림 권한 안내). 설정의 [사용 방법]에서 다시 볼 수 있다.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key, this.replay = false});
 
@@ -38,6 +38,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       '기록은 내 폰에만',
       '회원가입 없이 바로 시작, 백업 파일로 폰을 바꿔도 안전해요',
       _PhonePicture(),
+    ),
+    // 추가 W: 알림 권한 안내 바로 앞에 백업 안내
+    (
+      '기록은 이 폰에만 저장돼요',
+      '자동 백업이 다운로드 > 경조사장부 폴더에 최근 7개를 보관해요. 폰을 바꿀 땐 백업 파일을 카톡이나 드라이브에 보내 두세요',
+      _BackupPicture(),
     ),
   ];
 
@@ -440,6 +446,25 @@ class _PhonePicture extends StatelessWidget {
           child: const Icon(Icons.lock, size: 42, color: AppColors.primary),
         ),
       ],
+    );
+  }
+}
+
+/// 5장 그림: 연한 파란 동그라미 안 구름(체크)
+class _BackupPicture extends StatelessWidget {
+  const _BackupPicture();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 180,
+      height: 180,
+      decoration: const BoxDecoration(
+        color: AppColors.primarySoft,
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.cloud_done_outlined,
+          size: 88, color: AppColors.primary),
     );
   }
 }

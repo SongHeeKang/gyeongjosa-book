@@ -8,7 +8,7 @@ import '../widgets/common.dart';
 import '../widgets/screen_coach.dart';
 import 'onboarding_screen.dart';
 
-/// 설정 > 사용 방법: 처음 4장 가이드, 화면별 도움말 목록, 처음부터 다시 보기
+/// 설정 > 사용 방법: 처음 5장 가이드, 화면별 도움말 목록, 처음부터 다시 보기
 class HelpScreen extends ConsumerWidget {
   const HelpScreen({super.key});
 
@@ -21,7 +21,7 @@ class HelpScreen extends ConsumerWidget {
         children: [
           TestId('help_guide', child: ListTile(
             leading: const Icon(Icons.menu_book_outlined, size: 24),
-            title: const Text('처음 4장 가이드'),
+            title: const Text('처음 5장 가이드'),
             subtitle: const Text('앱을 처음 열 때 본 안내를 다시 봐요'),
             onTap: () => Navigator.push(
                 context,

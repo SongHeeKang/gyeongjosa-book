@@ -60,6 +60,20 @@ class FakeRepository extends Repository {
   Future<({int sent, int received, int sentCount, int receivedCount})> yearTotals(
           int year) async =>
       (sent: 0, received: 0, sentCount: 0, receivedCount: 0);
+  /// 올해 월별 보낸 금액 (홈 '최근 6개월' · 통계 탭)
+  Map<int, int> sentByMonth = {};
+  @override
+  Future<List<({int month, int sent, int received})>> monthlyTotals(
+          int year) async =>
+      List.generate(
+          12,
+          (i) => (
+                month: i + 1,
+                sent: year == DateTime.now().year ? sentByMonth[i + 1] ?? 0 : 0,
+                received: 0,
+              ));
+  @override
+  Future<List<int>> recordYears() async => [DateTime.now().year];
   @override
   Future<List<Event>> upcomingSchedules({int? limit}) async => upcoming;
   @override
@@ -84,12 +98,6 @@ class FakeRepository extends Repository {
   }
 
   @override
-  Future<List<int>> recordYears() async => [DateTime.now().year];
-  @override
-  Future<List<({int month, int sent, int received})>> monthlyTotals(
-          int year) async =>
-      const [];
-  @override
   Future<List<EventSummary>> eventSummaries() async => const [];
   @override
   Future<List<ReceptionSummary>> receptionSummaries() async => const [];
@@ -111,7 +119,7 @@ class FakeRepository extends Repository {
   }
 
   @override
-  Future<int> insertEvent(Event event) async {
+  Future<int> insertEvent(Event event, {int? maxMyEvents}) async {
     insertedEvents.add(event);
     return 9;
   }
@@ -194,6 +202,50 @@ void main() {
       expect(await repo.countRecords(), 1);
       expect((await repo.eventSummaries()).single.event.title, '진짜행사');
       expect((await repo.allPeople()).single.name, '진짜사람');
+    });
+
+    test('추가 W: 저장 순간 내 행사 한도 — 동시에 두 번 저장해도 하나만, 지우면 다시 무료', () async {
+      Event mine(String t) => Event(
+          type: '결혼', title: t, date: DateTime(2026, 10, 11), isMine: true);
+      // 다른 사람 행사 · 남의 행사(일정)는 세지 않는다
+      await repo.insertEvent(Event(
+          type: '결혼', title: '남의 행사', date: DateTime(2026, 12, 1), isMine: false),
+          maxMyEvents: 1);
+      // 버튼을 빠르게 두 번 누른 것처럼 동시에 저장
+      final results = await Future.wait([
+        repo.insertEvent(mine('첫째'), maxMyEvents: 1).then<Object>((v) => v,
+            onError: (Object e) => e),
+        repo.insertEvent(mine('둘째'), maxMyEvents: 1).then<Object>((v) => v,
+            onError: (Object e) => e),
+      ]);
+      expect(results.whereType<MyEventLimitReached>().length, 1);
+      expect(await repo.countMyEvents(), 1);
+      // 프로(한도 없음)는 통과
+      final pro = await repo.insertEvent(mine('프로'));
+      expect(await repo.countMyEvents(), 2);
+      // 이미 있는 내 행사 2개는 그대로 고칠 수 있다
+      final e = (await repo.getEvent(pro))!;
+      await repo.updateEvent(
+          Event(id: e.id, type: e.type, title: '프로 고침', date: e.date, isMine: true),
+          maxMyEvents: 1);
+      expect((await repo.getEvent(pro))!.title, '프로 고침');
+      // 남의 행사를 내 행사로 바꾸는 것은 막힌다
+      final other = (await repo.eventSummaries())
+          .firstWhere((s) => !s.event.isMine)
+          .event;
+      await expectLater(
+          repo.updateEvent(
+              Event(id: other.id, type: other.type, title: other.title,
+                  date: other.date, isMine: true),
+              maxMyEvents: 1),
+          throwsA(isA<MyEventLimitReached>()));
+      expect((await repo.getEvent(other.id!))!.isMine, isFalse);
+      // 내 행사를 모두 지우면 다시 무료로 하나
+      for (final s in (await repo.eventSummaries()).where((s) => s.event.isMine)) {
+        await repo.deleteEvent(s.event.id!);
+      }
+      await repo.insertEvent(mine('다시'), maxMyEvents: 1);
+      expect(await repo.countMyEvents(), 1);
     });
 
     test('v3 데이터는 최신 버전으로 올려도 그대로 남는다', () async {
@@ -490,6 +542,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('기록은 내 폰에만'), findsOneWidget);
       expect(find.text('건너뛰기'), findsOneWidget);
+      expect(find.text('시작하기'), findsNothing);
+
+      // 추가 W: 마지막 장(알림 권한 안내 바로 앞)은 백업 안내
+      await tester.tap(find.text('다음'));
+      await tester.pumpAndSettle();
+      expect(find.text('기록은 이 폰에만 저장돼요'), findsOneWidget);
+      expect(find.textContaining('최근 7개를 보관해요'), findsOneWidget);
+      expect(find.byIcon(Icons.cloud_done_outlined), findsOneWidget);
+      expect(find.text('건너뛰기'), findsOneWidget);
 
       await tester.tap(find.text('시작하기'));
       await tester.pumpAndSettle();
@@ -552,7 +613,34 @@ void main() {
       expect(find.text('얼마 내셨어요?'), findsNothing);
     });
 
-    testWidgets('기록이 20개 이상이고 백업을 안 했으면 홈 위에 백업 배너가 보인다', (tester) async {
+    testWidgets('홈 \'최근 6개월\': 기록이 없으면 숨김, 있으면 일정과 최근 기록 사이, 누르면 통계 탭',
+        (tester) async {
+      await pump(tester, const MainShell());
+      expect(find.text('최근 6개월'), findsNothing);
+
+      final repo = FakeRepository()
+        ..sentByMonth = {DateTime.now().month: 70000}
+        ..upcoming = [
+          Event(id: 7, type: '결혼', title: '철수 결혼식',
+              date: DateTime.now().add(const Duration(days: 3)), isMine: false),
+        ];
+      await pump(tester, const MainShell(), repository: repo);
+      expect(find.text('최근 6개월'), findsOneWidget);
+      expect(find.text('${DateTime.now().month}월'), findsOneWidget);
+      double top(String t) => tester.getTopLeft(find.text(t)).dy;
+      expect(top('다가오는 일정'), lessThan(top('최근 6개월')));
+      expect(top('최근 6개월'), lessThan(top('최근 기록')));
+      // 보냄 막대는 코랄, 받음은 파랑
+      expect(AppColors.chartSent, AppColors.sent);
+      expect(AppColors.sent, const Color(0xFFD85A30));
+
+      await tester.tap(find.text('통계 ›'));
+      await tester.pumpAndSettle();
+      expect(find.text('월별 보냄 · 받음'), findsOneWidget);
+    });
+
+    testWidgets('홈: 백업 배너 없음, 기록이 있는데 백업이 없으면 백업 아이콘에 주황 점, 누르면 백업 안내',
+        (tester) async {
       final repo = FakeRepository()
         ..inserted.addAll(List.generate(
             20,
@@ -562,7 +650,18 @@ void main() {
                 amount: 1000,
                 date: DateTime(2026))));
       await pump(tester, const HomeScreen(), repository: repo);
-      expect(find.text('백업해 두면 폰을 바꿔도 기록이 안전해요'), findsOneWidget);
+      expect(find.text('백업해 두면 폰을 바꿔도 기록이 안전해요'), findsNothing);
+      expect(find.text('백업'), findsOneWidget);
+      expect(find.byKey(const ValueKey('backup_due_dot')), findsOneWidget);
+      await tester.tap(find.text('백업'));
+      await tester.pumpAndSettle();
+      expect(find.text('백업 안내'), findsOneWidget);
+      expect(find.text('아직 백업이 없어요'), findsOneWidget);
+      expect(find.text('지금 백업 파일 만들기'), findsOneWidget);
+      expect(find.text('자동 백업 설정'), findsOneWidget);
+      await tester.tap(find.byTooltip('닫기'));
+      await tester.pumpAndSettle();
+      expect(find.text('백업 안내'), findsNothing);
     });
 
     testWidgets('일정 추가: 금액 없이 사람과 일정이 함께 만들어진다', (tester) async {

@@ -12,7 +12,13 @@ class AppColors {
   static const link = Color(0xFF1D4ED8); // 링크 (전체 보기)
   static const primarySoft = Color(0xFFEFF4FF); // 선택된 칩 배경
   static const error = Color(0xFFDC2626);
-  static const chartSent = Color(0xFF9CA3AF); // 차트의 보냄 막대
+  /// 보낸 돈 = 코랄, 받은 돈 = 포인트 파랑. 금액 글자 · 그래프 막대 색은 이 두 상수만 쓴다.
+  /// (빨강 [error]은 오류 · 경고 전용)
+  static const sent = Color(0xFFD85A30);
+  static const received = primary;
+  static const chartSent = sent; // 차트의 보냄 막대
+  static const backupOk = success; // 홈 백업 아이콘: 7일 이내 백업
+  static const backupDue = Color(0xFFF59E0B); // 홈 백업 아이콘의 주황 점: 백업 없음 · 30일 지남
   static const guidePanel = Color(0xFFEEF4FF); // 가이드 그림의 연파랑 패널
   static const guideChip = Color(0xFFDBEAFE); // 가이드 그림의 칩 바탕
   static const guideChipText = Color(0xFF1E40AF); // 가이드 그림의 칩 글자
@@ -35,7 +41,7 @@ class AppColors {
   static const closeCircle = Color(0xFFF3F4F6); // 선택창 X 버튼의 연한 회색 동그라미
 
   /// 받은 돈 = 포인트색, 보낸 돈 = 기본 글자색
-  static Color amount(bool isSent) => isSent ? text : primary;
+  static Color amount(bool isSent) => isSent ? sent : received;
 }
 
 class AppSpacing {

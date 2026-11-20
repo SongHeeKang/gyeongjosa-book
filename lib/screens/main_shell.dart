@@ -85,6 +85,12 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     // 이전 백업을 불러올지 묻는 단계가 끝나면 홈 도움말을 띄운다
+    // 홈 '최근 6개월' 그래프 · '통계 ›'를 누르면 통계 탭으로
+    ref.listen(tabRequestProvider, (_, request) {
+      if (request == null || request.tab == _index) return;
+      setState(() => _index = request.tab);
+      _showTabCoach();
+    });
     ref.listen(restorePromptDoneProvider, (_, done) {
       if (done) _afterStart();
     });

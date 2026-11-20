@@ -49,14 +49,25 @@ object DownloadBackup {
         if (replaceName != null) {
             ownFiles(resolver, collection)
                 .filter { it.name == replaceName && it.uri != uri }
-                .forEach { resolver.delete(it.uri, null, null) }
+                .forEach { tryDelete(resolver, it.uri) }
         }
         resolver.update(uri, ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, replaceName ?: fileName)
         }, null, null)
 
-        ownFiles(resolver, collection).drop(KEEP).forEach { resolver.delete(it.uri, null, null) }
-        return ownFiles(resolver, collection).first { it.uri == uri }.name
+        // 최근 KEEP(7)개만 남기고 오래된 것부터 지운다. 이 앱이 만든 파일만 보이고 지운다.
+        // 앱을 지웠다 다시 깔면 예전 파일은 '다른 앱이 만든 파일'이라 목록에 안 보여 세지도 지우지도 않는다.
+        ownFiles(resolver, collection).drop(KEEP).forEach { tryDelete(resolver, it.uri) }
+        return ownFiles(resolver, collection).firstOrNull { it.uri == uri }?.name ?: (replaceName ?: fileName)
+    }
+
+    /** 지울 수 없는 파일(권한 등)은 건너뛴다. 백업 자체는 실패로 보지 않는다. */
+    private fun tryDelete(resolver: ContentResolver, uri: Uri) {
+        try {
+            resolver.delete(uri, null, null)
+        } catch (e: Exception) {
+            android.util.Log.w("DownloadBackup", "백업 파일을 지우지 못했어요: $uri", e)
+        }
     }
 
     /** 이 앱이 이 폴더에 만든 파일 목록 (최신이 앞) */

@@ -227,23 +227,36 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                 ReceiveMoneyScreen(target: MyEventTarget(event.id!))));
   }
 
-  /// '누구 행사예요?' [내 행사]: 누르는 순간 한도를 본다. 결제 화면을 닫으면 고르지 않은 채로.
+  /// [내 행사]를 눌러 한도를 보는 중 (빠르게 두 번 눌러 결제 화면이 두 번 뜨지 않게)
+  bool _checkingWhose = false;
+
+  /// '누구 행사예요?' [내 행사]: 누르는 순간 한도를 본다.
+  /// 결제 화면을 닫으면 '누구 행사예요?' 선택을 비운다.
   Future<void> _chooseWhose(bool mine) async {
     if (mine && _whose != true) {
-      if (!await LimitService.canCreateMyEvent(context, ref)) return;
+      if (_checkingWhose) return;
+      _checkingWhose = true;
+      try {
+        if (!await LimitService.canCreateMyEvent(context, ref)) {
+          if (mounted) setState(() => _whose = null);
+          return;
+        }
+      } finally {
+        _checkingWhose = false;
+      }
       if (!mounted) return;
     }
     setState(() => _whose = mine);
   }
 
   /// 새 내 행사를 만들고 받은 돈 적기로 간다.
+  /// [_saving]은 [_start]가 먼저 켜 둔다(빠르게 여러 번 눌러도 한 번만 저장).
   Future<void> _createMyEvent(String title, List<String> sides) async {
     // 고른 뒤 다른 곳에서 내 행사가 생겼을 수 있어 한 번 더 본다
-    if (!await LimitService.canCreateMyEvent(context, ref)) return;
+    if (!await LimitService.canCreateMyEvent(context, ref)) return _stopSaving();
     if (!mounted) return;
-    setState(() => _saving = true);
     final repo = ref.read(repositoryProvider);
-    final id = await repo.insertEvent(Event(
+    final newEvent = Event(
       type: _type,
       title: title,
       date: _date,
@@ -253,7 +266,11 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       mealTicketEnabled: _mealEnabled!,
       defaultMealTickets: _defaultMeals,
       methodEnabled: _methodEnabled!,
-    ));
+    );
+    // 저장 순간 안전장치: 한도를 넘으면 저장하지 않고 결제 화면
+    final id = await LimitService.saveMyEvent(context, ref,
+        (max) => repo.insertEvent(newEvent, maxMyEvents: max));
+    if (id == null) return _stopSaving();
     final event = await repo.getEvent(id);
     if (event != null) await NotificationService.instance.scheduleForEvent(event);
     ref.refreshData();
@@ -264,8 +281,13 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
             builder: (_) => ReceiveMoneyScreen(target: MyEventTarget(id))));
   }
 
+  void _stopSaving() {
+    if (mounted) setState(() => _saving = false);
+  }
+
   Future<void> _start() async {
     if (widget.event case final event?) return _saveMyEvent(event);
+    if (_saving) return;
     if (_whose == null) {
       showSnack(context, '누구 행사인지 골라 주세요.');
       return;
@@ -280,7 +302,12 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       showSnack(context, '상주 이름을 입력해 주세요.');
       return;
     }
-    if (_whose == true) return _createMyEvent(title, sides);
+    if (_whose == true) {
+      // 다음 프레임을 기다리지 않고 바로 막는다 (빠른 연속 누르기)
+      _saving = true;
+      setState(() {});
+      return _createMyEvent(title, sides);
+    }
     final operatorName = _operator.text.trim();
     if (operatorName.isEmpty) {
       showSnack(context, '받는 사람 이름을 입력해 주세요.');

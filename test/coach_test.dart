@@ -292,7 +292,11 @@ void main() {
       expect(prefs.getBool('coach_seen_home'), isNull);
       expect(prefs.getBool('coach_seen_stats'), isNull);
       for (final s in CoachScreen.values) {
-        expect(s.marks.length, inInclusiveRange(1, 3), reason: s.title);
+        // 홈만 4개(접기 안내 추가, 추가 Y). '얼마 내셨어요?' 카드는 있을 때만 보이고,
+        // 한 번에 보이는 설명은 _visibleMarks가 3개로 자른다.
+        expect(s.marks.length,
+            inInclusiveRange(1, s == CoachScreen.home ? 4 : 3),
+            reason: s.title);
       }
     });
   });

@@ -7,6 +7,7 @@ import '../services/format.dart';
 import '../services/notification_permission.dart';
 import '../theme/app_theme.dart';
 import '../widgets/backup_guide.dart';
+import '../widgets/collapsible_section.dart';
 import '../widgets/grouped_bar_chart.dart';
 import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
@@ -56,11 +57,14 @@ class HomeScreen extends ConsumerWidget {
             // 요약 카드 제목 줄: 왼쪽 '2026년 나의 경조사', 오른쪽 백업 아이콘(v1에서는 숨김)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page, 4, AppSpacing.page - 8, 4),
+                AppSpacing.page,
+                4,
+                AppSpacing.page - 8,
+                4,
+              ),
               child: Row(
                 children: [
-                  Expanded(
-                      child: Text('$year년 나의 경조사', style: AppText.label)),
+                  Expanded(child: Text('$year년 나의 경조사', style: AppText.label)),
                   if (showBackup)
                     BackupStatusButton(recordCount: data.recordCount)
                   else
@@ -82,73 +86,121 @@ class HomeScreen extends ConsumerWidget {
             if (data.pending.isNotEmpty)
               CoachTarget(
                 spot: CoachSpot.homePending,
-                child: TestId('ask_card',
-                    child: PendingAmountSection(events: data.pending)),
+                child: TestId(
+                  'ask_card',
+                  child: PendingAmountSection(events: data.pending),
+                ),
               ),
             // 다가오는 일정: 일정이 없어도 섹션은 늘 보이고 빈 화면 문구만 (추가 X)
-            ...[
-              SectionTitle(
-                '다가오는 일정',
-                trailing: data.scheduleCount == 0
-                    ? null
-                    : TestId('btn_all_schedules', child: LinkText('전체 보기',
-                        onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                                builder: (_) => const AllSchedulesScreen())))),
-              ),
-              if (data.upcoming.isEmpty)
-                const TestId('home_no_schedule', child: EmptyView(
-                    icon: Icons.event_available, message: '다가오는 일정이 없어요.'))
-              else
-                for (var i = 0; i < data.upcoming.length; i++)
-                  EventTile(
-                    event: data.upcoming[i],
-                    highlight: i == 0,
-                    subtitle: [
-                      formatDate(data.upcoming[i].date),
-                      data.upcoming[i].personRelation ?? data.upcoming[i].type,
-                    ].join(' · '),
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (_) => EventDetailScreen(
-                                eventId: data.upcoming[i].id!))),
-                  ),
-              if (data.upcoming.isNotEmpty) const _NotificationOffLine(),
-              const SizedBox(height: AppSpacing.section - 6),
-              const AppDivider(),
-            ],
-            const _RecentMonthsSection(),
-            SectionTitle(
-              '최근 기록',
-              trailing: data.recent.isEmpty
+            // 접기 · 펼치기 (추가 Y): 접으면 제목 옆에 다가오는 일정 개수
+            CollapsibleSection(
+              section: HomeSection.schedules,
+              title: '다가오는 일정',
+              coachSpot: CoachSpot.homeCollapse,
+              collapsedCount: data.upcomingCount > 0
+                  ? '· ${data.upcomingCount}개'
+                  : null,
+              trailing: data.scheduleCount == 0
                   ? null
-                  : TestId('btn_all_records', child: LinkText('전체 보기',
-                      onTap: () => Navigator.push(
+                  : TestId(
+                      'btn_all_schedules',
+                      child: LinkText(
+                        '전체 보기',
+                        onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute<void>(
-                              builder: (_) => const AllRecordsScreen())))),
+                            builder: (_) => const AllSchedulesScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+              footer: const Padding(
+                padding: EdgeInsets.only(top: AppSpacing.section - 6),
+                child: AppDivider(),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (data.upcoming.isEmpty)
+                    const TestId(
+                      'home_no_schedule',
+                      child: EmptyView(
+                        icon: Icons.event_available,
+                        message: '다가오는 일정이 없어요.',
+                      ),
+                    )
+                  else
+                    for (var i = 0; i < data.upcoming.length; i++)
+                      EventTile(
+                        event: data.upcoming[i],
+                        highlight: i == 0,
+                        subtitle: [
+                          formatDate(data.upcoming[i].date),
+                          data.upcoming[i].personRelation ??
+                              data.upcoming[i].type,
+                        ].join(' · '),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => EventDetailScreen(
+                              eventId: data.upcoming[i].id!,
+                            ),
+                          ),
+                        ),
+                      ),
+                  if (data.upcoming.isNotEmpty) const _NotificationOffLine(),
+                ],
+              ),
             ),
-            if (data.recent.isEmpty)
-              const TestId(
-                'home_empty',
-                child: EmptyView(
-                  icon: Icons.receipt_long,
-                  message: '아직 기록이 없어요.\n오른쪽 아래 연필 버튼을 눌러 첫 기록을 남겨보세요',
-                ),
-              )
-            else
-              for (final r in data.recent)
-                RecordTile(
-                  record: r,
-                  showPerson: true,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                          builder: (_) =>
-                              PersonDetailScreen(personId: r.personId))),
-                ),
+            const _RecentMonthsSection(),
+            CollapsibleSection(
+              section: HomeSection.records,
+              title: '최근 기록',
+              // 접으면 제목 옆에 전체 기록 건수
+              collapsedCount: data.recordCount > 0
+                  ? '· ${data.recordCount}건'
+                  : null,
+              trailing: data.recent.isEmpty
+                  ? null
+                  : TestId(
+                      'btn_all_records',
+                      child: LinkText(
+                        '전체 보기',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const AllRecordsScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (data.recent.isEmpty)
+                    const TestId(
+                      'home_empty',
+                      child: EmptyView(
+                        icon: Icons.receipt_long,
+                        message: '아직 기록이 없어요.\n오른쪽 아래 연필 버튼을 눌러 첫 기록을 남겨보세요',
+                      ),
+                    )
+                  else
+                    for (final r in data.recent)
+                      RecordTile(
+                        record: r,
+                        showPerson: true,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                PersonDetailScreen(personId: r.personId),
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
             fabBottomSpace,
           ],
         ),
@@ -167,7 +219,8 @@ class _RecentMonthsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 처음 읽는 동안에도 틀이 흔들리지 않게, 값이 없으면 이번 달까지 6개월을 0으로 둔다
     final now = DateTime.now();
-    final rows = ref.watch(recentMonthsProvider).value ??
+    final rows =
+        ref.watch(recentMonthsProvider).value ??
         [
           for (var i = 5; i >= 0; i--)
             (
@@ -179,71 +232,95 @@ class _RecentMonthsSection extends ConsumerWidget {
         ];
     final empty = rows.every((r) => r.sent == 0 && r.received == 0);
     void openStats() => ref.read(tabRequestProvider.notifier).go(AppTabs.stats);
-    return TestId('home_recent_months', child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionTitle(
-          '최근 6개월',
-          trailing: TestId('btn_home_stats',
-              child: LinkText('통계 ›', onTap: openStats)),
+    return TestId(
+      'home_recent_months',
+      child: CollapsibleSection(
+        section: HomeSection.months,
+        title: '최근 6개월',
+        trailing: TestId(
+          'btn_home_stats',
+          child: LinkText('통계 ›', onTap: openStats),
         ),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: openStats,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.page - 12, 8, AppSpacing.page, 0),
-            child: SizedBox(
-              height: 160,
-              // 막대를 눌러도 말풍선 대신 통계 탭으로 가도록 그래프 터치는 끈다
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: GroupedBarChart(
-                        labels: [for (final r in rows) '${r.month}월'],
-                        sent: [for (final r in rows) r.sent],
-                        received: [for (final r in rows) r.received],
-                        compact: true,
-                      ),
-                    ),
-                  ),
-                  if (empty)
-                    // 아래 월 라벨 자리(30)를 빼고 그래프 영역 가운데에
-                    Positioned.fill(
-                      bottom: 30,
-                      left: 40,
-                      child: Center(
-                        child: TestId(
-                          'home_months_empty',
-                          // 눈금 선 위에 겹쳐도 읽히게 흰 바탕을 깐다
-                          child: ColoredBox(
-                            color: AppColors.background,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              child: Text('기록이 생기면 여기에 보여요',
-                                  style: AppText.sub
-                                      .copyWith(color: AppColors.textHint)),
-                            ),
+        footer: const Padding(
+          padding: EdgeInsets.only(top: AppSpacing.section - 6),
+          child: AppDivider(),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: openStats,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page - 12,
+                  8,
+                  AppSpacing.page,
+                  0,
+                ),
+                child: SizedBox(
+                  height: 160,
+                  // 막대를 눌러도 말풍선 대신 통계 탭으로 가도록 그래프 터치는 끈다
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: GroupedBarChart(
+                            labels: [for (final r in rows) '${r.month}월'],
+                            sent: [for (final r in rows) r.sent],
+                            received: [for (final r in rows) r.received],
+                            compact: true,
                           ),
                         ),
                       ),
-                    ),
-                ],
+                      if (empty)
+                        // 아래 월 라벨 자리(30)를 빼고 그래프 영역 가운데에
+                        Positioned.fill(
+                          bottom: 30,
+                          left: 40,
+                          child: Center(
+                            child: TestId(
+                              'home_months_empty',
+                              // 눈금 선 위에 겹쳐도 읽히게 흰 바탕을 깐다
+                              child: ColoredBox(
+                                color: AppColors.background,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  child: Text(
+                                    '기록이 생기면 여기에 보여요',
+                                    style: AppText.sub.copyWith(
+                                      color: AppColors.textHint,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                6,
+                AppSpacing.page,
+                0,
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: SentReceivedLegend(),
+              ),
+            ),
+          ],
         ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(AppSpacing.page, 6, AppSpacing.page, 0),
-          child: Align(
-              alignment: Alignment.centerRight, child: SentReceivedLegend()),
-        ),
-        const SizedBox(height: AppSpacing.section - 6),
-        const AppDivider(),
-      ],
-    ));
+      ),
+    );
   }
 }
 
@@ -255,22 +332,33 @@ class _NotificationOffLine extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(notificationPermissionProvider)) return const SizedBox.shrink();
-    return TestId('home_notification_off', child: Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, 8, 0),
-      child: Row(
-        children: [
-          const Icon(Icons.notifications_off_outlined,
-              size: 18, color: AppColors.textSub),
-          const SizedBox(width: 6),
-          const Flexible(child: Text('알림이 꺼져 있어요', style: AppText.sub)),
-          TestId('btn_notification_on', child: TextButton(
-            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-            onPressed: () => requestNotificationsOrOpenSettings(ref),
-            child: const Text('켜기', style: AppText.link),
-          )),
-        ],
+    if (ref.watch(notificationPermissionProvider)) {
+      return const SizedBox.shrink();
+    }
+    return TestId(
+      'home_notification_off',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.page, 4, 8, 0),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.notifications_off_outlined,
+              size: 18,
+              color: AppColors.textSub,
+            ),
+            const SizedBox(width: 6),
+            const Flexible(child: Text('알림이 꺼져 있어요', style: AppText.sub)),
+            TestId(
+              'btn_notification_on',
+              child: TextButton(
+                style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                onPressed: () => requestNotificationsOrOpenSettings(ref),
+                child: const Text('켜기', style: AppText.link),
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 }

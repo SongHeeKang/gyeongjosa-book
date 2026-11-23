@@ -11,6 +11,8 @@ enum CoachScreen {
   home('홈', [
     CoachMark(CoachSpot.recordButton, '모든 기록은 여기서 시작해요'),
     CoachMark(CoachSpot.homePending, '다녀온 행사는 금액만 누르면 기록돼요'),
+    // 추가 Y: 홈 섹션 접기 · 펼치기 ('얼마 내셨어요?' 카드가 있으면 4개라 앞 3개만 보인다)
+    CoachMark(CoachSpot.homeCollapse, '제목 옆 화살표로 섹션을 접거나 펼 수 있어요'),
     // 한 화면 설명은 3개까지. '? 버튼' 안내는 도움말 맨 아래에 늘 있으니 공유 · 다운로드 설명으로 바꾼다.
     CoachMark(CoachSpot.homeExcel, '공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'),
   ]),
@@ -68,10 +70,11 @@ enum CoachScreen {
   String get _prefKey => 'coach_seen_$name';
 }
 
+/// 한 화면의 설명은 최대 3개: 지금 화면에 있는 자리 중 앞에서 3개까지
 List<CoachMark> _visibleMarks(CoachScreen screen) => [
       for (final m in screen.marks)
         if (m.rect != null) m,
-    ];
+    ].take(3).toList();
 
 /// 지금 화면에 있는 자리만 골라 도움말을 보여준다. 보여줄 것이 없으면 false.
 Future<bool> showCoach(BuildContext context, CoachScreen screen) async {

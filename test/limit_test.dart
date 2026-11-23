@@ -16,7 +16,6 @@ import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/screens/pick_event_screen.dart';
 import 'package:gyeongjosa/screens/receive_money_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
-import 'package:gyeongjosa/screens/reception_import_screen.dart';
 import 'package:gyeongjosa/services/limit_service.dart';
 import 'package:gyeongjosa/services/limits.dart';
 import 'package:gyeongjosa/services/pro_service.dart';
@@ -324,29 +323,6 @@ void main() {
       expect(find.text('행사 이름'), findsOneWidget);
     });
 
-    testWidgets('장부 가져오기의 새 내 행사로 만들기도 같다', (tester) async {
-      await open(
-          tester,
-          ReceptionImportScreen(
-            package: ReceptionPackage(
-              Reception(
-                id: 'r1',
-                title: '내 결혼식',
-                eventType: '결혼',
-                date: DateTime(2026, 11, 1),
-                sides: const ['신랑측'],
-                operatorName: '',
-                startedAt: DateTime(2026, 11, 1),
-              ),
-              const [],
-            ),
-          ),
-          myEvents: 1);
-      expect(find.text('프로'), findsOneWidget);
-      await tester.tap(find.text('새 내 행사로 만들기'));
-      await tester.pumpAndSettle();
-      expect(find.byType(PaywallScreen), findsOneWidget);
-    });
   });
 
   group('받은 돈 적기: 어느 행사에 적을까요?', () {

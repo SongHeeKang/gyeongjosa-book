@@ -11,6 +11,7 @@ enum CoachSpot {
   homePending,
   homeHelp,
   homeExcel,
+  homeCollapse,
   menuSent,
   menuSchedule,
   menuReceive,

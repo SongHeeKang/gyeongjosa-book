@@ -28,6 +28,9 @@ import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:gyeongjosa/services/app_config.dart';
 import 'package:gyeongjosa/widgets/backup_guide.dart';
+import 'package:gyeongjosa/widgets/collapsible_section.dart';
+import 'package:gyeongjosa/widgets/test_id.dart';
+import 'package:gyeongjosa/screens/all_schedules_screen.dart';
 import 'package:gyeongjosa/widgets/app_bottom_nav.dart';
 import 'package:gyeongjosa/widgets/common.dart';
 import 'package:gyeongjosa/widgets/pro_gate.dart';
@@ -667,6 +670,137 @@ void main() {
       await tester.tap(find.text('통계 ›'));
       await tester.pumpAndSettle();
       expect(find.text('월별 보냄 · 받음'), findsOneWidget);
+    });
+
+    // 추가 Y: 홈 섹션 접기 · 펼치기
+    Finder byTestId(String id) =>
+        find.byWidgetPredicate((w) => w is TestId && w.id == id);
+    Finder toggle(HomeSection s) => find.descendant(
+        of: byTestId('${s.id}_toggle'), matching: find.byType(IconButton));
+    Finder titleOf(HomeSection s) => byTestId('${s.id}_title');
+
+    testWidgets('빈 홈: 세 섹션 모두 화살표 · 제목으로 접고 펴고, 개수는 0이라 표시 없음',
+        (tester) async {
+      await pump(tester, const HomeScreen());
+      for (final s in HomeSection.values) {
+        expect(toggle(s), findsOneWidget, reason: s.id);
+      }
+      expect(find.text('다가오는 일정이 없어요.'), findsOneWidget);
+      await tester.tap(toggle(HomeSection.schedules));
+      await tester.pumpAndSettle();
+      expect(find.text('다가오는 일정이 없어요.'), findsNothing);
+      expect(find.textContaining(RegExp(r'^· [0-9]')), findsNothing);
+      await tester.tap(titleOf(HomeSection.schedules));
+      await tester.pumpAndSettle();
+      expect(find.text('다가오는 일정이 없어요.'), findsOneWidget);
+
+      await tester.tap(toggle(HomeSection.months));
+      await tester.pumpAndSettle();
+      expect(find.text('기록이 생기면 여기에 보여요'), findsNothing);
+      expect(find.text('최근 6개월'), findsOneWidget);
+      await tester.tap(titleOf(HomeSection.months));
+      await tester.pumpAndSettle();
+      expect(find.text('기록이 생기면 여기에 보여요'), findsOneWidget);
+
+      await tester.ensureVisible(toggle(HomeSection.records));
+      await tester.tap(toggle(HomeSection.records));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('첫 기록을 남겨보세요'), findsNothing);
+      await tester.tap(titleOf(HomeSection.records));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('첫 기록을 남겨보세요'), findsOneWidget);
+    });
+
+    testWidgets('접으면 제목 옆에 개수(일정 · n개, 기록 · n건), 6개월은 개수 없음',
+        (tester) async {
+      final repo = FakeRepository()
+        ..upcoming = [
+          for (var i = 1; i <= 4; i++)
+            Event(id: i, type: '결혼', title: '일정$i',
+                date: DateTime.now().add(Duration(days: i)), isMine: false),
+        ]
+        ..inserted.addAll(List.generate(7,
+            (_) => GiftRecord(personId: 1, direction: '보냄', amount: 1000,
+                date: DateTime.now())));
+      await pump(tester, const HomeScreen(), repository: repo);
+      expect(find.text('· 4개'), findsNothing); // 펼쳐 있을 때는 없음
+      for (final s in HomeSection.values) {
+        await tester.ensureVisible(toggle(s));
+        await tester.tap(toggle(s));
+        await tester.pumpAndSettle();
+      }
+      expect(find.text('· 4개'), findsOneWidget);
+      expect(find.text('· 7건'), findsOneWidget);
+      expect(find.text('일정1'), findsNothing);
+      // 6개월은 개수 없음, 링크는 그대로
+      expect(find.text('통계 ›'), findsOneWidget);
+      expect(find.text('전체 보기'), findsOneWidget); // 일정 (가짜 저장소의 최근 기록은 비어 있음)
+    });
+
+    testWidgets('전체 보기 · 통계 ›는 눌러도 접히지 않고 이동한다', (tester) async {
+      final repo = FakeRepository()
+        ..upcoming = [
+          Event(id: 1, type: '결혼', title: '철수 결혼식',
+              date: DateTime.now().add(const Duration(days: 2)), isMine: false),
+        ];
+      await pump(tester, const MainShell(), repository: repo);
+      await tester.tap(find.text('전체 보기').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(AllSchedulesScreen), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('철수 결혼식'), findsOneWidget); // 접히지 않음
+      await tester.tap(find.text('통계 ›'));
+      await tester.pumpAndSettle();
+      expect(find.text('월별 보냄 · 받음'), findsOneWidget);
+      await tester.tap(find.descendant(
+          of: find.byType(AppBottomNav), matching: find.text('홈')));
+      await tester.pumpAndSettle();
+      expect(find.text('기록이 생기면 여기에 보여요'), findsOneWidget);
+    });
+
+    testWidgets('접은 상태는 저장되어 앱을 다시 켜도 그대로, 기본은 모두 펼침', (tester) async {
+      await pump(tester, const HomeScreen());
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(PrefKeys.homeCollapsed('home_schedules')), isNull);
+      await tester.tap(toggle(HomeSection.schedules));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(toggle(HomeSection.records));
+      await tester.tap(toggle(HomeSection.records));
+      await tester.pumpAndSettle();
+      expect(prefs.getBool(PrefKeys.homeCollapsed('home_schedules')), isTrue);
+      expect(prefs.getBool(PrefKeys.homeCollapsed('home_records')), isTrue);
+
+      // 앱을 다시 켠 것과 같은 상황 (같은 저장소로 새로 그린다)
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          repositoryProvider.overrideWithValue(FakeRepository()),
+        ],
+        child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('다가오는 일정이 없어요.'), findsNothing);
+      expect(find.textContaining('첫 기록을 남겨보세요'), findsNothing);
+      expect(find.text('기록이 생기면 여기에 보여요'), findsOneWidget);
+    });
+
+    testWidgets('결제 화면 혜택 4줄, 가져오기 · 엑셀 문구 없음', (tester) async {
+      await pump(tester, const PaywallScreen());
+      for (final t in [
+        '사람을 제한 없이 등록해요',
+        '(무료는 50명까지)',
+        '내 행사 장부를 여러 개 만들어요',
+        '(무료는 1개)',
+        '관계별 · 연도별 상세 통계를 봐요',
+        '한 번 결제로 평생 사용해요',
+      ]) {
+        expect(find.text(t), findsOneWidget, reason: t);
+      }
+      expect(find.textContaining('가져와'), findsNothing);
+      expect(find.textContaining('엑셀'), findsNothing);
+      expect(find.textContaining('CSV'), findsNothing);
     });
 
     testWidgets('홈 백업 아이콘은 v1에서 숨김(kShowHomeBackup = false)', (tester) async {

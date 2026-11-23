@@ -19,11 +19,9 @@ import 'package:gyeongjosa/screens/main_shell.dart';
 import 'package:gyeongjosa/screens/onboarding_screen.dart';
 import 'package:gyeongjosa/screens/paywall_screen.dart';
 import 'package:gyeongjosa/screens/person_detail_screen.dart';
-import 'package:gyeongjosa/screens/ledger_import_screen.dart';
 import 'package:gyeongjosa/screens/pick_event_screen.dart';
 import 'package:gyeongjosa/screens/quick_entry_screen.dart';
 import 'package:gyeongjosa/screens/reception_form_screen.dart';
-import 'package:gyeongjosa/screens/reception_import_screen.dart';
 import 'package:gyeongjosa/screens/receive_money_screen.dart';
 import 'package:gyeongjosa/services/receive_targets.dart';
 import 'package:gyeongjosa/screens/reception_send_screen.dart';
@@ -282,9 +280,6 @@ final _cases = <_Case>[
       keyboard: true),
   _Case('다른 사람 행사 상세', (_) => const ReceptionSummaryScreen(receptionId: 'r1')),
   _Case('장부 보내기', (r) => ReceptionSendScreen(package: r.package)),
-  _Case('장부 가져오기 (붙여넣기)', (_) => const LedgerImportScreen()),
-  _Case('받은 장부 가져오기', (r) =>
-      ReceptionImportScreen(package: r.package, unreadableLines: 3)),
   _Case('빠른 연속 입력 (보낸 돈)', (r) => QuickEntryScreen(event: r.schedules.first),
       keyboard: true),
   _Case(

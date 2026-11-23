@@ -1,3 +1,5 @@
+import '../widgets/unsaved_guard.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -29,12 +31,14 @@ import 'receive_money_screen.dart';
 ///   다시 바꿀 수 있다([editing]).
 class ReceptionFormScreen extends ConsumerStatefulWidget {
   const ReceptionFormScreen({super.key, this.whose})
-      : event = null,
-        editing = false;
+    : event = null,
+      editing = false;
 
-  const ReceptionFormScreen.myEvent(
-      {super.key, required Event this.event, this.editing = false})
-      : whose = null;
+  const ReceptionFormScreen.myEvent({
+    super.key,
+    required Event this.event,
+    this.editing = false,
+  }) : whose = null;
 
   /// 행사 탭 묶음의 [+ 추가]로 열면 미리 골라 둔 '누구 행사예요?' (true: 내 행사, false: 다른 사람 행사)
   final bool? whose;
@@ -75,6 +79,20 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   /// 받는 사람 이름을 묻는지 (다른 사람 행사 만들기)
   bool get _asksOperator => !_settingsOnly && _whose == false;
 
+  /// 처음 열었을 때의 값. 뒤로 갈 때 달라졌으면 작성 중 확인을 묻는다.
+  late final String _initial;
+  String get _snapshot => [
+    _whose,
+    _title.text,
+    _type,
+    _date,
+    _sides.text,
+    _operator.text,
+    _mealEnabled,
+    _defaultMeals,
+    _methodEnabled,
+  ].join('|');
+
   @override
   void initState() {
     super.initState();
@@ -95,6 +113,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
     }
     _operator.text =
         ref.read(prefsProvider).getString(PrefKeys.receptionOperator) ?? '';
+    _initial = _snapshot;
   }
 
   @override
@@ -122,10 +141,12 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
     final picked = _parseSides();
     if (!picked.remove(side)) picked.add(side);
     const presets = ReceptionDefaults.weddingSides;
-    setState(() => _sides.text = [
-          ...presets.where(picked.contains),
-          ...picked.where((s) => !presets.contains(s)),
-        ].join(', '));
+    setState(
+      () => _sides.text = [
+        ...presets.where(picked.contains),
+        ...picked.where((s) => !presets.contains(s)),
+      ].join(', '),
+    );
   }
 
   /// 나란히 놓인 큰 선택 버튼 묶음
@@ -153,20 +174,22 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
               _testIds[choices[i].$1] ?? 'choice_${choices[i].$1}',
               selected: choices[i].$2,
               child: SizedBox(
-              height: AppSpacing.receptionButton,
-              child: OutlinedButton(
-                onPressed: choices[i].$3,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  backgroundColor: choices[i].$2 ? AppColors.primarySoft : null,
-                  foregroundColor: choices[i].$2 ? AppColors.primary : null,
-                  side: choices[i].$2
-                      ? const BorderSide(color: AppColors.primary, width: 1.5)
-                      : null,
+                height: AppSpacing.receptionButton,
+                child: OutlinedButton(
+                  onPressed: choices[i].$3,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    backgroundColor: choices[i].$2
+                        ? AppColors.primarySoft
+                        : null,
+                    foregroundColor: choices[i].$2 ? AppColors.primary : null,
+                    side: choices[i].$2
+                        ? const BorderSide(color: AppColors.primary, width: 1.5)
+                        : null,
+                  ),
+                  child: Text(choices[i].$1),
                 ),
-                child: Text(choices[i].$1),
               ),
-            ),
             ),
           ),
         ],
@@ -207,13 +230,16 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       return;
     }
     setState(() => _saving = true);
-    await ref.read(repositoryProvider).updateEventReceiveSettings(
-        event.withReceiveSettings(
-          sides: sides.isEmpty ? const [ReceptionDefaults.noSide] : sides,
-          mealTicketEnabled: _mealEnabled!,
-          defaultMealTickets: _defaultMeals,
-          methodEnabled: _methodEnabled!,
-        ));
+    await ref
+        .read(repositoryProvider)
+        .updateEventReceiveSettings(
+          event.withReceiveSettings(
+            sides: sides.isEmpty ? const [ReceptionDefaults.noSide] : sides,
+            mealTicketEnabled: _mealEnabled!,
+            defaultMealTickets: _defaultMeals,
+            methodEnabled: _methodEnabled!,
+          ),
+        );
     ref.refreshData();
     if (!mounted) return;
     if (widget.editing) {
@@ -221,10 +247,11 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       return;
     }
     Navigator.pushReplacement(
-        context,
-        MaterialPageRoute<void>(
-            builder: (_) =>
-                ReceiveMoneyScreen(target: MyEventTarget(event.id!))));
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => ReceiveMoneyScreen(target: MyEventTarget(event.id!)),
+      ),
+    );
   }
 
   /// [내 행사]를 눌러 한도를 보는 중 (빠르게 두 번 눌러 결제 화면이 두 번 뜨지 않게)
@@ -253,7 +280,9 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
   /// [_saving]은 [_start]가 먼저 켜 둔다(빠르게 여러 번 눌러도 한 번만 저장).
   Future<void> _createMyEvent(String title, List<String> sides) async {
     // 고른 뒤 다른 곳에서 내 행사가 생겼을 수 있어 한 번 더 본다
-    if (!await LimitService.canCreateMyEvent(context, ref)) return _stopSaving();
+    if (!await LimitService.canCreateMyEvent(context, ref)) {
+      return _stopSaving();
+    }
     if (!mounted) return;
     final repo = ref.read(repositoryProvider);
     final newEvent = Event(
@@ -268,17 +297,24 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       methodEnabled: _methodEnabled!,
     );
     // 저장 순간 안전장치: 한도를 넘으면 저장하지 않고 결제 화면
-    final id = await LimitService.saveMyEvent(context, ref,
-        (max) => repo.insertEvent(newEvent, maxMyEvents: max));
+    final id = await LimitService.saveMyEvent(
+      context,
+      ref,
+      (max) => repo.insertEvent(newEvent, maxMyEvents: max),
+    );
     if (id == null) return _stopSaving();
     final event = await repo.getEvent(id);
-    if (event != null) await NotificationService.instance.scheduleForEvent(event);
+    if (event != null) {
+      await NotificationService.instance.scheduleForEvent(event);
+    }
     ref.refreshData();
     if (!mounted) return;
     Navigator.pushReplacement(
-        context,
-        MaterialPageRoute<void>(
-            builder: (_) => ReceiveMoneyScreen(target: MyEventTarget(id))));
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => ReceiveMoneyScreen(target: MyEventTarget(id)),
+      ),
+    );
   }
 
   void _stopSaving() {
@@ -333,140 +369,182 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
     ref.refreshData();
     if (!mounted) return;
     Navigator.pushReplacement(
-        context,
-        MaterialPageRoute<void>(
-            builder: (_) =>
-                ReceiveMoneyScreen(target: ReceptionTarget(reception.id))));
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ReceiveMoneyScreen(target: ReceptionTarget(reception.id)),
+      ),
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => UnsavedChangesGuard(
+    isDirty: () => _snapshot != _initial,
+    child: _buildForm(context),
+  );
+
+  Widget _buildForm(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_settingsOnly ? '행사 설정' : '행사 만들기')),
       body: ListView(
-        padding:
-            const EdgeInsets.fromLTRB(AppSpacing.page, 8, AppSpacing.page, 32),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          8,
+          AppSpacing.page,
+          32,
+        ),
         children: [
           if (_settingsOnly) ...[
             Text('내 행사 · ${widget.event!.title}', style: AppText.sectionTitle),
             const SizedBox(height: 4),
-            const Text('이 행사에서 받을 때 쓸 설정이에요. 받는 중에도 바꿀 수 있어요.',
-                style: AppText.sub),
+            const Text(
+              '이 행사에서 받을 때 쓸 설정이에요. 받는 중에도 바꿀 수 있어요.',
+              style: AppText.sub,
+            ),
             const SizedBox(height: 20),
           ] else ...[
-          const FieldLabel('누구 행사예요?'),
-          _choiceRow([
-            ('내 행사', _whose == true, () => _chooseWhose(true)),
-            ('다른 사람 행사', _whose == false, () => _chooseWhose(false)),
-          ]),
-          const SizedBox(height: 6),
-          Text(
-              switch (_whose) {
-                true => '받은 손님이 사람 탭에도 들어가요 · 받은 만큼 챙기기 · 통계',
-                false => '장부에만 저장돼요(사람 탭에 안 들어감) · 끝나면 장부 보내기',
-                null => '내 결혼식 · 돌잔치면 내 행사, 가족 · 친구 행사에서 받아 주면 다른 사람 행사',
-              },
-              style: AppText.sub),
-          const SizedBox(height: 20),
-          TestId('input_event_title', child: TextField(
-            controller: _title,
-            style: AppText.receptionName,
-            decoration: InputDecoration(
-              labelText: '행사 이름',
-              hintText: _whose == true ? '예: 우리 결혼식' : '예: 누나 결혼식',
+            const FieldLabel('누구 행사예요?'),
+            _choiceRow([
+              ('내 행사', _whose == true, () => _chooseWhose(true)),
+              ('다른 사람 행사', _whose == false, () => _chooseWhose(false)),
+            ]),
+            const SizedBox(height: 6),
+            Text(switch (_whose) {
+              true => '받은 손님이 사람 탭에도 들어가요 · 받은 만큼 챙기기 · 통계',
+              false => '장부에만 저장돼요(사람 탭에 안 들어감) · 끝나면 장부 보내기',
+              null => '내 결혼식 · 돌잔치면 내 행사, 가족 · 친구 행사에서 받아 주면 다른 사람 행사',
+            }, style: AppText.sub),
+            const SizedBox(height: 20),
+            TestId(
+              'input_event_title',
+              child: TextField(
+                controller: _title,
+                style: AppText.receptionName,
+                decoration: InputDecoration(
+                  labelText: '행사 이름',
+                  hintText: _whose == true ? '예: 우리 결혼식' : '예: 누나 결혼식',
+                ),
+              ),
             ),
-          )),
-          const SizedBox(height: 20),
-          const FieldLabel('종류'),
-          ChoiceChips(
-            testIdPrefix: 'select_event_type',
-            options: EventTypes.all,
-            selected: _type,
-            onSelected: _selectType,
-          ),
-          const SizedBox(height: 20),
-          TestId('input_date', child: OutlinedButton.icon(
-            onPressed: _pickDate,
-            icon: const Icon(Icons.calendar_today),
-            label: Text(formatDate(_date)),
-          )),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
+            const FieldLabel('종류'),
+            ChoiceChips(
+              testIdPrefix: 'select_event_type',
+              options: EventTypes.all,
+              selected: _type,
+              onSelected: _selectType,
+            ),
+            const SizedBox(height: 20),
+            TestId(
+              'input_date',
+              child: OutlinedButton.icon(
+                onPressed: _pickDate,
+                icon: const Icon(Icons.calendar_today),
+                label: Text(formatDate(_date)),
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
           if (_isWedding) ...[
             const FieldLabel('구분'),
             _weddingSideButtons(),
             const SizedBox(height: 12),
           ],
-          TestId('input_side', child: TextField(
-            controller: _sides,
-            style: AppText.receptionName,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: _isFuneral
-                  ? '상주 이름'
-                  : _isWedding
-                      ? '구분 직접 입력'
-                      : '구분',
-              // 입력칸을 누르기 전에도 예시가 보이도록 제목을 위에 고정한다
-              floatingLabelBehavior: FloatingLabelBehavior.always,
-              hintText:
-                  _isFuneral ? '예: 홍길동, 홍길순' : '예: 신랑측, 신부측 / 상주 이름',
-              helperText: _isFuneral
-                  ? '여러 명이면 쉼표(,)로 나눠 적어 주세요'
-                  : '쉼표(,)로 나눠 적어요. 비워 두면 구분 없이 받아요',
+          TestId(
+            'input_side',
+            child: TextField(
+              controller: _sides,
+              style: AppText.receptionName,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: _isFuneral
+                    ? '상주 이름'
+                    : _isWedding
+                    ? '구분 직접 입력'
+                    : '구분',
+                // 입력칸을 누르기 전에도 예시가 보이도록 제목을 위에 고정한다
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                hintText: _isFuneral ? '예: 홍길동, 홍길순' : '예: 신랑측, 신부측 / 상주 이름',
+                helperText: _isFuneral
+                    ? '여러 명이면 쉼표(,)로 나눠 적어 주세요'
+                    : '쉼표(,)로 나눠 적어요. 비워 두면 구분 없이 받아요',
+              ),
             ),
-          )),
+          ),
           if (_asksOperator) ...[
             const SizedBox(height: 20),
-            TestId('input_operator', child: TextField(
-              controller: _operator,
-              style: AppText.receptionName,
-              decoration: const InputDecoration(
-                labelText: '받는 사람 이름',
-                hintText: '돈을 받는 분(내 이름)',
+            TestId(
+              'input_operator',
+              child: TextField(
+                controller: _operator,
+                style: AppText.receptionName,
+                decoration: const InputDecoration(
+                  labelText: '받는 사람 이름',
+                  hintText: '돈을 받는 분(내 이름)',
+                ),
               ),
-            )),
+            ),
           ],
           const SizedBox(height: 20),
           const FieldLabel('식권'),
           _choiceRow([
-            ('식권 기록 안 함', _mealEnabled == false,
-                () => setState(() => _mealEnabled = false)),
-            ('식권도 기록', _mealEnabled == true,
-                () => setState(() => _mealEnabled = true)),
+            (
+              '식권 기록 안 함',
+              _mealEnabled == false,
+              () => setState(() => _mealEnabled = false),
+            ),
+            (
+              '식권도 기록',
+              _mealEnabled == true,
+              () => setState(() => _mealEnabled = true),
+            ),
           ]),
           if (_mealEnabled == true) ...[
             const SizedBox(height: 12),
             const FieldLabel('기본 매수'),
             _choiceRow([
               for (final count in const [1, 2])
-                ('$count매', _defaultMeals == count,
-                    () => setState(() => _defaultMeals = count)),
+                (
+                  '$count매',
+                  _defaultMeals == count,
+                  () => setState(() => _defaultMeals = count),
+                ),
             ]),
           ],
           const SizedBox(height: 20),
           const FieldLabel('결제 방법'),
           _choiceRow([
-            ('현금만', _methodEnabled == false,
-                () => setState(() => _methodEnabled = false)),
-            ('계좌이체도 구분', _methodEnabled == true,
-                () => setState(() => _methodEnabled = true)),
+            (
+              '현금만',
+              _methodEnabled == false,
+              () => setState(() => _methodEnabled = false),
+            ),
+            (
+              '계좌이체도 구분',
+              _methodEnabled == true,
+              () => setState(() => _methodEnabled = true),
+            ),
           ]),
           const SizedBox(height: 28),
-          TestId('btn_start_reception', child: SizedBox(
-            height: AppSpacing.receptionButton,
-            child: FilledButton(
-              onPressed: _saving ||
-                      (!_settingsOnly && _whose == null) ||
-                      _mealEnabled == null ||
-                      _methodEnabled == null
-                  ? null
-                  : _start,
-              style: FilledButton.styleFrom(
-                  textStyle: AppText.receptionButton),
-              child: Text(widget.editing ? '저장' : '받기 시작'),
+          TestId(
+            'btn_start_reception',
+            child: SizedBox(
+              height: AppSpacing.receptionButton,
+              child: FilledButton(
+                onPressed:
+                    _saving ||
+                        (!_settingsOnly && _whose == null) ||
+                        _mealEnabled == null ||
+                        _methodEnabled == null
+                    ? null
+                    : _start,
+                style: FilledButton.styleFrom(
+                  textStyle: AppText.receptionButton,
+                ),
+                child: Text(widget.editing ? '저장' : '받기 시작'),
+              ),
             ),
-          )),
+          ),
         ],
       ),
     );

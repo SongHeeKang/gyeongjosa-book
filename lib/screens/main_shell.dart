@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
@@ -74,6 +75,27 @@ class _MainShellState extends ConsumerState<MainShell> {
     _showTabCoach();
   }
 
+  /// 안드로이드 뒤로 가기(예측 뒤로 가기 제스처 포함). 열린 창 · 메뉴 · 도움말과
+  /// 상세 · 입력 화면은 각자 먼저 닫히므로, 여기로 오는 것은 탭 첫 화면일 때뿐이다.
+  /// 홈이 아닌 탭이면 홈 탭으로, 홈이면 '앱을 종료할까요?'를 묻는다.
+  bool _askingExit = false;
+
+  Future<void> _onBack() async {
+    if (_index != 0) {
+      setState(() => _index = 0);
+      return;
+    }
+    if (_askingExit) return;
+    _askingExit = true;
+    try {
+      final exit = await confirmDialog(context,
+          title: '앱을 종료할까요?', okText: '종료');
+      if (exit) await SystemNavigator.pop();
+    } finally {
+      _askingExit = false;
+    }
+  }
+
   void _showTabCoach() {
     if (!mounted) return;
     final index = _index;
@@ -94,7 +116,12 @@ class _MainShellState extends ConsumerState<MainShell> {
       if (done) _afterStart();
     });
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return Scaffold(
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _onBack();
+      },
+      child: Scaffold(
       body: IndexedStack(index: _index, children: _screens),
       floatingActionButtonLocation: const RecordFabLocation(),
       floatingActionButton: keyboardOpen
@@ -129,6 +156,6 @@ class _MainShellState extends ConsumerState<MainShell> {
           _showTabCoach();
         },
       ),
-    );
+    ));
   }
 }

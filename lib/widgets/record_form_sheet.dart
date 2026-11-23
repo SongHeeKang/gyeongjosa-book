@@ -1,3 +1,5 @@
+import 'unsaved_guard.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -65,11 +67,23 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
   bool get _hasFixedEvent =>
       widget.event != null || widget.existing?.eventId != null;
 
+  /// 처음 열었을 때의 값. 뒤로 갈 때 달라졌으면 작성 중 확인을 묻는다.
+  late final String _initial;
+  String get _snapshot => [
+    _direction,
+    _eventType,
+    _method,
+    _date,
+    _amount.text,
+    _memo.text,
+  ].join('|');
+
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
-    _direction = e?.direction ??
+    _direction =
+        e?.direction ??
         widget.initialDirection ??
         (widget.event?.isMine == true ? Direction.received : Direction.sent);
     _eventType = e?.eventType ?? widget.event?.type ?? EventTypes.all.first;
@@ -77,6 +91,7 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
     _date = e?.date ?? widget.event?.date ?? DateTime.now();
     if (e != null) _amount.text = formatNumber(e.amount);
     _memo.text = e?.memo ?? '';
+    _initial = _snapshot;
   }
 
   @override
@@ -131,9 +146,7 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
 
   /// 확인 필요: 기존 사람이 맞음
   Future<void> _confirmSamePerson() async {
-    await ref
-        .read(repositoryProvider)
-        .markRecordReviewed(widget.existing!.id!);
+    await ref.read(repositoryProvider).markRecordReviewed(widget.existing!.id!);
     ref.refreshData();
     if (mounted) Navigator.pop(context, true);
   }
@@ -141,15 +154,24 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
   /// 확인 필요: 다른 사람이므로 같은 이름의 새 사람으로 분리
   Future<void> _splitToNewPerson() async {
     if (!await LimitService.canAddNewPerson(context, ref)) return;
-    await ref.read(repositoryProvider).moveRecordToNewPerson(
-        widget.existing!.id!, widget.existing!.personName ?? '');
+    await ref
+        .read(repositoryProvider)
+        .moveRecordToNewPerson(
+          widget.existing!.id!,
+          widget.existing!.personName ?? '',
+        );
     ref.refreshData();
     if (mounted) Navigator.pop(context, true);
   }
 
   Future<void> _delete() async {
-    final ok = await confirmDialog(context,
-        title: '내역 삭제', message: '이 내역을 삭제할까요?', okText: '삭제', destructive: true);
+    final ok = await confirmDialog(
+      context,
+      title: '내역 삭제',
+      message: '이 내역을 삭제할까요?',
+      okText: '삭제',
+      destructive: true,
+    );
     if (!ok) return;
     await ref.read(repositoryProvider).deleteRecord(widget.existing!.id!);
     ref.refreshData();
@@ -157,24 +179,36 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => UnsavedChangesGuard(
+    isDirty: () => _snapshot != _initial,
+    child: _buildForm(context),
+  );
+
+  Widget _buildForm(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          AppSpacing.page, 0, AppSpacing.page, bottom + 20),
+        AppSpacing.page,
+        0,
+        AppSpacing.page,
+        bottom + 20,
+      ),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.existing == null ? '내역 추가' : '내역 수정',
-                style: AppText.appTitle),
+            Text(
+              widget.existing == null ? '내역 추가' : '내역 수정',
+              style: AppText.appTitle,
+            ),
             const SizedBox(height: 16),
             if (widget.existing?.needsReview == true) ...[
               const Text('확인 필요', style: AppText.warning),
               const SizedBox(height: 4),
               Text(
-                  '${widget.existing!.personName} 님과 같은 이름이 있어요. 같은 사람이 맞나요?',
-                  style: AppText.body),
+                '${widget.existing!.personName} 님과 같은 이름이 있어요. 같은 사람이 맞나요?',
+                style: AppText.body,
+              ),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -202,7 +236,9 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
               segments: const [
                 ButtonSegment(value: Direction.sent, label: Text('보냄 (내가 냄)')),
                 ButtonSegment(
-                    value: Direction.received, label: Text('받음 (내가 받음)')),
+                  value: Direction.received,
+                  label: Text('받음 (내가 받음)'),
+                ),
               ],
               selected: {_direction},
               onSelectionChanged: (s) => setState(() => _direction = s.first),
@@ -214,9 +250,7 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
             const FieldLabel('행사'),
             if (_hasFixedEvent)
               Text(
-                widget.event?.title ??
-                    widget.existing?.eventLabel ??
-                    '',
+                widget.event?.title ?? widget.existing?.eventLabel ?? '',
                 style: AppText.listName,
               )
             else
@@ -228,11 +262,14 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
               ),
             const SizedBox(height: 20),
             const FieldLabel('날짜'),
-            TestId('input_date', child: OutlinedButton.icon(
-              onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_today),
-              label: Text(formatDate(_date)),
-            )),
+            TestId(
+              'input_date',
+              child: OutlinedButton.icon(
+                onPressed: _pickDate,
+                icon: const Icon(Icons.calendar_today),
+                label: Text(formatDate(_date)),
+              ),
+            ),
             const SizedBox(height: 20),
             const FieldLabel('방법'),
             ChoiceChips(
@@ -242,22 +279,31 @@ class _RecordFormSheetState extends ConsumerState<RecordFormSheet> {
               onSelected: (v) => setState(() => _method = v),
             ),
             const SizedBox(height: 20),
-            TestId('input_memo', child: TextField(
-              controller: _memo,
-              decoration: const InputDecoration(labelText: '메모 (선택)'),
-            )),
+            TestId(
+              'input_memo',
+              child: TextField(
+                controller: _memo,
+                decoration: const InputDecoration(labelText: '메모 (선택)'),
+              ),
+            ),
             const SizedBox(height: 24),
-            TestId('btn_save', child: FilledButton(
-              onPressed: _saving ? null : _save,
-              child: const Text('저장'),
-            )),
+            TestId(
+              'btn_save',
+              child: FilledButton(
+                onPressed: _saving ? null : _save,
+                child: const Text('저장'),
+              ),
+            ),
             if (widget.existing != null) ...[
               const SizedBox(height: 8),
-              TestId('btn_delete_record', child: TextButton(
-                onPressed: _delete,
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: const Text('이 내역 삭제'),
-              )),
+              TestId(
+                'btn_delete_record',
+                child: TextButton(
+                  onPressed: _delete,
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  child: const Text('이 내역 삭제'),
+                ),
+              ),
             ],
           ],
         ),

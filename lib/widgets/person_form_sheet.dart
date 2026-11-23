@@ -1,3 +1,5 @@
+import 'unsaved_guard.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,8 +15,11 @@ import 'common.dart';
 
 /// 사람 추가/수정 창. 새로 추가하면 새 사람의 id, 수정이면 기존 id 를 돌려준다.
 /// 새로 추가할 때는 무료 한도(kFreePeopleLimit명)를 먼저 확인한다.
-Future<int?> showPersonForm(BuildContext context, WidgetRef ref,
-    {Person? existing}) async {
+Future<int?> showPersonForm(
+  BuildContext context,
+  WidgetRef ref, {
+  Person? existing,
+}) async {
   if (existing == null && !await LimitService.canAddNewPerson(context, ref)) {
     return null;
   }
@@ -42,6 +47,11 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
   final _memo = TextEditingController();
   late String _relation;
 
+  /// 처음 열었을 때의 값. 뒤로 갈 때 달라졌으면 작성 중 확인을 묻는다.
+  late final String _initial;
+  String get _snapshot =>
+      [_name.text, _phone.text, _memo.text, _relation].join('|');
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +60,7 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
     _phone.text = e?.phone ?? '';
     _memo.text = e?.memo ?? '';
     _relation = e?.relation ?? '지인';
+    _initial = _snapshot;
   }
 
   @override
@@ -67,7 +78,8 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
       if (contact == null) return;
       setState(() {
         _name.text = contact.fullName ?? _name.text;
-        final phone = contact.selectedPhoneNumber ??
+        final phone =
+            contact.selectedPhoneNumber ??
             (contact.phoneNumbers?.isNotEmpty == true
                 ? contact.phoneNumbers!.first
                 : null);
@@ -89,23 +101,27 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
     final memo = _memo.text.trim().isEmpty ? null : _memo.text.trim();
     int id;
     if (widget.existing == null) {
-      id = await repo.insertPerson(Person(
-        name: name,
-        relation: _relation,
-        phone: phone,
-        memo: memo,
-        createdAt: DateTime.now(),
-      ));
+      id = await repo.insertPerson(
+        Person(
+          name: name,
+          relation: _relation,
+          phone: phone,
+          memo: memo,
+          createdAt: DateTime.now(),
+        ),
+      );
     } else {
       final e = widget.existing!;
-      await repo.updatePerson(Person(
-        id: e.id,
-        name: name,
-        relation: _relation,
-        phone: phone,
-        memo: memo,
-        createdAt: e.createdAt,
-      ));
+      await repo.updatePerson(
+        Person(
+          id: e.id,
+          name: name,
+          relation: _relation,
+          phone: phone,
+          memo: memo,
+          createdAt: e.createdAt,
+        ),
+      );
       id = e.id!;
     }
     ref.refreshData();
@@ -113,32 +129,52 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => UnsavedChangesGuard(
+    isDirty: () => _snapshot != _initial,
+    child: _buildForm(context),
+  );
+
+  Widget _buildForm(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          AppSpacing.page, 0, AppSpacing.page, bottom + 20),
+        AppSpacing.page,
+        0,
+        AppSpacing.page,
+        bottom + 20,
+      ),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.existing == null ? '사람 추가' : '정보 수정',
-                style: AppText.appTitle),
+            Text(
+              widget.existing == null ? '사람 추가' : '정보 수정',
+              style: AppText.appTitle,
+            ),
             const SizedBox(height: 16),
             if (widget.existing == null) ...[
-              TestId('btn_pick_contact', child: OutlinedButton.icon(
-                onPressed: _pickContact,
-                icon: const Icon(Icons.contacts),
-                label: const Text('연락처에서 가져오기'),
-              )),
+              TestId(
+                'btn_pick_contact',
+                child: OutlinedButton.icon(
+                  onPressed: _pickContact,
+                  icon: const Icon(Icons.contacts),
+                  label: const Text('연락처에서 가져오기'),
+                ),
+              ),
               const SizedBox(height: 16),
             ],
-            TestId('input_name', child: TextField(
-              controller: _name,
-              autofocus: widget.existing == null,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
-              decoration: const InputDecoration(labelText: '이름'),
-            )),
+            TestId(
+              'input_name',
+              child: TextField(
+                controller: _name,
+                autofocus: widget.existing == null,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: const InputDecoration(labelText: '이름'),
+              ),
+            ),
             const SizedBox(height: 16),
             const FieldLabel('관계'),
             ChoiceChips(
@@ -148,18 +184,27 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
               onSelected: (v) => setState(() => _relation = v),
             ),
             const SizedBox(height: 16),
-            TestId('input_phone', child: TextField(
-              controller: _phone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: '전화번호 (선택)'),
-            )),
+            TestId(
+              'input_phone',
+              child: TextField(
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: '전화번호 (선택)'),
+              ),
+            ),
             const SizedBox(height: 16),
-            TestId('input_memo', child: TextField(
-              controller: _memo,
-              decoration: const InputDecoration(labelText: '메모 (선택)'),
-            )),
+            TestId(
+              'input_memo',
+              child: TextField(
+                controller: _memo,
+                decoration: const InputDecoration(labelText: '메모 (선택)'),
+              ),
+            ),
             const SizedBox(height: 24),
-            TestId('btn_save', child: FilledButton(onPressed: _save, child: const Text('저장'))),
+            TestId(
+              'btn_save',
+              child: FilledButton(onPressed: _save, child: const Text('저장')),
+            ),
           ],
         ),
       ),

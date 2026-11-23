@@ -87,8 +87,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _next() => _controller.nextPage(
       duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
 
+  void _previous() => _controller.previousPage(
+      duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+
   @override
   Widget build(BuildContext context) {
+    // 뒤로 가기: 이전 장으로. 첫 장이면 아무 일도 없다(앱을 바로 닫지 않음).
+    // 설정 > 사용 방법에서 다시 볼 때는 첫 장에서 뒤로 가면 사용 방법으로 돌아간다.
+    return PopScope<Object?>(
+      canPop: widget.replay && _index == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _index > 0) _previous();
+      },
+      child: _buildPages(context),
+    );
+  }
+
+  Widget _buildPages(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Column(

@@ -450,20 +450,21 @@ void showSnack(BuildContext context, String message) {
 Future<bool> confirmDialog(
   BuildContext context, {
   required String title,
-  required String message,
+  String? message,
   String okText = '확인',
+  String cancelText = '취소',
   bool destructive = false,
 }) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
-      content: Text(message),
+      content: message == null ? null : Text(message),
       actions: [
         TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.textSub),
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소')),
+            child: Text(cancelText)),
         TextButton(
           style: TextButton.styleFrom(
               foregroundColor:

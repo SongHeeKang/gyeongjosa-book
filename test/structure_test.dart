@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,6 +30,7 @@ import 'package:gyeongjosa/theme/app_theme.dart';
 import 'package:gyeongjosa/services/app_config.dart';
 import 'package:gyeongjosa/widgets/backup_guide.dart';
 import 'package:gyeongjosa/widgets/collapsible_section.dart';
+import 'package:gyeongjosa/widgets/person_form_sheet.dart';
 import 'package:gyeongjosa/widgets/test_id.dart';
 import 'package:gyeongjosa/screens/all_schedules_screen.dart';
 import 'package:gyeongjosa/widgets/app_bottom_nav.dart';
@@ -801,6 +803,144 @@ void main() {
       expect(find.textContaining('가져와'), findsNothing);
       expect(find.textContaining('엑셀'), findsNothing);
       expect(find.textContaining('CSV'), findsNothing);
+    });
+
+    // 추가 Z: 뒤로 가기 · 앱 종료
+    Future<void> back(WidgetTester tester) async {
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+    }
+
+    Text tabLabel(WidgetTester tester, String t) => tester.widget<Text>(
+        find.descendant(of: find.byType(AppBottomNav), matching: find.text(t)));
+
+    testWidgets('홈이 아닌 탭에서 뒤로 가기: 홈 탭으로 (앱 종료 아님)', (tester) async {
+      await pump(tester, const MainShell());
+      for (final tab in ['사람', '행사', '통계']) {
+        await tester.tap(find.descendant(
+            of: find.byType(AppBottomNav), matching: find.text(tab)));
+        await tester.pumpAndSettle();
+        await back(tester);
+        expect(find.text('앱을 종료할까요?'), findsNothing, reason: tab);
+        expect(tabLabel(tester, '홈').style!.color, AppColors.primary,
+            reason: tab);
+        expect(find.text('보낸 마음'), findsOneWidget, reason: tab);
+      }
+    });
+
+    testWidgets('홈에서 뒤로 가기: 앱을 종료할까요? [취소]면 그대로, [종료]면 종료',
+        (tester) async {
+      final calls = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform, (call) async {
+        calls.add(call.method);
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+      await pump(tester, const MainShell());
+      await back(tester);
+      expect(find.text('앱을 종료할까요?'), findsOneWidget);
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+      expect(find.text('앱을 종료할까요?'), findsNothing);
+      expect(calls, isNot(contains('SystemNavigator.pop')));
+
+      // 팝업에서 다시 뒤로 가기도 팝업만 닫는다
+      await back(tester);
+      await back(tester);
+      expect(find.text('앱을 종료할까요?'), findsNothing);
+      expect(find.text('보낸 마음'), findsOneWidget);
+      expect(calls, isNot(contains('SystemNavigator.pop')));
+
+      await back(tester);
+      await tester.tap(find.text('종료'));
+      await tester.pumpAndSettle();
+      expect(calls, contains('SystemNavigator.pop'));
+    });
+
+    testWidgets('기록하기 메뉴가 열려 있으면 뒤로 가기는 메뉴만 닫는다', (tester) async {
+      await pump(tester, const MainShell());
+      await tester.tap(find.byTooltip('기록하기'));
+      await tester.pumpAndSettle();
+      expect(find.text('보냈어요'), findsOneWidget);
+      await back(tester);
+      expect(find.text('보냈어요'), findsNothing);
+      expect(find.text('앱을 종료할까요?'), findsNothing);
+    });
+
+    testWidgets('사람 추가: 적은 내용이 있으면 작성 중 확인, [계속 작성]이면 그대로, 비었으면 바로 닫힘',
+        (tester) async {
+      await pump(tester, const MainShell());
+      await tester.tap(find.descendant(
+          of: find.byType(AppBottomNav), matching: find.text('사람')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('+ 추가'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PersonFormSheet), findsOneWidget);
+
+      // 아무것도 안 적었으면 바로 닫힘
+      await back(tester);
+      expect(find.byType(PersonFormSheet), findsNothing);
+      expect(find.text('작성 중인 내용이 있어요'), findsNothing);
+
+      await tester.tap(find.text('+ 추가'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.descendant(of: find.byType(PersonFormSheet), matching: find.byType(TextField)).first,
+          '김철수');
+      await tester.pumpAndSettle();
+      await back(tester);
+      expect(find.text('작성 중인 내용이 있어요'), findsOneWidget);
+      await tester.tap(find.text('계속 작성'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PersonFormSheet), findsOneWidget);
+      expect(find.text('김철수'), findsOneWidget);
+
+      await back(tester);
+      await tester.tap(find.text('나가기'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PersonFormSheet), findsNothing);
+      expect(find.text('+ 추가'), findsOneWidget); // 사람 탭 그대로
+    });
+
+    testWidgets('일정 추가: 왼쪽 위 ←도 작성 중 확인을 거친다', (tester) async {
+      await pump(
+          tester,
+          Builder(
+              builder: (context) => Scaffold(
+                  body: TextButton(
+                      onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                              builder: (_) => const EventFormScreen())),
+                      child: const Text('열기')))));
+      await tester.tap(find.text('열기'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('열기'), findsOneWidget); // 빈 화면은 바로 나감
+
+      await tester.tap(find.text('열기'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, '김철수');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('작성 중인 내용이 있어요'), findsOneWidget);
+      await tester.tap(find.text('나가기'));
+      await tester.pumpAndSettle();
+      expect(find.text('열기'), findsOneWidget);
+    });
+
+    testWidgets('첫 실행 가이드: 뒤로 가기는 이전 장, 첫 장이면 그대로', (tester) async {
+      await pump(tester, const OnboardingScreen());
+      await back(tester);
+      expect(find.text('주고받은 마음, 잊지 않게'), findsOneWidget);
+      await tester.tap(find.text('다음'));
+      await tester.pumpAndSettle();
+      expect(find.text('연필 버튼 하나면 돼요'), findsOneWidget);
+      await back(tester);
+      expect(find.text('주고받은 마음, 잊지 않게'), findsOneWidget);
     });
 
     testWidgets('홈 백업 아이콘은 v1에서 숨김(kShowHomeBackup = false)', (tester) async {

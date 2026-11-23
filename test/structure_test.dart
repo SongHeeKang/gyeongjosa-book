@@ -26,6 +26,8 @@ import 'package:gyeongjosa/screens/people_screen.dart';
 import 'package:gyeongjosa/screens/settings_screen.dart';
 import 'package:gyeongjosa/services/settings_service.dart';
 import 'package:gyeongjosa/theme/app_theme.dart';
+import 'package:gyeongjosa/services/app_config.dart';
+import 'package:gyeongjosa/widgets/backup_guide.dart';
 import 'package:gyeongjosa/widgets/app_bottom_nav.dart';
 import 'package:gyeongjosa/widgets/common.dart';
 import 'package:gyeongjosa/widgets/pro_gate.dart';
@@ -447,13 +449,14 @@ void main() {
     testWidgets('행사 탭에는 남의 행사 섹션이 없다', (tester) async {
       await pump(tester, const MyEventsScreen());
       expect(find.textContaining('남의 행사'), findsNothing);
-      // 빈 화면: 홈 '다가오는 일정이 없어요'와 같은 EmptyView + 작은 링크. 점선 카드 · 예시 줄 없음
+      // 빈 화면: 홈 '다가오는 일정이 없어요'와 같은 EmptyView. 가져오기 링크도 없음(추가 X)
       expect(find.text('아직 행사가 없어요.'), findsOneWidget);
       expect(find.text('연필 버튼 > 받은 돈 적기에서 만들어요'), findsOneWidget);
       expect(find.byType(EmptyView), findsOneWidget);
       expect(find.text('행사를 추가해 주세요'), findsNothing);
       expect(find.text('+ 추가'), findsNothing);
-      expect(find.text('받은 장부 붙여넣어 가져오기'), findsOneWidget);
+      expect(find.textContaining('가져오기'), findsNothing);
+      expect(find.textContaining('붙여넣'), findsNothing);
       expect(find.text('행사 만들기'), findsNothing);
       expect(find.text('받은 장부 가져오기'), findsNothing);
     });
@@ -462,16 +465,9 @@ void main() {
       await pump(tester, const HomeScreen());
       expect(find.textContaining('오른쪽 아래 연필 버튼을 눌러 첫 기록을 남겨보세요'), findsOneWidget);
 
-      // 화살표는 기록하기 버튼 바로 위, 가로 가운데에 있고 홈 탭에서만 보인다
+      // 연필 버튼을 가리키던 파란 화살표는 없앴다 (추가 X)
       await pump(tester, const MainShell());
-      final arrow = find.byIcon(Icons.south);
-      final button = find.byType(RecordFab);
-      expect(tester.getCenter(arrow).dx, tester.getCenter(button).dx);
-      expect(tester.getBottomLeft(arrow).dy,
-          lessThanOrEqualTo(tester.getTopLeft(button).dy));
-      await tester.tap(find.text('사람'));
-      await tester.pumpAndSettle();
-      expect(arrow, findsNothing);
+      expect(find.byIcon(Icons.south), findsNothing);
 
       await pump(tester, const MyEventsScreen());
       expect(find.text('아직 행사가 없어요.'), findsOneWidget);
@@ -538,19 +534,13 @@ void main() {
       expect(find.text('시작하기'), findsNothing);
       expect(find.text('건너뛰기'), findsOneWidget);
 
+      // 추가 X: 백업 장은 숨겨 4장이 마지막
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
       expect(find.text('기록은 내 폰에만'), findsOneWidget);
       expect(find.text('건너뛰기'), findsOneWidget);
-      expect(find.text('시작하기'), findsNothing);
-
-      // 추가 W: 마지막 장(알림 권한 안내 바로 앞)은 백업 안내
-      await tester.tap(find.text('다음'));
-      await tester.pumpAndSettle();
-      expect(find.text('기록은 이 폰에만 저장돼요'), findsOneWidget);
-      expect(find.textContaining('최근 7개를 보관해요'), findsOneWidget);
-      expect(find.byIcon(Icons.cloud_done_outlined), findsOneWidget);
-      expect(find.text('건너뛰기'), findsOneWidget);
+      expect(find.text('기록은 이 폰에만 저장돼요'), findsNothing);
+      expect(onboardingPageCount(), 4);
 
       await tester.tap(find.text('시작하기'));
       await tester.pumpAndSettle();
@@ -570,6 +560,27 @@ void main() {
       expect(find.byType(OnboardingScreen), findsNothing);
     });
 
+    testWidgets('kShowHomeBackup = true면 가이드 마지막(5장)이 백업 장', (tester) async {
+      expect(onboardingPageCount(showBackup: true), 5);
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.625;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [prefsProvider.overrideWithValue(prefs)],
+        child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const OnboardingScreen(replay: true, showBackup: true)),
+      ));
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.text('다음'));
+        await tester.pumpAndSettle();
+      }
+      expect(find.text('기록은 이 폰에만 저장돼요'), findsOneWidget);
+      expect(find.text('시작하기'), findsOneWidget);
+    });
+
     testWidgets('얼마 내셨어요: 금액을 누르면 일정에 연결된 보냄 기록이 생기고 사라진다',
         (tester) async {
       final repo = FakeRepository()
@@ -585,7 +596,7 @@ void main() {
       await pump(tester, const HomeScreen(), repository: repo);
       expect(find.text('얼마 내셨어요?'), findsOneWidget);
 
-      await tester.tap(find.text('10만'));
+      await tester.tap(find.text('10만').first); // 아래 '최근 6개월' 눈금에도 10만이 있다
       await tester.pumpAndSettle();
       expect(repo.inserted.single.personId, 5);
       expect(repo.inserted.single.eventId, 3);
@@ -613,10 +624,28 @@ void main() {
       expect(find.text('얼마 내셨어요?'), findsNothing);
     });
 
-    testWidgets('홈 \'최근 6개월\': 기록이 없으면 숨김, 있으면 일정과 최근 기록 사이, 누르면 통계 탭',
+    testWidgets('홈은 기록이 없어도 요약 · 다가오는 일정 · 최근 6개월(빈 틀) · 최근 기록 순서, 화살표 없음',
         (tester) async {
       await pump(tester, const MainShell());
-      expect(find.text('최근 6개월'), findsNothing);
+      expect(find.text('보낸 마음'), findsOneWidget);
+      expect(find.text('다가오는 일정이 없어요.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('btn_all_schedules')), findsNothing);
+      expect(find.text('전체 보기'), findsNothing);
+      expect(find.text('최근 6개월'), findsOneWidget);
+      expect(find.text('기록이 생기면 여기에 보여요'), findsOneWidget);
+      expect(find.text('${DateTime.now().month}월'), findsOneWidget);
+      expect(find.text('통계 ›'), findsOneWidget);
+      expect(find.text('보냄'), findsOneWidget); // 범례
+      expect(find.textContaining('첫 기록을 남겨보세요'), findsOneWidget);
+      expect(find.byIcon(Icons.south), findsNothing);
+      double y(String t) => tester.getTopLeft(find.text(t)).dy;
+      expect(y('보낸 마음'), lessThan(y('다가오는 일정')));
+      expect(y('다가오는 일정'), lessThan(y('최근 6개월')));
+      expect(y('최근 6개월'), lessThan(y('최근 기록')));
+    });
+
+    testWidgets('홈 \'최근 6개월\': 기록이 있으면 막대, 일정과 최근 기록 사이, 누르면 통계 탭',
+        (tester) async {
 
       final repo = FakeRepository()
         ..sentByMonth = {DateTime.now().month: 70000}
@@ -626,6 +655,7 @@ void main() {
         ];
       await pump(tester, const MainShell(), repository: repo);
       expect(find.text('최근 6개월'), findsOneWidget);
+      expect(find.text('기록이 생기면 여기에 보여요'), findsNothing);
       expect(find.text('${DateTime.now().month}월'), findsOneWidget);
       double top(String t) => tester.getTopLeft(find.text(t)).dy;
       expect(top('다가오는 일정'), lessThan(top('최근 6개월')));
@@ -639,7 +669,14 @@ void main() {
       expect(find.text('월별 보냄 · 받음'), findsOneWidget);
     });
 
-    testWidgets('홈: 백업 배너 없음, 기록이 있는데 백업이 없으면 백업 아이콘에 주황 점, 누르면 백업 안내',
+    testWidgets('홈 백업 아이콘은 v1에서 숨김(kShowHomeBackup = false)', (tester) async {
+      expect(kShowHomeBackup, isFalse);
+      await pump(tester, const HomeScreen());
+      expect(find.text('백업'), findsNothing);
+      expect(find.byType(BackupStatusButton), findsNothing);
+    });
+
+    testWidgets('kShowHomeBackup = true면: 기록이 있는데 백업이 없으면 백업 아이콘에 주황 점, 누르면 백업 안내',
         (tester) async {
       final repo = FakeRepository()
         ..inserted.addAll(List.generate(
@@ -649,7 +686,7 @@ void main() {
                 direction: '보냄',
                 amount: 1000,
                 date: DateTime(2026))));
-      await pump(tester, const HomeScreen(), repository: repo);
+      await pump(tester, const HomeScreen(showBackup: true), repository: repo);
       expect(find.text('백업해 두면 폰을 바꿔도 기록이 안전해요'), findsNothing);
       expect(find.text('백업'), findsOneWidget);
       expect(find.byKey(const ValueKey('backup_due_dot')), findsOneWidget);
@@ -849,6 +886,10 @@ void main() {
       await pumpApp(tester, const SettingsScreen());
       await tester.scrollUntilVisible(find.text('설정 열기'), 200);
       expect(find.textContaining('켜짐'), findsOneWidget);
+      // Google 자동 백업 줄이 빠져 목록이 짧아지면서 아래 테스트 메뉴(DB 조회)까지 그려진다.
+      // 그 조회의 대기 타이머가 끝나도록 시간을 흘려보낸다.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 11));
     });
 
     testWidgets('일정 화면의 [알림 허용하기]로 허용하면 스위치가 켜진다', (tester) async {

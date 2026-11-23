@@ -105,7 +105,8 @@ void main() {
     expect(text, contains('총 3명 · 150,000원'));
     expect(text, contains('1. 강민호 · 50,000원 · 신부측'));
     expect(text, contains('3. 황지수 · 50,000원 · 신랑측'));
-    expect(text, contains('[붙여넣어 가져오기]'));
+    expect(text, contains('경조사 장부 앱으로 정리했어요'));
+    expect(text, isNot(contains('가져오기')));
     expect(find.text('장부 파일'), findsNothing);
     expect(find.text('요약 메시지'), findsNothing);
     // 메모가 없으면 [메모 포함]도 없다

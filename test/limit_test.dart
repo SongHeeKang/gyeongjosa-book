@@ -227,7 +227,7 @@ void main() {
       await open(tester, const EventDetailScreen(eventId: 1),
           event: _myEvent(meals: true), myEvents: 1);
       expect(find.text('받은 돈 적기'), findsOneWidget);
-      expect(find.text('장부 가져오기'), findsOneWidget);
+      expect(find.textContaining('가져오기'), findsNothing);
       expect(find.text('장부 보내기'), findsNothing);
       expect(find.byTooltip('공유하기'), findsOneWidget);
       expect(find.byTooltip('폰에 저장'), findsOneWidget);
@@ -499,7 +499,7 @@ void main() {
       expect(find.text('다른 사람 행사'), findsOneWidget);
       expect(find.text('0개 · 0원'), findsOneWidget);
       expect(find.text('+ 추가'), findsNWidgets(2));
-      expect(find.text('받은 장부 붙여넣어 가져오기'), findsOneWidget);
+      expect(find.textContaining('가져오기'), findsNothing);
       expect(icon(tester, '공유하기').onPressed, isNotNull);
       await tester.tap(find.byTooltip('공유하기'));
       await tester.pumpAndSettle();

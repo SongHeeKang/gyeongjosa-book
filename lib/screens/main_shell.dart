@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../services/notification_permission.dart';
 import '../services/settings_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/coach_mark.dart';
@@ -95,9 +94,6 @@ class _MainShellState extends ConsumerState<MainShell> {
       if (done) _afterStart();
     });
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    // 홈에 기록이 하나도 없을 때만 버튼 바로 위에 화살표를 띄운다
-    final showArrow =
-        _index == 0 && (ref.watch(homeProvider).value?.recent.isEmpty ?? false);
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
       floatingActionButtonLocation: const RecordFabLocation(),
@@ -109,20 +105,6 @@ class _MainShellState extends ConsumerState<MainShell> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (showArrow)
-                    // 도움말이 떠 있을 때는 도움말 문구와 겹치지 않게 숨긴다
-                    ValueListenableBuilder(
-                      valueListenable: coachOpen,
-                      builder: (_, open, child) =>
-                          Opacity(opacity: open ? 0 : 1, child: child),
-                      child: const IgnorePointer(
-                        child: Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: Icon(Icons.south,
-                              size: 40, color: AppColors.primary),
-                        ),
-                      ),
-                    ),
                   CoachTarget(
                     spot: CoachSpot.recordButton,
                     child: TestId(

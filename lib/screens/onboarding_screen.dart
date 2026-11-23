@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/app_config.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 
-/// 첫 실행 가이드 5장(마지막이 백업 장, 끝나면 알림 권한 안내). 설정의 [사용 방법]에서 다시 볼 수 있다.
+/// 첫 실행 가이드 장 수. 백업 장은 [kShowHomeBackup]일 때만 (v1은 4장).
+int onboardingPageCount({bool showBackup = kShowHomeBackup}) =>
+    _OnboardingScreenState._pagesFor(showBackup).length;
+
+/// 첫 실행 가이드(끝나면 알림 권한 안내). 설정의 [사용 방법]에서 다시 볼 수 있다.
+/// 마지막 백업 장은 [kShowHomeBackup]일 때만 보인다.
 class OnboardingScreen extends ConsumerStatefulWidget {
-  const OnboardingScreen({super.key, this.replay = false});
+  const OnboardingScreen(
+      {super.key, this.replay = false, this.showBackup = kShowHomeBackup});
+
+  /// 백업 장을 넣을지 (테스트에서 바꿔 본다)
+  final bool showBackup;
 
   /// 설정에서 다시 보는 경우: 끝나면 이전 화면으로 돌아간다.
   final bool replay;
@@ -18,7 +28,14 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  static const _pages = [
+  static List<(String, String, Widget)> _pagesFor(bool showBackup) => [
+        ..._basePages,
+        if (showBackup) _backupPage,
+      ];
+
+  late final _pages = _pagesFor(widget.showBackup);
+
+  static const _basePages = [
     (
       '주고받은 마음, 잊지 않게',
       '누가 언제 얼마를 냈는지 사람별로 정리해요',
@@ -39,13 +56,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       '회원가입 없이 바로 시작, 백업 파일로 폰을 바꿔도 안전해요',
       _PhonePicture(),
     ),
-    // 추가 W: 알림 권한 안내 바로 앞에 백업 안내
-    (
+  ];
+
+  // 추가 W: 알림 권한 안내 바로 앞에 백업 안내 (추가 X: v1에서는 숨김)
+  static const _backupPage = (
       '기록은 이 폰에만 저장돼요',
       '자동 백업이 다운로드 > 경조사장부 폴더에 최근 7개를 보관해요. 폰을 바꿀 땐 백업 파일을 카톡이나 드라이브에 보내 두세요',
       _BackupPicture(),
-    ),
-  ];
+  );
 
   final _controller = PageController();
   int _index = 0;

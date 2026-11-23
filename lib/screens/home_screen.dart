@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
+import '../services/app_config.dart';
 import '../services/format.dart';
 import '../services/notification_permission.dart';
 import '../theme/app_theme.dart';
@@ -20,7 +21,10 @@ import 'person_detail_screen.dart';
 import '../widgets/share_download.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.showBackup = kShowHomeBackup});
+
+  /// 요약 카드 제목 줄 오른쪽의 백업 아이콘 ([kShowHomeBackup], 테스트에서 바꿔 본다)
+  final bool showBackup;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,7 +53,7 @@ class HomeScreen extends ConsumerWidget {
         value: home,
         builder: (data) => ListView(
           children: [
-            // 요약 카드 제목 줄: 왼쪽 '2026년 나의 경조사', 오른쪽 백업 아이콘(백업 배너 대신)
+            // 요약 카드 제목 줄: 왼쪽 '2026년 나의 경조사', 오른쪽 백업 아이콘(v1에서는 숨김)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.page, 4, AppSpacing.page - 8, 4),
@@ -57,7 +61,11 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                       child: Text('$year년 나의 경조사', style: AppText.label)),
-                  BackupStatusButton(recordCount: data.recordCount),
+                  if (showBackup)
+                    BackupStatusButton(recordCount: data.recordCount)
+                  else
+                    // 아이콘이 없어도 제목 줄 높이는 같게
+                    const SizedBox(height: 48),
                 ],
               ),
             ),
@@ -77,18 +85,21 @@ class HomeScreen extends ConsumerWidget {
                 child: TestId('ask_card',
                     child: PendingAmountSection(events: data.pending)),
               ),
-            if (data.scheduleCount > 0) ...[
+            // 다가오는 일정: 일정이 없어도 섹션은 늘 보이고 빈 화면 문구만 (추가 X)
+            ...[
               SectionTitle(
                 '다가오는 일정',
-                trailing: TestId('btn_all_schedules', child: LinkText('전체 보기',
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (_) => const AllSchedulesScreen())))),
+                trailing: data.scheduleCount == 0
+                    ? null
+                    : TestId('btn_all_schedules', child: LinkText('전체 보기',
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                                builder: (_) => const AllSchedulesScreen())))),
               ),
               if (data.upcoming.isEmpty)
-                const EmptyView(
-                    icon: Icons.event_available, message: '다가오는 일정이 없어요.')
+                const TestId('home_no_schedule', child: EmptyView(
+                    icon: Icons.event_available, message: '다가오는 일정이 없어요.'))
               else
                 for (var i = 0; i < data.upcoming.length; i++)
                   EventTile(
@@ -147,16 +158,26 @@ class HomeScreen extends ConsumerWidget {
 }
 
 /// 홈 '최근 6개월': 이번 달을 포함한 6개월의 보냄 / 받음 막대(통계 탭 월별 그래프와 같은 위젯을 작게).
-/// 그래프나 '통계 ›'를 누르면 통계 탭으로. 6개월 동안 기록이 없으면 숨긴다. 무료 · 프로 모두.
+/// 그래프나 '통계 ›'를 누르면 통계 탭으로. 무료 · 프로 모두.
+/// 기록이 없어도 틀(0 축 · 월 라벨 · 범례)은 그대로 두고 막대만 없이 "기록이 생기면 여기에 보여요".
 class _RecentMonthsSection extends ConsumerWidget {
   const _RecentMonthsSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final rows = ref.watch(recentMonthsProvider).value;
-    if (rows == null || rows.every((r) => r.sent == 0 && r.received == 0)) {
-      return const SizedBox.shrink();
-    }
+    // 처음 읽는 동안에도 틀이 흔들리지 않게, 값이 없으면 이번 달까지 6개월을 0으로 둔다
+    final now = DateTime.now();
+    final rows = ref.watch(recentMonthsProvider).value ??
+        [
+          for (var i = 5; i >= 0; i--)
+            (
+              year: DateTime(now.year, now.month - i).year,
+              month: DateTime(now.year, now.month - i).month,
+              sent: 0,
+              received: 0,
+            ),
+        ];
+    final empty = rows.every((r) => r.sent == 0 && r.received == 0);
     void openStats() => ref.read(tabRequestProvider.notifier).go(AppTabs.stats);
     return TestId('home_recent_months', child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -175,13 +196,41 @@ class _RecentMonthsSection extends ConsumerWidget {
             child: SizedBox(
               height: 160,
               // 막대를 눌러도 말풍선 대신 통계 탭으로 가도록 그래프 터치는 끈다
-              child: IgnorePointer(
-                child: GroupedBarChart(
-                  labels: [for (final r in rows) '${r.month}월'],
-                  sent: [for (final r in rows) r.sent],
-                  received: [for (final r in rows) r.received],
-                  compact: true,
-                ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: GroupedBarChart(
+                        labels: [for (final r in rows) '${r.month}월'],
+                        sent: [for (final r in rows) r.sent],
+                        received: [for (final r in rows) r.received],
+                        compact: true,
+                      ),
+                    ),
+                  ),
+                  if (empty)
+                    // 아래 월 라벨 자리(30)를 빼고 그래프 영역 가운데에
+                    Positioned.fill(
+                      bottom: 30,
+                      left: 40,
+                      child: Center(
+                        child: TestId(
+                          'home_months_empty',
+                          // 눈금 선 위에 겹쳐도 읽히게 흰 바탕을 깐다
+                          child: ColoredBox(
+                            color: AppColors.background,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              child: Text('기록이 생기면 여기에 보여요',
+                                  style: AppText.sub
+                                      .copyWith(color: AppColors.textHint)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

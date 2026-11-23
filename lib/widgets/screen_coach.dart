@@ -39,7 +39,6 @@ enum CoachScreen {
       auto: false),
   eventDetail('내 행사 상세', [
     CoachMark(CoachSpot.eventReceive, '당일 접수대에서도, 끝난 뒤 종이 장부를 옮길 때도 여기서'),
-    CoachMark(CoachSpot.eventImport, '받은 장부 메시지를 붙여 넣어 합쳐요'),
     // 오른쪽 위 [공유] [다운로드] 아이콘 (이 행사 하나)
     CoachMark(CoachSpot.eventSend, '공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'),
   ]),

@@ -244,7 +244,7 @@ final _cases = <_Case>[
     await t.tap(find.byTooltip('기록하기'));
     await t.pumpAndSettle();
   }),
-  for (var page = 1; page <= 5; page++)
+  for (var page = 1; page <= 4; page++)
     _Case('첫 실행 가이드 $page장', (_) => const OnboardingScreen(replay: true),
         open: (t) async {
       for (var i = 1; i < page; i++) {

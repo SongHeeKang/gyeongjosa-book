@@ -32,14 +32,14 @@ enum LedgerOrder {
 /// 2. 강지은 · 50,000원 · 신부측 · 계좌 · 식권 2 · 오후 12:03 · 메모: 봉투 2개
 /// (1/4) 다음 메시지에 이어져요
 ///
-/// 앱으로 정리하려면 이 메시지를 복사해 '경조사 장부' 앱 > 장부 가져오기 > [붙여넣어 가져오기]
+/// 경조사 장부 앱으로 정리했어요
 /// 앱 받기: (Play 스토어 링크)
 /// ```
 class LedgerText {
   static const _sep = ' · ';
   static const _appName = '[경조사 장부]';
-  static const guideLine =
-      "앱으로 정리하려면 이 메시지를 복사해 '경조사 장부' 앱 > 장부 가져오기 > [붙여넣어 가져오기]";
+  /// 끝 줄 (그 아래 Play 스토어 링크). 가져오기 안내는 v1에서 뺐다(추가 X).
+  static const guideLine = '경조사 장부 앱으로 정리했어요';
   static const _storeLabel = '앱 받기: ';
   static const _noSideLabel = '구분 없음';
 
@@ -171,6 +171,7 @@ class LedgerText {
     RegExp(r'^(현금|계좌|식권)\s*[\d,]+\s*(원|장)'),
     RegExp(r'^\(\d+/\d+\)\s*다음 메시지'),
     RegExp(r'^앱으로 정리하려면'),
+    RegExp(r'^경조사 장부 앱으로 정리했어요'),
     RegExp(r'^앱 받기'),
     RegExp(r'^https?://'),
     RegExp(r'^(\.{3}|…)$'),

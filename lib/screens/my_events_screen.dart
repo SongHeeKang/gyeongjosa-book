@@ -14,7 +14,6 @@ import '../widgets/share_download.dart';
 import 'event_detail_screen.dart';
 import 'reception_summary_screen.dart';
 import 'event_routes.dart';
-import 'ledger_import_screen.dart';
 import 'pick_event_screen.dart';
 
 /// 행사 탭: '내 행사'와 '다른 사람 행사' 두 묶음. 남의 행사(일정)는 홈의 일정으로 간다.
@@ -22,16 +21,7 @@ import 'pick_event_screen.dart';
 class MyEventsScreen extends ConsumerWidget {
   const MyEventsScreen({super.key});
 
-  /// 맨 아래 작은 글자 링크
-  Widget _importLink(BuildContext context) => Center(
-        child: TestId(
-          'btn_tab_import',
-          child: LinkText('받은 장부 붙여넣어 가져오기',
-              onTap: () => openLedgerImport(context)),
-        ),
-      );
-
-  /// 행사가 없을 때: 홈 '다가오는 일정이 없어요'와 같은 빈 화면 위젯([EmptyView]) + 가져오기 링크
+  /// 행사가 없을 때: 홈 '다가오는 일정이 없어요'와 같은 빈 화면 위젯([EmptyView])
   Widget _empty(BuildContext context) => ListView(
         padding: const EdgeInsets.only(top: AppSpacing.section),
         children: [
@@ -39,7 +29,6 @@ class MyEventsScreen extends ConsumerWidget {
             icon: Icons.event_available,
             message: '아직 행사가 없어요.',
             detail: '연필 버튼 > 받은 돈 적기에서 만들어요',
-            action: _importLink(context),
           )),
           fabBottomSpace,
         ],
@@ -143,8 +132,6 @@ class MyEventsScreen extends ConsumerWidget {
                       ? _firstTarget(i, _receptionRow(context, s))
                       : _receptionRow(context, s),
               ],
-              const SizedBox(height: AppSpacing.section - 8),
-              _importLink(context),
               fabBottomSpace,
             ],
           );

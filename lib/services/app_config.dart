@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+/// 홈 요약 카드의 백업 아이콘 · 백업 안내 선택창, 첫 실행 가이드의 백업 장을 보여줄지.
+/// v1에서는 숨긴다(추가 X). 코드는 남겨 두었으니 true로 바꾸면 다시 보인다.
+const kShowHomeBackup = false;
+
 /// 출시 전에 직접 채워 넣어야 하는 값들.
 class AppConfig {
   /// TODO(출시 전): false로 바꾸세요. true면 받은 사람 누구나 프로를 공짜로 켤 수 있어요.

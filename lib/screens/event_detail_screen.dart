@@ -14,7 +14,6 @@ import '../widgets/record_form_sheet.dart';
 import '../widgets/screen_coach.dart';
 import 'event_form_screen.dart';
 import 'quick_entry_screen.dart';
-import 'ledger_import_screen.dart';
 import 'event_routes.dart';
 import '../widgets/share_download.dart';
 
@@ -148,16 +147,6 @@ class EventDetailScreen extends ConsumerWidget {
                               Navigator.push(context, myEventReceiveRoute(e)),
                           icon: const Icon(Icons.playlist_add),
                           label: const Text('받은 돈 적기'),
-                        )),
-                      ),
-                      const SizedBox(height: 8),
-                      CoachTarget(
-                        spot: CoachSpot.eventImport,
-                        child: TestId('btn_event_import', child: OutlinedButton.icon(
-                          onPressed: () =>
-                              openLedgerImport(context, eventId: e.id),
-                          icon: const Icon(Icons.content_paste_go_outlined),
-                          label: const Text('장부 가져오기'),
                         )),
                       ),
                     ] else

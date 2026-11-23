@@ -146,12 +146,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: _restore,
             )),
             _autoBackupTile(),
-            const ListTile(
-              leading: Icon(Icons.info_outline, size: 24),
-              title: Text('Google 자동 백업'),
-              subtitle: Text(
-                  '휴대폰의 Google 백업이 켜져 있으면 기록이 내 Google 계정에 자동 백업되고, 새 폰을 설정할 때 복원돼요.'),
-            ),
+            // 구글 자동 백업(안드로이드 자동 백업) 안내는 테스트 전이라 v1에서 뺐다(추가 X, 출시 전 재검토)
             const SizedBox(height: 12),
             const AppDivider(),
             const SectionTitle('프로'),

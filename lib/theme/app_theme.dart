@@ -6,6 +6,7 @@ class AppColors {
   static const background = Color(0xFFFFFFFF);
   static const text = Color(0xFF111827); // 기본 글자
   static const textSub = Color(0xFF4B5563); // 보조 글자
+  static const textHint = Color(0xFF9CA3AF); // 연한 안내 글자 (빈 그래프 가운데 문구)
   static const icon = Color(0xFF374151); // 아이콘 버튼, 덜 급한 D-day
   static const divider = Color(0xFFE5E7EB); // 구분선
   static const primary = Color(0xFF2563EB); // 포인트 (받은 금액, D-day, 선택 탭, 버튼)

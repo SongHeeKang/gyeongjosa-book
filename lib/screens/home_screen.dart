@@ -7,6 +7,7 @@ import '../services/format.dart';
 import '../services/notification_permission.dart';
 import '../theme/app_theme.dart';
 import '../widgets/backup_guide.dart';
+import '../widgets/capped_scroll_list.dart';
 import '../widgets/collapsible_section.dart';
 import '../widgets/grouped_bar_chart.dart';
 import '../widgets/test_id.dart';
@@ -130,8 +131,10 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     )
                   else
-                    for (var i = 0; i < data.upcoming.length; i++)
-                      EventTile(
+                    // 추가 AA: 오늘 이후 일정 전부, 약 4.5줄 높이까지만 보이며 안에서 스크롤
+                    CappedScrollList(
+                      itemCount: data.upcoming.length,
+                      itemBuilder: (context, i) => EventTile(
                         event: data.upcoming[i],
                         highlight: i == 0,
                         subtitle: [
@@ -148,6 +151,7 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
+                    ),
                   if (data.upcoming.isNotEmpty) const _NotificationOffLine(),
                 ],
               ),
@@ -186,18 +190,24 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     )
                   else
-                    for (final r in data.recent)
-                      RecordTile(
-                        record: r,
-                        showPerson: true,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                PersonDetailScreen(personId: r.personId),
+                    // 추가 AA: 전부 넣고, 약 4.5줄 높이까지만 보이며 안에서 스크롤
+                    CappedScrollList(
+                      itemCount: data.recent.length,
+                      itemBuilder: (context, i) {
+                        final r = data.recent[i];
+                        return RecordTile(
+                          record: r,
+                          showPerson: true,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  PersonDetailScreen(personId: r.personId),
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
+                    ),
                 ],
               ),
             ),

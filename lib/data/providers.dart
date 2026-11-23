@@ -133,16 +133,18 @@ final homeProvider = FutureProvider<HomeData>((ref) async {
   ref.watch(dbVersionProvider);
   final repo = ref.watch(repositoryProvider);
   final totals = await repo.yearTotals(DateTime.now().year);
+  // 추가 AA: 홈 목록은 개수 제한 없이 전부(화면에서는 약 4.5줄 높이로 잘라 안에서 스크롤)
+  final upcoming = await repo.upcomingSchedules();
   return HomeData(
     sent: totals.sent,
     received: totals.received,
     sentCount: totals.sentCount,
     receivedCount: totals.receivedCount,
-    upcoming: await repo.upcomingSchedules(limit: 3),
-    upcomingCount: (await repo.upcomingSchedules()).length,
+    upcoming: upcoming,
+    upcomingCount: upcoming.length,
     pending: await repo.pendingAmountEvents(limit: 3),
     scheduleCount: await repo.countSchedules(),
-    recent: await repo.recentRecords(5),
+    recent: await repo.recentRecords(-1), // -1: 개수 제한 없음(SQLite LIMIT -1)
     recordCount: await repo.countRecords(),
   );
 });

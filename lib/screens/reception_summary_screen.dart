@@ -13,6 +13,7 @@ import '../widgets/test_id.dart';
 import '../widgets/common.dart';
 import '../widgets/pro_gate.dart';
 import '../widgets/reception_entry_sheet.dart';
+import 'event_actions.dart';
 import 'event_detail_screen.dart';
 import 'receive_money_screen.dart';
 import '../widgets/share_download.dart';
@@ -102,18 +103,6 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                 ReceiveMoneyScreen(target: ReceptionTarget(receptionId))));
   }
 
-  Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    final ok = await confirmDialog(context,
-        title: '다른 사람 행사 삭제',
-        message: '받은 명단이 모두 지워져요. 내 사람 탭 · 통계에는 영향이 없어요.\n삭제할까요?',
-        okText: '삭제',
-        destructive: true);
-    if (!ok) return;
-    await ref.read(repositoryProvider).deleteReception(receptionId);
-    ref.refreshData();
-    if (context.mounted) Navigator.pop(context);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return AsyncBody(
@@ -135,15 +124,7 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                 enabled: totals.count > 0,
                 target: () => ReceptionExport(ref, package: package),
               ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: AppColors.icon),
-                onSelected: (v) {
-                  if (v == 'delete') _delete(context, ref);
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'delete', child: Text('삭제')),
-                ],
-              ),
+              // 삭제는 [수정] 화면 맨 아래 [행사 삭제]로 옮겼다 (추가 AA)
               const SizedBox(width: 8),
             ],
           ),
@@ -155,15 +136,40 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(r.title, style: AppText.sectionTitle),
-                    const SizedBox(height: 4),
-                    Text(
-                        [
-                          r.eventType,
-                          formatDate(r.date),
-                          if (r.operatorName.isNotEmpty) '받은 사람 ${r.operatorName}',
-                        ].join(' · '),
-                        style: AppText.sub),
+                    // 추가 AA: 행사 정보 오른쪽 [수정]
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(r.title, style: AppText.sectionTitle),
+                              const SizedBox(height: 4),
+                              Text(
+                                  [
+                                    r.eventType,
+                                    formatDate(r.date),
+                                    if (r.operatorName.isNotEmpty)
+                                      '받은 사람 ${r.operatorName}',
+                                  ].join(' · '),
+                                  style: AppText.sub),
+                            ],
+                          ),
+                        ),
+                        TestId(
+                        'btn_event_edit',
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                            foregroundColor: AppColors.primary,
+                          ),
+                          onPressed: () => openEditReception(context, package),
+                          child: const Text('수정', style: AppText.link),
+                        ),
+                      ),
+                      ],
+                    ),
                     const SizedBox(height: 16),
                     TestId('summary_total', child: Text('${totals.count}명 · ${formatWon(totals.amount)}',
                         style: AppText.summaryAmount

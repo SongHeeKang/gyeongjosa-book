@@ -111,6 +111,7 @@ class Repository {
     return rows.map(GiftRecord.fromMap).toList();
   }
 
+  /// 최신순 기록. [limit]이 -1이면 전부(홈 최근 기록, 추가 AA).
   Future<List<GiftRecord>> recentRecords(int limit) async {
     final db = await _db;
     final rows = await db.rawQuery(
@@ -269,6 +270,41 @@ class Repository {
       }
       await txn.update('events', event.toMap(),
           where: 'id = ?', whereArgs: [event.id]);
+    });
+  }
+
+  /// 행사 수정(추가 AA) · 내 행사: 행사 정보와 받기 설정을 고친다.
+  /// 구분 이름을 바꾸면([renames] 예전 이름 → 새 이름) 이 행사로 적은 기록의 구분도 바꾸고,
+  /// 날짜를 바꾸면 이 행사로 적은 '받음' 기록의 날짜도 함께 바꾼다(기록은 날짜를 따로 저장한다).
+  /// 행사 이름은 기록이 행사를 연결해 읽으므로 따로 고치지 않아도 된다.
+  Future<void> updateMyEventInfo(Event event, Map<String, String> renames) async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      await txn.update('events', event.toMap(),
+          where: 'id = ?', whereArgs: [event.id]);
+      for (final MapEntry(key: from, value: to) in renames.entries) {
+        await txn.update('records', {'side': to},
+            where: 'event_id = ? AND side = ?', whereArgs: [event.id, from]);
+      }
+      await txn.update('records', {'date': toDbDate(event.date)},
+          where: 'event_id = ? AND direction = ?',
+          whereArgs: [event.id, Direction.received]);
+    });
+  }
+
+  /// 행사 수정(추가 AA) · 다른 사람 행사: 행사 정보와 받기 설정을 고치고,
+  /// 구분 이름을 바꾸면([renames]) 이미 적은 손님의 구분도 함께 바꾼다.
+  Future<void> updateReceptionInfo(
+      Reception reception, Map<String, String> renames) async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      await txn.update('receptions', reception.toMap(),
+          where: 'id = ?', whereArgs: [reception.id]);
+      for (final MapEntry(key: from, value: to) in renames.entries) {
+        await txn.update('reception_entries', {'side': to},
+            where: 'reception_id = ? AND side = ?',
+            whereArgs: [reception.id, from]);
+      }
     });
   }
 

@@ -43,6 +43,8 @@ enum CoachScreen {
     CoachMark(CoachSpot.eventReceive, '당일 접수대에서도, 끝난 뒤 종이 장부를 옮길 때도 여기서'),
     // 오른쪽 위 [공유] [다운로드] 아이콘 (이 행사 하나)
     CoachMark(CoachSpot.eventSend, '공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'),
+    // 추가 AA
+    CoachMark(CoachSpot.eventEdit, '[수정]으로 행사 이름 · 날짜 · 구분을 고쳐요'),
   ]),
   stats('통계', [
     CoachMark(CoachSpot.statsPeriod, '연도를 바꿔 봐요'),

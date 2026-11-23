@@ -12,6 +12,7 @@ import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/record_form_sheet.dart';
 import '../widgets/screen_coach.dart';
+import 'event_actions.dart';
 import 'event_form_screen.dart';
 import 'quick_entry_screen.dart';
 import 'event_routes.dart';
@@ -60,6 +61,7 @@ class EventDetailScreen extends ConsumerWidget {
                   target: () => MyEventExport(ref, event: e, records: main),
                 ),
               if (e.isMine) const HelpButton(screen: CoachScreen.eventDetail),
+              if (!e.isMine)
               TestId('event_menu', child: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: AppColors.icon),
                 onSelected: (v) {
@@ -105,6 +107,22 @@ class EventDetailScreen extends ConsumerWidget {
                     if (upcoming)
                       Text(dDay(e.date),
                           style: AppText.dDay.copyWith(color: AppColors.primary)),
+                    // 추가 AA: 행사 정보 오른쪽 [수정] → 행사 수정 화면(맨 아래 [행사 삭제])
+                    if (e.isMine)
+                      CoachTarget(
+                        spot: CoachSpot.eventEdit,
+                        child: TestId(
+                        'btn_event_edit',
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                            foregroundColor: AppColors.primary,
+                          ),
+                          onPressed: () => openEditMyEvent(context, e, main),
+                          child: const Text('수정', style: AppText.link),
+                        ),
+                      ),
+                      ),
                   ],
                 ),
               ),

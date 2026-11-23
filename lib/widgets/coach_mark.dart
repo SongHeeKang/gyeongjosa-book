@@ -24,6 +24,7 @@ enum CoachSpot {
   eventReceive,
   eventImport,
   eventSend,
+  eventEdit,
   statsPeriod,
   statsChart,
   receiveAmounts,

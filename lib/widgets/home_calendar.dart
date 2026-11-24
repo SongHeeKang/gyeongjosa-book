@@ -702,7 +702,7 @@ class _DayList extends ConsumerWidget {
         ),
       );
 
-  /// 일정 · 내 행사 · 다른 사람 행사 줄: D±n(다가오는 일정과 같은 자리 · 크기) + 이름 + 칩 + ›.
+  /// 일정 · 내 행사 · 다른 사람 행사 줄: 이름 + 칩 … D±n(오른쪽 끝, 금액과 같은 자리 · 굵기 · 크기) + ›.
   /// 지난 날짜의 행사도 눌러서 상세로 들어간다.
   Widget _itemRow(BuildContext context, UpcomingItem u) => TestId(
         'cal_item_${u.title}',
@@ -713,12 +713,6 @@ class _DayList extends ConsumerWidget {
                 horizontal: AppSpacing.page, vertical: AppSpacing.item),
             child: Row(
               children: [
-                SizedBox(
-                  width: _dDayWidth,
-                  child: Text(dDayLabel(u.date),
-                      style: AppText.dDay.copyWith(color: _dDayColor(u.date))),
-                ),
-                const SizedBox(width: 4),
                 Expanded(
                   child: Row(children: [
                     Flexible(
@@ -731,6 +725,10 @@ class _DayList extends ConsumerWidget {
                     _LabelChip.kind(u.kind),
                   ]),
                 ),
+                const SizedBox(width: 8),
+                // 보냄 · 받음 줄의 금액과 같은 세로줄(› 바로 앞)에 오른쪽 정렬
+                Text(dDayLabel(u.date),
+                    style: AppText.listAmount.copyWith(color: _dDayColor(u.date))),
                 const Icon(Icons.chevron_right, color: AppColors.divider),
               ],
             ),

@@ -811,7 +811,7 @@ void main() {
       expect(find.text('이 날은 기록이 없어요'), findsOneWidget);
     });
 
-    testWidgets('추가 AD: 날짜 목록의 일정 · 행사 줄에 D±n, 지난 날도 상세로, 보냄 · 받음 금액은 오른쪽 끝 + ›',
+    testWidgets('추가 AD: 날짜 목록의 일정 · 행사 줄 오른쪽 끝에 D±n, 지난 날도 상세로, 보냄 · 받음 금액은 오른쪽 끝 + ›',
         (tester) async {
       final today = inDays(0);
       // 이번 주 안의 다른 날 (오늘이 일요일이면 토요일, 아니면 일요일 = 지난 날)
@@ -844,8 +844,20 @@ void main() {
       expect(chevron, findsOneWidget);
       expect(tester.getTopRight(amount).dx,
           closeTo(tester.getTopLeft(chevron).dx, 1));
-      // 행사 줄도 › 가 있고, 눌러서 상세로 (지난 날이어도)
+      // 행사 줄: D±n은 이름 앞이 아니라 오른쪽 끝, 금액과 같은 자리 · 굵기 · 크기
       final item = byTestIdFinder('cal_item_그날 결혼식');
+      final dLabel = find.descendant(of: item, matching: find.text(label));
+      final itemChevron =
+          find.descendant(of: item, matching: find.byIcon(Icons.chevron_right));
+      expect(tester.getTopRight(dLabel).dx, closeTo(tester.getTopRight(amount).dx, 1));
+      expect(tester.getTopLeft(dLabel).dx,
+          greaterThan(tester.getTopRight(find.text('그날 결혼식')).dx));
+      expect(tester.getTopRight(dLabel).dx,
+          closeTo(tester.getTopLeft(itemChevron).dx, 1));
+      final amountStyle = tester.widget<Text>(amount).style!;
+      expect(dText.style?.fontSize, amountStyle.fontSize);
+      expect(dText.style?.fontWeight, amountStyle.fontWeight);
+      // 눌러서 상세로 (지난 날이어도)
       expect(find.descendant(of: item, matching: find.byIcon(Icons.chevron_right)),
           findsOneWidget);
       await tester.tap(item);

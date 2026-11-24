@@ -44,7 +44,7 @@ Future<void> insertDummyData(Repository repo, {DateTime? now}) async {
       date: date,
       isMine: isMine,
       memo: dummyDataMarker,
-      notify: false, // 더미 행사로 알림이 울리지 않게 한다
+      reminderDays: null, // 더미 행사로 알림이 울리지 않게 한다
       personId: isMine ? null : personId,
     ));
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gyeongjosa/models/gift_record.dart';
+import 'package:gyeongjosa/models/event.dart';
 import 'package:gyeongjosa/data/database_helper.dart';
 import 'package:gyeongjosa/data/providers.dart';
 import 'package:gyeongjosa/data/repository.dart';
@@ -20,6 +22,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// 화면만 확인하는 저장소. 데이터가 없는 상태.
 class _FakeRepository extends Repository {
+
+  // 추가 AC: 홈 '일정' 달력 · 다가오는 내 행사 · 다른 사람 행사
+  List<Event> upcomingMine = [];
+  List<Reception> upcomingReceptions = [];
+  List<GiftRecord> calendarRecords = [];
+  List<Event> calendarEvents = [];
+  @override
+  Future<List<Event>> upcomingMyEvents() async => upcomingMine;
+  @override
+  Future<List<Reception>> receptionsBetween(DateTime start, DateTime? end) async =>
+      upcomingReceptions
+          .where((r) => !r.date.isBefore(start) && (end == null || !r.date.isAfter(end)))
+          .toList();
+  @override
+  Future<List<GiftRecord>> recordsBetween(DateTime start, DateTime end) async =>
+      calendarRecords
+          .where((r) => !r.date.isBefore(start) && !r.date.isAfter(end))
+          .toList();
+  @override
+  Future<List<Event>> eventsBetween(DateTime start, DateTime end) async =>
+      calendarEvents
+          .where((e) => !e.date.isBefore(start) && !e.date.isAfter(end))
+          .toList();
   _FakeRepository() : super(DatabaseHelper.forTest('unused.db'));
 
   final reception = Reception(
@@ -286,7 +311,7 @@ void main() {
           prefsValues: {'coach_seen_home': true, 'coach_seen_stats': true});
       await settle(tester);
       expect(find.text('처음 4장 가이드'), findsOneWidget);
-      expect(find.text('받은 돈 적기'), findsOneWidget);
+      expect(find.text('행사 장부 작성'), findsOneWidget);
       await tester.tap(find.text('도움말 처음부터 다시 보기'));
       await tester.pump();
       expect(prefs.getBool('coach_seen_home'), isNull);
@@ -372,11 +397,11 @@ void main() {
       expect(tester.takeException(), isNull);
 
       final tops = [
-        for (final t in ['보냈어요', '일정 추가', '받은 돈 적기'])
+        for (final t in ['보냈어요', '일정 추가', '행사 장부 작성'])
           tester.getTopLeft(find.text(t)).dy,
       ];
       expect(tops, orderedEquals([...tops]..sort()));
-      expect(find.text('결혼식 · 돌잔치에서 받은 돈을 적어요'), findsOneWidget);
+      expect(find.text('결혼식 · 돌잔치 손님 명단을 적어요'), findsOneWidget);
       expect(find.text('행사장 접수'), findsNothing);
       expect(find.text('받은 명단 직접 입력'), findsNothing);
 
@@ -410,7 +435,7 @@ void main() {
 
     testWidgets('카드를 누르면 메뉴를 닫고 해당 화면으로 간다', (tester) async {
       await open(tester);
-      await tester.tap(find.text('받은 돈 적기'));
+      await tester.tap(find.text('행사 장부 작성'));
       await tester.pumpAndSettle();
       expect(find.text('보냈어요'), findsNothing);
       // 행사가 하나도 없으면 받은 돈 적기는 바로 행사 만들기 화면
@@ -430,7 +455,7 @@ void main() {
       expect(find.text('내가 낸 축의금·부의금'), findsNothing);
       expect(find.text('닫기'), findsOneWidget);
       final group = CoachScreen.recordMenu.marks.single.rect!;
-      for (final card in ['보냈어요', '받은 돈 적기']) {
+      for (final card in ['보냈어요', '행사 장부 작성']) {
         expect(group.contains(tester.getCenter(find.text(card))), isTrue);
       }
       // 설명은 묶음 바로 위에 있다

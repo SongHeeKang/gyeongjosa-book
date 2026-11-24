@@ -13,6 +13,9 @@ class PrefKeys {
   /// 홈 섹션(다가오는 일정 · 최근 6개월 · 최근 기록)을 접어 두었는지
   static String homeCollapsed(String section) => 'home_collapsed_$section';
 
+  /// 홈 '일정' 달력이 월 달력인지 (false · 없음 = 주간 띠, 추가 AC)
+  static const homeCalendarMonth = 'home_calendar_month';
+
   /// 알림 허용 창에서 거절한 횟수. 두 번이면 안드로이드가 창을 더 띄우지 않아 설정으로 보낸다.
   static const notifDeniedCount = 'notif_denied_count';
   static const proPurchased = 'pro_purchased';

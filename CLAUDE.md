@@ -25,18 +25,20 @@
 - **Google Play 업로드 전 필수:** 설정의 테스트 도구(isPro 켜기/끄기 등)를 없앤다. `lib/services/app_config.dart`의 `testBuild`를 `false`로 바꾸면 APK·AAB에서 사라진다. 사용자가 출시·AAB·Play Console 업로드를 언급하면 먼저 이 작업을 하자고 요청할 것. `testBuild`가 `true`이면 `flutter build appbundle`은 일부러 실패한다. 이때 테스트 메뉴의 '더미데이터 추가'(`lib/data/dummy_data.dart`, 저장소의 더미 함수)도 사용자에게 알리고 코드째 지운다.
 - Google 드라이브 백업은 v1에서 뺐다(추가 W). Drive API · google_sign_in · OAuth 설정을 쓰지 않는다. 백업은 ① 다운로드 자동 백업(최근 7개) ② 안드로이드 자동 백업(allowBackup, backup_rules · data_extraction_rules에 DB · 설정 포함) ③ 백업 파일 → 공유창.
 - 내 행사 한도: 버튼을 누르는 순간 `LimitService.canCreateMyEvent`, 저장 순간 `LimitService.saveMyEvent` + 저장소의 `maxMyEvents`(트랜잭션 안에서 다시 세어 넘으면 `MyEventLimitReached`). 내 행사를 만드는 새 입구를 만들면 둘 다 거치게 하고, 저장 버튼은 첫 await 전에 막는다(빠른 연속 누르기).
-- 홈: 기록 · 일정이 없어도 요약 카드 → 다가오는 일정('다가오는 일정이 없어요.') → 최근 6개월(빈 틀 + '기록이 생기면 여기에 보여요') → 최근 기록 순서로 늘 보인다. 빈 화면 화살표는 없앴다. 세 섹션은 `CollapsibleSection`(`lib/widgets/collapsible_section.dart`)으로 접고 편다: 제목 · 화살표를 누르면 접힘, 링크('전체 보기' · '통계 ›')는 접지 않음, 접히면 '· n개' / '· n건', 상태는 prefs(`PrefKeys.homeCollapsed`)에 저장, 새 기록이 생겨도 저절로 펴지 않음. '최근 6개월' 그래프는 통계 탭과 같은 `GroupedBarChart`(`lib/widgets/grouped_bar_chart.dart`).
+- 홈: 기록 · 일정이 없어도 요약 카드 → '일정'(달력 + 다가오는 일정, '다가오는 일정이 없어요.') → 최근 6개월(축 · 월 라벨 · 범례만 있는 빈 그래프, 문구 없음) → 최근 기록 순서로 늘 보인다.
+- 홈 '일정'(추가 AC, `lib/widgets/home_calendar.dart`): 주간 띠(기본) ↔ 월 달력('월 달력 ⌄' / '주간 ⌃', `PrefKeys.homeCalendarMonth`에 저장). 점은 보냄 코랄 · 받음 파랑 · 일정/행사 회색(다른 사람 행사 손님 금액은 넣지 않음). 날짜를 누르면 그날 내역, 다시 누르면 다가오는 일정. 표시 중인 주 · 달만 `calendarDataProvider`로 읽는다. 다가오는 일정 = 일정 + 내 행사 + 다른 사람 행사(오늘 포함, `UpcomingItem`). '일정 전체 보기'는 목록 아래.
+- 화면 이름: '받은 돈 적기' → '행사 장부 작성'(연필 메뉴 · 입력 화면 제목), 내 행사 상세 [장부 작성], 다른 사람 행사 상세 [이어서 작성]. 클래스 이름(ReceiveMoneyScreen 등)은 그대로. 빈 화면 화살표는 없앴다. 세 섹션은 `CollapsibleSection`(`lib/widgets/collapsible_section.dart`)으로 접고 편다: 제목 · 화살표를 누르면 접힘, 링크('전체 보기' · '통계 ›')는 접지 않음, 접히면 '· n개' / '· n건', 상태는 prefs(`PrefKeys.homeCollapsed`)에 저장, 새 기록이 생겨도 저절로 펴지 않음. '최근 6개월' 그래프는 통계 탭과 같은 `GroupedBarChart`(`lib/widgets/grouped_bar_chart.dart`).
 - 홈 백업 아이콘 · 백업 안내 선택창(`lib/widgets/backup_guide.dart`)과 첫 실행 가이드의 백업 장은 `kShowHomeBackup`(`lib/services/app_config.dart`, v1은 false)로 숨겼다. true로 바꾸면 다시 보인다. 설정의 'Google 자동 백업' 안내 줄은 v1에서 뺐다(manifest의 allowBackup · 규칙 파일은 그대로, 출시 전 재검토).
 - 행사 수정(추가 AA): 내 행사 · 다른 사람 행사 상세의 [수정] → `ReceptionFormScreen.edit`(같은 화면 재사용, '누구 행사예요?'는 회색). 구분은 한 줄씩 고치고 손님이 있는 구분은 지울 수 없다. 저장은 `Repository.updateMyEventInfo` / `updateReceptionInfo`(구분 이름 바꾸면 기존 손님 · 기록도, 내 행사 날짜를 바꾸면 '받음' 기록 날짜도). 삭제는 수정 화면 맨 아래 [행사 삭제](두 번 확인, `lib/screens/event_actions.dart`). 내 행사 삭제는 행사만 지우고 받음 기록은 남긴다. 남의 행사(일정)는 ⋮ 메뉴 그대로.
 - 홈 '다가오는 일정' · '최근 기록'은 개수 제한 없이 전부 넣고 `CappedScrollList`(`lib/widgets/capped_scroll_list.dart`)로 약 4.5줄까지만 보이며 안에서 스크롤, 끝에 닿으면 화면 전체로 넘긴다.
 - 뒤로 가기(추가 Z): 열린 창 · 메뉴 · 도움말 → 이전 화면 → 홈이 아닌 탭이면 홈 탭 → 홈이면 '앱을 종료할까요?'([종료]만 `SystemNavigator.pop`). 탭 처리는 `MainShell`의 `PopScope`. 입력 화면 · 창(내역 · 사람 · 일정 · 행사 만들기)은 `UnsavedChangesGuard`(`lib/widgets/unsaved_guard.dart`)로 감싸 처음 값과 다르면 "작성 중인 내용이 있어요" [계속 작성] [나가기]. 새 입력 화면을 만들면 같이 감싼다. 첫 실행 가이드는 이전 장으로. manifest에 `enableOnBackInvokedCallback="true"`(예측 뒤로 가기).
 - 화면별 도움말: 내용은 `lib/widgets/screen_coach.dart`의 `CoachScreen`, 모양은 `coach_mark.dart`. 새 자리는 `CoachTarget`으로 감싼다. 자동 표시는 화면별로 한 번이고, 접수 화면은 첫 저장 전에만 띄운다. 한 화면의 설명은 최대 3개이고, 설명이 적힌 항목이 모여 있으면 하나로 묶는다.
 - 행사장 접수와 받은 명단 직접 입력의 금액칸 · 금액 버튼 · 최근 저장은 `lib/widgets/amount_pad.dart`의 공통 위젯을 쓴다. 식권 · 계좌 칩과 구분은 접수에만 있다.
-- 안드로이드 설정의 '데이터 삭제'는 `manageSpaceActivity`로 안내 화면(`lib/screens/manage_space_screen.dart`)을 연다. 앱 본체와 다른 Flutter 엔진에서 돌므로 DB는 `DatabaseHelper.separateConnection()`으로 연다.
+- 안드로이드 설정의 '데이터 삭제' 보호 화면(추가 C, manageSpaceActivity)은 추가 AC에서 없앴다. 기본 확인창만 뜨고 지워진다.
 - 자동 백업: 기록이 바뀌면(`dbVersionProvider`) 5초 뒤 Download/경조사장부/에 저장한다(`lib/services/auto_backup_service.dart`, `DownloadBackup.kt`). 빈 장부로는 백업하지 않고, 이번 앱 데이터에서 만든 파일만 덮어쓴다. Android 10 이상에서만 동작한다.
 - 자동화 테스트는 이 저장소 밖의 별도 프로젝트(AutoTest: Python + behave + Appium + Allure)에 있다. 주요 위젯은 `lib/widgets/test_id.dart`의 `TestId('이름', child: ...)`로 감싸 resource-id를 붙인다. 화면을 고칠 때 이 식별자를 지우거나 이름을 바꾸지 않는다(바꾸면 README 표와 시나리오도 함께 고친다). 자동화용 APK는 debug 빌드.
 - 인앱 상품 ID: `pro_lifetime` (일회성 제품, 4,900원).
-- 알림은 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle)만 사용. 앱을 켤 때 거절해도 스낵바 없음. 홈 일정 아래 '알림이 꺼져 있어요 · 켜기', 설정에 켜짐/꺼짐 + [설정 열기].
+- 알림은 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle)만 사용. 일정마다 `reminder_days`(null 없음 · 0 당일 · 1 · 2)와 `reminder_hour`(0~23, DB v8). 새 일정 기본 1일 전 오전 9시. 예전 `notify` 컬럼은 읽지 않는다. 일정 화면 칩 [없음][2일 전][1일 전][당일] + 시간(1시간 단위). 권한이 꺼져 있으면 칩을 고를 때 허용 창 또는 [설정 열기] 안내(`ensureReminderPermission`), 저장은 막지 않는다. 앱을 켤 때 거절해도 스낵바 없음. 홈 '알림이 꺼져 있어요 · 켜기'는 알림 켠 다가오는 일정이 있을 때만. 설정에 켜짐/꺼짐 + [설정 열기].
 - 사람 탭 인원은 헤더가 아니라 칩 아래 제목 줄('전체 n명', 무료면 '· 무료 50명까지' + 막대).
 
 ## 디자인 (A 클린 화이트 + 아이콘 1)

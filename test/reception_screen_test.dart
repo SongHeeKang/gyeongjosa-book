@@ -543,7 +543,7 @@ void main() {
 
     await tester.pageBack();
     await tester.pumpAndSettle();
-    expect(find.text('받은 돈 적기를 잠시 멈출까요?'), findsOneWidget);
+    expect(find.text('행사 장부 작성을 잠시 멈출까요?'), findsOneWidget);
     expect(find.byType(ReceiveMoneyScreen), findsOneWidget);
     expect(find.byType(PaywallScreen), findsNothing);
 

@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gyeongjosa/screens/event_detail_screen.dart';
+import 'package:gyeongjosa/services/reminder_format.dart';
 import 'package:gyeongjosa/data/database_helper.dart';
 import 'package:gyeongjosa/data/dummy_data.dart';
 import 'package:gyeongjosa/data/providers.dart';
@@ -48,6 +50,31 @@ Event schedule(String title, DateTime date, {int? personId}) => Event(
 
 /// 실제 DB 없이 화면만 확인하는 저장소
 class FakeRepository extends Repository {
+
+  // 추가 AC: 홈 '일정' 달력 · 다가오는 내 행사 · 다른 사람 행사
+  List<Event> upcomingMine = [];
+  List<Reception> upcomingReceptions = [];
+  List<GiftRecord> calendarRecords = [];
+  List<Event> calendarEvents = [];
+  @override
+  Future<List<Event>> upcomingMyEvents() async => upcomingMine;
+  @override
+  Future<List<Event>> allEvents() async => [...upcoming, ...pending];
+  @override
+  Future<List<Reception>> receptionsBetween(DateTime start, DateTime? end) async =>
+      upcomingReceptions
+          .where((r) => !r.date.isBefore(start) && (end == null || !r.date.isAfter(end)))
+          .toList();
+  @override
+  Future<List<GiftRecord>> recordsBetween(DateTime start, DateTime end) async =>
+      calendarRecords
+          .where((r) => !r.date.isBefore(start) && !r.date.isAfter(end))
+          .toList();
+  @override
+  Future<List<Event>> eventsBetween(DateTime start, DateTime end) async =>
+      calendarEvents
+          .where((e) => !e.date.isBefore(start) && !e.date.isAfter(end))
+          .toList();
   FakeRepository() : super(DatabaseHelper.forTest('unused.db'));
 
   List<Event> pending = [];
@@ -140,9 +167,12 @@ class FakeRepository extends Repository {
           title: insertedEvents.last.title,
           date: insertedEvents.last.date,
           isMine: insertedEvents.last.isMine,
-          notify: false,
+          reminderDays: null,
           personId: insertedEvents.last.personId);
 }
+
+Finder byTestIdFinder(String id) =>
+    find.byWidgetPredicate((w) => w is TestId && w.id == id);
 
 void main() {
   sqfliteFfiInit();
@@ -172,7 +202,7 @@ void main() {
           title: '진짜행사',
           date: DateTime(2026, 1, 1),
           isMine: true,
-          notify: false));
+          reminderDays: null));
       await repo.insertRecord(GiftRecord(
           personId: real,
           eventId: realEvent,
@@ -200,7 +230,7 @@ void main() {
       final records = await repo.allRecords();
       expect(records.where((r) => r.direction == '보냄').length, 25);
       expect(records.where((r) => r.direction == '받음').length, 26);
-      expect(dummy.every((e) => !e.notify), isTrue);
+      expect(dummy.every((e) => !e.hasReminder), isTrue);
       expect(await repo.pendingAmountEvents(), isEmpty);
 
       await repo.deleteDummyData();
@@ -276,6 +306,13 @@ void main() {
                 'date': '2026-01-01',
                 'is_mine': 0,
               });
+              // 추가 AC: '전날 알림' 꺼진 일정 (켜진 것은 위 '옛 일정', notify 기본 1)
+              await db.insert('events', {
+                'title': '알림 끈 일정',
+                'date': '2025-12-01',
+                'is_mine': 0,
+                'notify': 0,
+              });
               await db.insert('receptions', {
                 'id': 'old',
                 'title': '옛 접수',
@@ -290,9 +327,14 @@ void main() {
       final helper = DatabaseHelper.forTest(path);
       final migrated = Repository(helper);
       final pending = await migrated.pendingAmountEvents();
-      expect(pending.single.title, '옛 일정');
-      expect(pending.single.personId, isNull);
-      expect(pending.single.pendingHidden, isFalse);
+      expect(pending.map((e) => e.title), ['옛 일정', '알림 끈 일정']);
+      expect(pending.first.personId, isNull);
+      expect(pending.first.pendingHidden, isFalse);
+      // 추가 AC(v8): '전날 알림' 켜진 일정 → 1일 전 오전 9시, 꺼진 일정 → 없음
+      expect(pending.first.reminderDays, 1);
+      expect(pending.first.reminderHour, 9);
+      expect(pending.last.reminderDays, isNull);
+      expect(pending.last.hasReminder, isFalse);
       // 예전 접수는 전처럼 식권과 결제 방법이 모두 켜진 채로 남는다
       final oldReception = (await migrated.receptionSummaries()).single.reception;
       expect(oldReception.title, '옛 접수');
@@ -441,7 +483,7 @@ void main() {
       await pump(tester, const MainShell());
       await tester.tap(find.byTooltip('기록하기'));
       await tester.pumpAndSettle();
-      for (final t in ['보냈어요', '일정 추가', '받은 돈 적기']) {
+      for (final t in ['보냈어요', '일정 추가', '행사 장부 작성']) {
         expect(find.text(t), findsOneWidget);
       }
       expect(find.text('행사장 접수'), findsNothing);
@@ -456,7 +498,7 @@ void main() {
       expect(find.textContaining('남의 행사'), findsNothing);
       // 빈 화면: 홈 '다가오는 일정이 없어요'와 같은 EmptyView. 가져오기 링크도 없음(추가 X)
       expect(find.text('아직 행사가 없어요.'), findsOneWidget);
-      expect(find.text('연필 버튼 > 받은 돈 적기에서 만들어요'), findsOneWidget);
+      expect(find.text('연필 버튼 > 행사 장부 작성에서 만들어요'), findsOneWidget);
       expect(find.byType(EmptyView), findsOneWidget);
       expect(find.text('행사를 추가해 주세요'), findsNothing);
       expect(find.text('+ 추가'), findsNothing);
@@ -500,9 +542,9 @@ void main() {
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
       expect(find.text('연필 버튼 하나면 돼요'), findsOneWidget);
-      expect(find.text('보냈어요 · 일정 추가 · 받은 돈 적기'), findsOneWidget);
+      expect(find.text('보냈어요 · 일정 추가 · 행사 장부 작성'), findsOneWidget);
       // 그림은 카드 3개
-      for (final t in ['보냈어요', '일정 추가', '받은 돈 적기']) {
+      for (final t in ['보냈어요', '일정 추가', '행사 장부 작성']) {
         expect(find.text(t), findsOneWidget, reason: t);
       }
       await tester.tap(find.text('다음'));
@@ -632,20 +674,24 @@ void main() {
     testWidgets('홈은 기록이 없어도 요약 · 다가오는 일정 · 최근 6개월(빈 틀) · 최근 기록 순서, 화살표 없음',
         (tester) async {
       await pump(tester, const MainShell());
+      // 추가 AC: 일정 달력이 생겨 홈이 길어졌다. 한 화면에 모두 보이게 키워서 순서를 본다
+      tester.view.physicalSize = const Size(1080, 4200);
+      await tester.pumpAndSettle();
       expect(find.text('보낸 마음'), findsOneWidget);
       expect(find.text('다가오는 일정이 없어요.'), findsOneWidget);
       expect(find.byKey(const ValueKey('btn_all_schedules')), findsNothing);
       expect(find.text('전체 보기'), findsNothing);
       expect(find.text('최근 6개월'), findsOneWidget);
-      expect(find.text('기록이 생기면 여기에 보여요'), findsOneWidget);
+      expect(find.text('기록이 생기면 여기에 보여요'), findsNothing); // 추가 AC: 빈 그래프에 문구 없음
       expect(find.text('${DateTime.now().month}월'), findsOneWidget);
       expect(find.text('통계 ›'), findsOneWidget);
-      expect(find.text('보냄'), findsOneWidget); // 범례
+      expect(find.text('보냄'), findsNWidgets(2)); // 범례 (일정 달력 · 최근 6개월)
       expect(find.textContaining('첫 기록을 남겨보세요'), findsOneWidget);
       expect(find.byIcon(Icons.south), findsNothing);
       double y(String t) => tester.getTopLeft(find.text(t)).dy;
-      expect(y('보낸 마음'), lessThan(y('다가오는 일정')));
-      expect(y('다가오는 일정'), lessThan(y('최근 6개월')));
+      // 추가 AC: '다가오는 일정' 섹션은 '일정'(달력 + 다가오는 일정)
+      expect(y('보낸 마음'), lessThan(y('일정')));
+      expect(y('일정'), lessThan(y('최근 6개월')));
       expect(y('최근 6개월'), lessThan(y('최근 기록')));
     });
 
@@ -659,11 +705,14 @@ void main() {
               date: DateTime.now().add(const Duration(days: 3)), isMine: false),
         ];
       await pump(tester, const MainShell(), repository: repo);
+      tester.view.physicalSize = const Size(1080, 4200); // 홈 전체가 한 화면에 보이게
+      await tester.pumpAndSettle();
       expect(find.text('최근 6개월'), findsOneWidget);
       expect(find.text('기록이 생기면 여기에 보여요'), findsNothing);
       expect(find.text('${DateTime.now().month}월'), findsOneWidget);
       double top(String t) => tester.getTopLeft(find.text(t)).dy;
-      expect(top('다가오는 일정'), lessThan(top('최근 6개월')));
+      expect(tester.getTopLeft(find.text('일정').first).dy,
+          lessThan(top('최근 6개월')));
       expect(top('최근 6개월'), lessThan(top('최근 기록')));
       // 보냄 막대는 코랄, 받음은 파랑
       expect(AppColors.chartSent, AppColors.sent);
@@ -672,6 +721,132 @@ void main() {
       await tester.tap(find.text('통계 ›'));
       await tester.pumpAndSettle();
       expect(find.text('월별 보냄 · 받음'), findsOneWidget);
+    });
+
+    // ───────── 추가 AC: 홈 '일정' (달력 + 다가오는 일정) ─────────
+    DateTime inDays(int n) {
+      final t = DateTime.now();
+      return DateTime(t.year, t.month, t.day + n);
+    }
+
+    testWidgets('다가오는 일정: 일정 · 내 행사 · 다른 사람 행사를 날짜순으로, D-n과 라벨, 알림 켠 일정에 종',
+        (tester) async {
+      final repo = FakeRepository()
+        ..upcoming = [
+          Event(id: 3, type: '결혼', title: '임원택 결혼식', date: inDays(12),
+              isMine: false),
+        ]
+        ..upcomingMine = [
+          Event(id: 4, type: '돌', title: '우리 돌잔치', date: inDays(4),
+              isMine: true, reminderDays: null),
+        ]
+        ..upcomingReceptions = [
+          Reception(id: 'r', title: '누나 결혼식', eventType: '결혼',
+              date: inDays(25), sides: const [], operatorName: '',
+              startedAt: DateTime.now()),
+        ];
+      await pump(tester, const HomeScreen(), repository: repo);
+      double y(String t) => tester.getTopLeft(find.text(t)).dy;
+      expect(y('우리 돌잔치'), lessThan(y('임원택 결혼식')));
+      expect(y('임원택 결혼식'), lessThan(y('누나 결혼식')));
+      for (final d in ['D-4', 'D-12', 'D-25']) {
+        expect(find.text(d), findsOneWidget, reason: d);
+      }
+      expect(find.text('내 행사'), findsOneWidget);
+      expect(find.text('다른 사람 행사'), findsOneWidget);
+      // 범례의 '일정/행사'와 별개로 '일정' 라벨 칩 (섹션 제목 '일정' 포함 2개)
+      expect(find.text('일정'), findsNWidgets(2));
+      // 알림을 켜 둔 일정(임원택, 기본 1일 전)만 종
+      expect(find.byKey(const ValueKey('upcoming_bell')), findsOneWidget);
+      await tester.tap(find.text('우리 돌잔치'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EventDetailScreen), findsOneWidget);
+    });
+
+    testWidgets('주간 띠: 점 색(보냄 코랄 · 받음 파랑 · 일정 회색), 날짜를 누르면 그날 내역, 다시 누르면 다가오는 일정',
+        (tester) async {
+      final today = inDays(0);
+      final repo = FakeRepository()
+        ..calendarRecords = [
+          GiftRecord(id: 1, personId: 1, direction: '보냄', amount: 70000,
+              date: today, personName: '김철수'),
+          GiftRecord(id: 2, personId: 2, direction: '받음', amount: 50000,
+              date: today, personName: '이영희'),
+        ]
+        ..calendarEvents = [
+          Event(id: 9, type: '결혼', title: '오늘 결혼식', date: today,
+              isMine: false),
+        ];
+      await pump(tester, const HomeScreen(), repository: repo);
+      expect(byTestIdFinder('home_week_label'), findsOneWidget); // '11월 4주'
+      final key = 'cal_day_${today.year}${'${today.month}'.padLeft(2, '0')}${'${today.day}'.padLeft(2, '0')}';
+      final cell = byTestIdFinder(key);
+      final dots = tester
+          .widgetList<Container>(find.descendant(of: cell, matching: find.byType(Container)))
+          .map((c) => (c.decoration as BoxDecoration?)?.color)
+          .whereType<Color>()
+          .toList();
+      expect(dots, containsAll([AppColors.sent, AppColors.received, AppColors.calendarDot]));
+
+      await tester.tap(cell);
+      await tester.pumpAndSettle();
+      expect(find.text(formatShortDateWithDay(today)), findsOneWidget);
+      expect(find.text('김철수'), findsOneWidget);
+      expect(find.text('−70,000원'), findsOneWidget);
+      expect(find.text('+50,000원'), findsOneWidget);
+      expect(find.text('오늘 결혼식'), findsOneWidget);
+      expect(find.text('다가오는 일정이 없어요.'), findsNothing);
+      // 다시 누르면 다가오는 일정
+      await tester.tap(cell);
+      await tester.pumpAndSettle();
+      expect(find.text('김철수'), findsNothing);
+      expect(find.text('다가오는 일정이 없어요.'), findsOneWidget);
+
+      // 기록이 없는 날: 같은 주의 다른 날
+      final otherDay = DateTime(today.year, today.month,
+          today.day + (today.weekday % 7 == 6 ? -1 : 1));
+      await tester.tap(byTestIdFinder(
+          'cal_day_${otherDay.year}${'${otherDay.month}'.padLeft(2, '0')}${'${otherDay.day}'.padLeft(2, '0')}'));
+      await tester.pumpAndSettle();
+      expect(find.text('이 날은 기록이 없어요'), findsOneWidget);
+    });
+
+    testWidgets('월 달력: 그달 합계, 상태는 저장되어 다시 열어도 월 달력, 주간으로 돌리면 주간',
+        (tester) async {
+      final today = inDays(0);
+      final repo = FakeRepository()
+        ..calendarRecords = [
+          GiftRecord(id: 1, personId: 1, direction: '보냄', amount: 200000,
+              date: today, personName: '김철수'),
+          GiftRecord(id: 2, personId: 2, direction: '받음', amount: 50000,
+              date: today, personName: '이영희'),
+        ];
+      await pump(tester, const HomeScreen(), repository: repo);
+      await tester.tap(find.text('월 달력 ⌄'));
+      await tester.pumpAndSettle();
+      expect(find.text('${today.year}년 ${today.month}월'), findsOneWidget);
+      expect(find.text('오늘'), findsOneWidget);
+      expect(byTestIdFinder('cal_month_total'), findsOneWidget);
+      expect(find.textContaining('200,000원'), findsWidgets);
+      expect(find.text('주간 ⌃'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(PrefKeys.homeCalendarMonth), isTrue);
+
+      // 앱을 다시 켠 것처럼 새로 그려도 월 달력
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          repositoryProvider.overrideWithValue(repo),
+        ],
+        child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('주간 ⌃'), findsOneWidget);
+      await tester.tap(find.text('주간 ⌃'));
+      await tester.pumpAndSettle();
+      expect(find.text('월 달력 ⌄'), findsOneWidget);
+      expect(prefs.getBool(PrefKeys.homeCalendarMonth), isFalse);
     });
 
     // 추가 Y: 홈 섹션 접기 · 펼치기
@@ -696,18 +871,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('다가오는 일정이 없어요.'), findsOneWidget);
 
+      await tester.ensureVisible(toggle(HomeSection.months));
       await tester.tap(toggle(HomeSection.months));
       await tester.pumpAndSettle();
       expect(find.text('기록이 생기면 여기에 보여요'), findsNothing);
       expect(find.text('최근 6개월'), findsOneWidget);
+      await tester.ensureVisible(titleOf(HomeSection.months));
       await tester.tap(titleOf(HomeSection.months));
       await tester.pumpAndSettle();
-      expect(find.text('기록이 생기면 여기에 보여요'), findsOneWidget);
+      expect(find.text('기록이 생기면 여기에 보여요'), findsNothing); // 추가 AC: 빈 그래프에 문구 없음
 
       await tester.ensureVisible(toggle(HomeSection.records));
       await tester.tap(toggle(HomeSection.records));
       await tester.pumpAndSettle();
       expect(find.textContaining('첫 기록을 남겨보세요'), findsNothing);
+      await tester.ensureVisible(titleOf(HomeSection.records));
       await tester.tap(titleOf(HomeSection.records));
       await tester.pumpAndSettle();
       expect(find.textContaining('첫 기록을 남겨보세요'), findsOneWidget);
@@ -736,7 +914,8 @@ void main() {
       expect(find.text('일정1'), findsNothing);
       // 6개월은 개수 없음, 링크는 그대로
       expect(find.text('통계 ›'), findsOneWidget);
-      expect(find.text('전체 보기'), findsOneWidget); // 일정 (가짜 저장소의 최근 기록은 비어 있음)
+      // 추가 AC: '일정 전체 보기'는 일정 목록 아래로 옮겨 접히면 같이 숨는다
+      expect(find.text('일정 전체 보기'), findsNothing);
     });
 
     testWidgets('전체 보기 · 통계 ›는 눌러도 접히지 않고 이동한다', (tester) async {
@@ -746,19 +925,21 @@ void main() {
               date: DateTime.now().add(const Duration(days: 2)), isMine: false),
         ];
       await pump(tester, const MainShell(), repository: repo);
-      await tester.tap(find.text('전체 보기').first);
+      await tester.ensureVisible(find.text('일정 전체 보기'));
+      await tester.tap(find.text('일정 전체 보기'));
       await tester.pumpAndSettle();
       expect(find.byType(AllSchedulesScreen), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(find.text('철수 결혼식'), findsOneWidget); // 접히지 않음
+      await tester.ensureVisible(find.text('통계 ›'));
       await tester.tap(find.text('통계 ›'));
       await tester.pumpAndSettle();
       expect(find.text('월별 보냄 · 받음'), findsOneWidget);
       await tester.tap(find.descendant(
           of: find.byType(AppBottomNav), matching: find.text('홈')));
       await tester.pumpAndSettle();
-      expect(find.text('기록이 생기면 여기에 보여요'), findsOneWidget);
+      expect(find.text('기록이 생기면 여기에 보여요'), findsNothing); // 추가 AC: 빈 그래프에 문구 없음
     });
 
     testWidgets('접은 상태는 저장되어 앱을 다시 켜도 그대로, 기본은 모두 펼침', (tester) async {
@@ -785,7 +966,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('다가오는 일정이 없어요.'), findsNothing);
       expect(find.textContaining('첫 기록을 남겨보세요'), findsNothing);
-      expect(find.text('기록이 생기면 여기에 보여요'), findsOneWidget);
+      expect(find.text('기록이 생기면 여기에 보여요'), findsNothing); // 추가 AC: 빈 그래프에 문구 없음
     });
 
     testWidgets('결제 화면 혜택 4줄, 가져오기 · 엑셀 문구 없음', (tester) async {
@@ -1051,6 +1232,26 @@ void main() {
     expect(hits, isEmpty);
   });
 
+  // 추가 AC: '받은 돈 적기' → '행사 장부 작성'. 화면에 보이는 문구(주석 제외)에 예전 이름이 없다
+  test('화면 문구에 받은 돈 적기 · 이어서 받기가 없다', () {
+    const old = ['받은 돈 적기', '이어서 받기', '받은 돈을 적어요'];
+    final hits = <String>[];
+    for (final f in Directory('lib').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      final lines = f.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        final line = lines[i].trimLeft();
+        if (line.startsWith('//')) continue;
+        for (final w in old) {
+          if (RegExp("['\"][^'\"]*$w").hasMatch(line)) {
+            hits.add('${f.path}:${i + 1} $w');
+          }
+        }
+      }
+    }
+    expect(hits, isEmpty);
+  });
+
   // 앱을 켤 때 알림 권한 확인. 권한이 없고 허용하지 않으면 행사 알림을 쓸 수 없다.
   group('알림 권한', () {
     var enabled = false;
@@ -1111,7 +1312,7 @@ void main() {
       expect(find.text('알림을 허용하지 않아 행사 알림은 쓸 수 없어요.'), findsNothing);
     });
 
-    testWidgets('허용하지 않아도 스낵바 없음, 행사 전날 알림 스위치를 쓸 수 없다', (tester) async {
+    testWidgets('허용하지 않아도 스낵바 없음, 일정 알림 칩은 그대로 쓸 수 있다', (tester) async {
       await pumpApp(tester, const MainShell());
       await tester.tap(find.text('허용 안 함'));
       await tester.pumpAndSettle();
@@ -1121,12 +1322,18 @@ void main() {
       // 일정이 없으면 '알림이 꺼져 있어요' 줄도 없다
       expect(find.text('알림이 꺼져 있어요'), findsNothing);
 
+      // 추가 AC: 일정 화면은 스위치 대신 칩. 권한이 없어도 막지 않는다(기본 '1일 전 오전 9시')
       await pumpApp(tester, const EventFormScreen());
-      final sw = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
-      expect(sw.value, isFalse);
-      expect(sw.onChanged, isNull);
-      expect(find.text('알림 권한이 없어 쓸 수 없어요'), findsOneWidget);
-      expect(find.text('알림 허용하기'), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsNothing);
+      for (final t in ['없음', '2일 전', '1일 전', '당일']) {
+        expect(find.text(t), findsOneWidget, reason: t);
+      }
+      expect(
+          tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '1일 전')).selected,
+          isTrue);
+      expect(find.text('오전 9시'), findsOneWidget);
+      // 날짜 기본값이 오늘이라 1일 전 9시는 이미 지났다
+      expect(find.text('이미 지난 시간이라 알림이 오지 않아요'), findsOneWidget);
     });
 
     testWidgets('홈: 일정이 있고 알림이 꺼져 있으면 일정 아래 \'알림이 꺼져 있어요 · 켜기\', 켜면 사라진다',
@@ -1166,20 +1373,89 @@ void main() {
       await tester.pump(const Duration(seconds: 11));
     });
 
-    testWidgets('일정 화면의 [알림 허용하기]로 허용하면 스위치가 켜진다', (tester) async {
-      await pumpApp(tester, const EventFormScreen());
-      await tester.ensureVisible(find.text('알림 허용하기'));
-      await tester.tap(find.text('알림 허용하기'));
+    testWidgets('일정 알림: [없음]이 아닌 값을 고르면 권한 창, 더 띄울 수 없으면 [설정 열기] 안내, 저장은 된다',
+        (tester) async {
+      final repo = FakeRepository();
+      await pumpApp(tester, const EventFormScreen(), repo: repo);
+      await tester.enterText(find.byType(TextField).first, '임원택');
       await tester.pumpAndSettle();
-      enabled = true;
-      await tester.tap(find.text('허용하기'));
-      await tester.pump(const Duration(seconds: 1)); // 허용 창이 닫힐 때까지
+      // [없음]이면 시간 줄이 흐려지고 확인 문구가 없다
+      await tester.tap(find.text('없음'));
       await tester.pumpAndSettle();
-      final sw = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
-      expect(sw.value, isTrue);
-      expect(sw.onChanged, isNotNull);
-      expect(find.text('알림 허용하기'), findsNothing);
+      expect(find.textContaining('쯤 알려드려요'), findsNothing);
+      expect(requests, 0);
+      // 아직 허용 창을 띄울 수 있으면 바로 허용 창 (거절해도 고른 값은 그대로)
+      await tester.tap(find.text('2일 전'));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(requests, 1);
+      // 테스트 시계로는 허용 창이 '바로 거절'로 보일 수 있어, 안내가 떴으면 닫는다
+      if (find.text('나중에').evaluate().isNotEmpty) {
+        await tester.tap(find.text('나중에'));
+        await tester.pumpAndSettle();
+      }
+      expect(
+          tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '2일 전')).selected,
+          isTrue);
+      // 두 번 거절한 상태면 허용 창 대신 안내
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(PrefKeys.notifDeniedCount, 2);
+      await tester.tap(find.text('당일'));
+      await tester.pumpAndSettle();
+      expect(find.text('알림이 꺼져 있어 이 일정 알림을 받을 수 없어요'), findsOneWidget);
+      expect(find.text('설정 열기'), findsOneWidget);
+      await tester.tap(find.text('나중에'));
+      await tester.pumpAndSettle();
+      expect(requests, 1);
+      // 시간은 1시간 단위로 고른다
+      await tester.ensureVisible(find.text('시간'));
+      await tester.tap(find.text('시간'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('오후 3시'));
+      await tester.pumpAndSettle();
+      expect(find.text('오후 3시'), findsOneWidget);
+      await tester.ensureVisible(find.text('저장'));
+      await tester.tap(find.text('저장'));
+      await tester.pumpAndSettle();
+      final saved = repo.insertedEvents.single;
+      expect(saved.reminderDays, 0);
+      expect(saved.reminderHour, 15);
     });
+
+    testWidgets('홈: 알림을 켜 둔 일정이 없으면 권한이 꺼져 있어도 \'알림이 꺼져 있어요\' 줄이 없다',
+        (tester) async {
+      final repo = FakeRepository()
+        ..upcoming = [
+          Event(id: 7, type: '결혼', title: '철수 결혼식',
+              date: DateTime.now().add(const Duration(days: 3)),
+              isMine: false, reminderDays: null),
+        ];
+      await pumpApp(tester, const MainShell(), repo: repo);
+      await tester.tap(find.text('허용 안 함'));
+      await tester.pumpAndSettle();
+      expect(find.text('철수 결혼식'), findsOneWidget);
+      expect(find.text('알림이 꺼져 있어요'), findsNothing);
+    });
+  });
+
+  test('추가 AC: 알림 문구 · 시간 표시', () {
+    expect(hourLabel(7), '오전 7시');
+    expect(hourLabel(12), '낮 12시');
+    expect(hourLabel(18), '오후 6시');
+    expect(hourLabel(0), '밤 12시');
+    final e = Event(type: '결혼', title: '임원택 결혼식', date: DateTime(2026, 12, 5),
+        isMine: false, place: '더채플');
+    expect(e.reminderAt, DateTime(2026, 12, 4, 9));
+    expect(NotificationService.reminderTitle(e), '내일 임원택 결혼식이에요');
+    expect(NotificationService.reminderBody(e), '2026년 12월 5일 (토) · 더채플');
+    final two = Event(type: '결혼', title: '임원택 결혼식', date: DateTime(2026, 12, 5),
+        isMine: false, reminderDays: 2, reminderHour: 18);
+    expect(NotificationService.reminderTitle(two), '모레 임원택 결혼식이에요');
+    expect(two.reminderAt, DateTime(2026, 12, 3, 18));
+    final same = Event(type: '결혼', title: 'A 결혼식', date: DateTime(2026, 12, 5),
+        isMine: false, reminderDays: 0);
+    expect(NotificationService.reminderTitle(same), '오늘 A 결혼식이에요');
+    expect(reminderLabel(two), '2일 전 오후 6시');
   });
 
   group('사람 탭 인원 제목 줄 (추가 U)', () {

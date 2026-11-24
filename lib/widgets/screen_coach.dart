@@ -34,7 +34,7 @@ enum CoachScreen {
   myEvents(
       '행사',
       [
-        CoachMark(CoachSpot.myEventsCreate, '+ 추가를 눌러 행사를 만들고 받은 돈을 적어요'),
+        CoachMark(CoachSpot.myEventsCreate, '+ 추가를 눌러 행사를 만들고 장부를 작성해요'),
         CoachMark(CoachSpot.myEventsFirst, '누르면 받은 명단이 나와요'),
         CoachMark(CoachSpot.myEventsShare, '공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'),
       ],
@@ -51,7 +51,7 @@ enum CoachScreen {
     CoachMark(CoachSpot.statsChart, '보낸 돈과 받은 돈을 비교해요'),
   ]),
   // 내 행사 · 다른 사람 행사 모두 첫 저장 전에만 자동으로 띄운다 (화면에서 직접 부른다).
-  receiveMoney('받은 돈 적기', [
+  receiveMoney('행사 장부 작성', [
     CoachMark(CoachSpot.receiveAmounts, '이름을 적고 금액을 누르면 바로 저장'),
     CoachMark(CoachSpot.receiveRecent, '방금 저장한 손님이 맨 위에'),
     CoachMark(CoachSpot.receivePlace, '여기에 저장돼요(내 행사 / 다른 사람 행사)'),

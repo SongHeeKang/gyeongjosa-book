@@ -73,7 +73,7 @@ class ReceptionSummaryScreen extends ConsumerWidget {
         title: r.title.isEmpty ? '받은 장부' : r.title,
         date: r.date,
         isMine: true,
-        notify: false,
+        reminderDays: null,
         receiveSides: r.sides,
         mealTicketEnabled: r.mealTicketEnabled,
         defaultMealTickets: r.defaultMealTickets,
@@ -204,7 +204,7 @@ class ReceptionSummaryScreen extends ConsumerWidget {
                       child: TestId('btn_continue_receive', child: OutlinedButton.icon(
                         onPressed: () => _reopen(context, ref),
                         icon: const Icon(Icons.playlist_add),
-                        label: const Text('이어서 받기'),
+                        label: const Text('이어서 작성'),
                       )),
                     ),
                     const SizedBox(height: 8),

@@ -10,7 +10,6 @@ import '../models/event.dart';
 import '../models/reception.dart';
 import '../services/format.dart';
 import '../services/limit_service.dart';
-import '../services/notification_permission.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import 'event_actions.dart';
@@ -264,7 +263,8 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
         isMine: true,
         place: place.isEmpty ? null : place,
         memo: memo.isEmpty ? null : memo,
-        notify: e.notify,
+        reminderDays: e.reminderDays,
+        reminderHour: e.reminderHour,
         personId: e.personId,
         pendingHidden: e.pendingHidden,
         receiveSides: sides,
@@ -549,7 +549,7 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
       title: title,
       date: _date,
       isMine: true,
-      notify: ref.read(notificationPermissionProvider),
+      // 추가 AC: 새 내 행사도 기본 '1일 전 오전 9시' (권한이 없어도 값은 저장, 권한이 생기면 울린다)
       receiveSides: sides.isEmpty ? const [ReceptionDefaults.noSide] : sides,
       mealTicketEnabled: _mealEnabled!,
       defaultMealTickets: _defaultMeals,
@@ -685,12 +685,22 @@ class _ReceptionFormScreenState extends ConsumerState<ReceptionFormScreen> {
                     : '누구 행사인지는 만든 뒤 바꿀 수 없어요',
                 style: AppText.sub,
               )
-            else
-            Text(switch (_whose) {
-              true => '받은 손님이 사람 탭에도 들어가요 · 받은 만큼 챙기기 · 통계',
-              false => '장부에만 저장돼요(사람 탭에 안 들어감) · 끝나면 장부 보내기',
-              null => '내 결혼식 · 돌잔치면 내 행사, 가족 · 친구 행사에서 받아 주면 다른 사람 행사',
-            }, style: AppText.sub),
+            else ...[
+              // 추가 AC: 새로 만들 때 버튼 바로 아래 작은 회색 안내 (수정 모드는 위 문구)
+              TestId(
+                'whose_locked_hint',
+                child: Text(
+                  '저장한 뒤에는 바꿀 수 없어요',
+                  style: AppText.sub.copyWith(fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(switch (_whose) {
+                true => '받은 손님이 사람 탭에도 들어가요 · 받은 만큼 챙기기 · 통계',
+                false => '장부에만 저장돼요(사람 탭에 안 들어감) · 끝나면 장부 보내기',
+                null => '내 결혼식 · 돌잔치면 내 행사, 가족 · 친구 행사에서 받아 주면 다른 사람 행사',
+              }, style: AppText.sub),
+            ],
             const SizedBox(height: 20),
             TestId(
               'input_event_title',

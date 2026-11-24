@@ -20,12 +20,12 @@ class DatabaseHelper {
   @visibleForTesting
   factory DatabaseHelper.forTest(String path) => DatabaseHelper._(path);
 
-  /// 앱 본체와 따로 여는 연결. 데이터 관리 화면처럼 앱 본체가 뒤에서 켜져 있을 수 있는
-  /// 곳에서 쓴다. 공유 연결을 닫으면 앱 본체의 DB까지 닫히기 때문이다.
+  /// 앱 본체와 따로 여는 연결. 앱 본체가 뒤에서 켜져 있을 수 있는 다른 Flutter 엔진에서 쓴다
+  /// (공유 연결을 닫으면 앱 본체의 DB까지 닫히기 때문). 데이터 관리 화면(추가 C)은 추가 AC에서 없앴다.
   factory DatabaseHelper.separateConnection() => DatabaseHelper._(null, false);
 
   static const dbFileName = 'gyeongjosa.db';
-  static const _dbVersion = 7;
+  static const _dbVersion = 8;
 
   final String? _pathOverride;
   final bool _singleInstance;
@@ -191,6 +191,16 @@ class DatabaseHelper {
           'ALTER TABLE events ADD COLUMN method_enabled INTEGER NOT NULL DEFAULT 0');
       await db.rawUpdate('UPDATE events SET sides = ? WHERE is_mine = 1',
           ['["${ReceptionDefaults.noSide}"]']);
+    },
+    // v8 (추가 AC): 일정마다 알림 며칠 전(null 없음 · 0 당일 · 1 · 2)과 시각(0~23시).
+    // 예전 '전날 알림'이 켜진 일정은 1일 전 9시, 꺼진 일정은 없음으로 옮긴다.
+    // 예전 notify 컬럼은 지우지 않고 읽지만 않는다(SQLite 예전 버전 호환 · 데이터 보존).
+    8: (db) async {
+      await db.execute('ALTER TABLE events ADD COLUMN reminder_days INTEGER');
+      await db.execute(
+          'ALTER TABLE events ADD COLUMN reminder_hour INTEGER NOT NULL DEFAULT 9');
+      await db.rawUpdate(
+          'UPDATE events SET reminder_days = CASE WHEN notify = 1 THEN 1 ELSE NULL END, reminder_hour = 9');
     },
   };
 

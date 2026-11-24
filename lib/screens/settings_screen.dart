@@ -215,7 +215,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           on ? Icons.notifications_outlined : Icons.notifications_off_outlined,
           size: 24),
       title: const Text('알림'),
-      subtitle: Text(on ? '켜짐 · 행사 전날 오전 9시에 알려드려요' : '꺼짐 · 행사 알림을 받을 수 없어요'),
+      subtitle: Text(on ? '켜짐 · 일정마다 고른 날짜와 시간에 알려드려요' : '꺼짐 · 행사 알림을 받을 수 없어요'),
       trailing: TestId('btn_notification_settings', child: TextButton(
         onPressed: openNotificationSettings,
         child: const Text('설정 열기'),
@@ -314,7 +314,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         )),
         TestId('test_notify', child: ListTile(
           leading: const Icon(Icons.notifications_active_outlined, size: 24),
-          title: const Text('알림 테스트 (지금 바로)'),
+          title: const Text('알림 테스트 (1분 뒤)'),
           onTap: () async {
             if (!await askNotificationPermission(context, ref)) return;
             await NotificationService.instance.showTest();

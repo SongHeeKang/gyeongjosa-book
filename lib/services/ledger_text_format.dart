@@ -396,7 +396,7 @@ class ParsedLedger {
       title: r.title,
       date: r.date,
       isMine: true,
-      notify: false,
+      reminderDays: null,
       receiveSides: r.sides,
       mealTicketEnabled: r.mealTicketEnabled,
       defaultMealTickets: r.defaultMealTickets,

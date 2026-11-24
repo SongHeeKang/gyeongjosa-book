@@ -34,6 +34,13 @@ String formatDate(DateTime d) => DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').fo
 /// 11월 3일
 String formatShortDate(DateTime d) => DateFormat('M월 d일', 'ko_KR').format(d);
 
+/// 알림 칩 아래 실제 날짜: '12.4 (목)'
+String formatChipDate(DateTime d) => DateFormat('M.d (E)', 'ko_KR').format(d);
+
+/// '12월 5일 (금)'
+String formatShortDateWithDay(DateTime d) =>
+    DateFormat('M월 d일 (E)', 'ko_KR').format(d);
+
 /// 오후 12:34
 String formatTime(DateTime d) => DateFormat('a h:mm', 'ko_KR').format(d);
 

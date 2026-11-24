@@ -40,6 +40,29 @@ final _today = dateOnly(DateTime.now());
 
 /// 긴 이름 · 큰 금액 · 많은 항목으로 화면을 꽉 채운 표본 데이터
 class _DemoRepository extends Repository {
+
+  // 추가 AC: 홈 '일정' 달력 · 다가오는 내 행사 · 다른 사람 행사
+  List<Event> upcomingMine = [];
+  List<Reception> upcomingReceptions = [];
+  List<GiftRecord> calendarRecords = [];
+  List<Event> calendarEvents = [];
+  @override
+  Future<List<Event>> upcomingMyEvents() async => upcomingMine;
+  @override
+  Future<List<Reception>> receptionsBetween(DateTime start, DateTime? end) async =>
+      upcomingReceptions
+          .where((r) => !r.date.isBefore(start) && (end == null || !r.date.isAfter(end)))
+          .toList();
+  @override
+  Future<List<GiftRecord>> recordsBetween(DateTime start, DateTime end) async =>
+      calendarRecords
+          .where((r) => !r.date.isBefore(start) && !r.date.isAfter(end))
+          .toList();
+  @override
+  Future<List<Event>> eventsBetween(DateTime start, DateTime end) async =>
+      calendarEvents
+          .where((e) => !e.date.isBefore(start) && !e.date.isAfter(end))
+          .toList();
   _DemoRepository() : super(DatabaseHelper.forTest('unused.db'));
 
   static const _names = ['남궁민수정', '김민수', '이서연', '박지훈', '정하늘', '최유나'];

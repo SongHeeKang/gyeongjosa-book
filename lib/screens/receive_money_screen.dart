@@ -249,7 +249,7 @@ class _ReceiveMoneyScreenState extends ConsumerState<ReceiveMoneyScreen> {
 
   Future<void> _confirmLeave() async {
     final leave = await confirmDialog(context,
-        title: '받은 돈 적기를 잠시 멈출까요?',
+        title: '행사 장부 작성을 잠시 멈출까요?',
         message: '입력한 내용은 저장되어 있어요.\n행사 탭에서 다시 들어오면 이어서 적을 수 있어요.',
         okText: '멈추기');
     if (leave && mounted) Navigator.pop(context);
@@ -272,7 +272,7 @@ class _ReceiveMoneyScreenState extends ConsumerState<ReceiveMoneyScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('받은 돈 적기'),
+          title: const Text('행사 장부 작성'),
           actions: [
             if (target is ReceptionTarget)
               TestId('entry_search', child: IconButton(

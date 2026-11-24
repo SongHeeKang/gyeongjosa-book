@@ -12,8 +12,26 @@ class Event {
   final String? place;
   final String? memo;
 
-  /// 전날 오전 9시 알림 여부
-  final bool notify;
+  /// 알림 며칠 전 (추가 AC): null = 없음, 0 = 당일, 1 = 1일 전, 2 = 2일 전
+  final int? reminderDays;
+
+  /// 알림 시각 (0~23시, 분은 고르지 않음). 기본 오전 9시
+  final int reminderHour;
+
+  /// 알림을 켜 둔 일정인지
+  bool get hasReminder => reminderDays != null;
+
+  /// 예전 이름 (전날 알림 여부). 지금은 [hasReminder]와 같다.
+  bool get notify => hasReminder;
+
+  /// 알림 시각. 알림이 없으면 null
+  DateTime? get reminderAt => reminderDays == null
+      ? null
+      : DateTime(date.year, date.month, date.day - reminderDays!, reminderHour);
+
+  /// 새 일정 기본값: 1일 전 오전 9시
+  static const defaultReminderDays = 1;
+  static const defaultReminderHour = 9;
 
   /// 남의 행사(일정)에 연결된 사람. 이전 버전에서 만든 일정은 없을 수 있다.
   final int? personId;
@@ -45,7 +63,8 @@ class Event {
     required this.isMine,
     this.place,
     this.memo,
-    this.notify = true,
+    this.reminderDays = defaultReminderDays,
+    this.reminderHour = defaultReminderHour,
     this.personId,
     this.pendingHidden = false,
     this.personRelation,
@@ -70,7 +89,8 @@ class Event {
         isMine: isMine,
         place: place,
         memo: memo,
-        notify: notify,
+        reminderDays: reminderDays,
+        reminderHour: reminderHour,
         personId: personId,
         pendingHidden: pendingHidden,
         personRelation: personRelation,
@@ -88,7 +108,11 @@ class Event {
         isMine: (m['is_mine'] as int? ?? 0) == 1,
         place: m['place'] as String?,
         memo: m['memo'] as String?,
-        notify: (m['notify'] as int? ?? 1) == 1,
+        // 추가 AC: reminder_days · reminder_hour만 읽는다(예전 notify 컬럼은 읽지 않음)
+        reminderDays: m.containsKey('reminder_days')
+            ? m['reminder_days'] as int?
+            : defaultReminderDays,
+        reminderHour: m['reminder_hour'] as int? ?? defaultReminderHour,
         personId: m['person_id'] as int?,
         pendingHidden: (m['pending_hidden'] as int? ?? 0) == 1,
         personRelation: m['person_relation'] as String?,
@@ -116,7 +140,8 @@ class Event {
         'is_mine': isMine ? 1 : 0,
         'place': place,
         'memo': memo,
-        'notify': notify ? 1 : 0,
+        'reminder_days': reminderDays,
+        'reminder_hour': reminderHour,
         'person_id': personId,
         'pending_hidden': pendingHidden ? 1 : 0,
         // 받기 설정은 정해졌을 때만 쓴다. 행사 이름만 고칠 때 설정이 지워지지 않게.

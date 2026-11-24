@@ -43,7 +43,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     ),
     (
       '연필 버튼 하나면 돼요',
-      '보냈어요 · 일정 추가 · 받은 돈 적기',
+      '보냈어요 · 일정 추가 · 행사 장부 작성',
       _ButtonPicture(),
     ),
     (
@@ -247,7 +247,7 @@ class _ButtonPicture extends StatelessWidget {
     const items = [
       (Icons.card_giftcard, '보냈어요'),
       (Icons.event_outlined, '일정 추가'),
-      (Icons.playlist_add, '받은 돈 적기'),
+      (Icons.playlist_add, '행사 장부 작성'),
     ];
     return SizedBox(
       width: 280,
@@ -278,7 +278,7 @@ class _ButtonPicture extends StatelessWidget {
   }
 }
 
-/// 3장 그림: 받은 돈 적기 화면을 작게 줄인 카드와 사용 순서 3단계.
+/// 3장 그림: 행사 장부 작성 화면을 작게 줄인 카드와 사용 순서 3단계.
 /// 눌러지는 것처럼 보이지만 그림이므로 화면 읽기 대상에서 뺀다.
 class _ReceptionPicture extends StatelessWidget {
   const _ReceptionPicture();

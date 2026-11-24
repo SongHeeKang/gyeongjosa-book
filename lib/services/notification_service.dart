@@ -5,9 +5,11 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/event.dart';
+import 'format.dart';
+import 'reminder_format.dart';
 
-/// 행사 전날 오전 9시 알림.
-/// - 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle) 사용 → 9시 전후 몇 분 차이 가능
+/// 일정 알림 (추가 AC): 일정마다 며칠 전(없음 · 2일 전 · 1일 전 · 당일) + 시각(1시간 단위).
+/// - 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle) 사용 → 정각 전후 몇 분 차이 가능
 /// - 재부팅 후 유지는 AndroidManifest의 ScheduledNotificationBootReceiver가 처리
 class NotificationService {
   NotificationService._();
@@ -19,7 +21,7 @@ class NotificationService {
   static const _channel = AndroidNotificationDetails(
     'event_reminder',
     '행사 알림',
-    channelDescription: '행사 전날 오전 9시에 알려드려요',
+    channelDescription: '일정마다 고른 날짜와 시간에 알려드려요',
     importance: Importance.high,
     priority: Priority.high,
   );
@@ -49,28 +51,37 @@ class NotificationService {
     }
   }
 
-  /// 알림 시각: 행사 전날 오전 9시
-  static DateTime reminderTime(DateTime eventDate) =>
-      DateTime(eventDate.year, eventDate.month, eventDate.day - 1, 9);
+  /// 알림 시각: 행사 [days]일 전 [hour]시 (기본 1일 전 오전 9시)
+  static DateTime reminderTime(DateTime eventDate,
+          {int days = Event.defaultReminderDays,
+          int hour = Event.defaultReminderHour}) =>
+      DateTime(eventDate.year, eventDate.month, eventDate.day - days, hour);
 
+  /// 알림 제목: '내일 임원택 결혼식이에요' (2일 전 '모레', 당일 '오늘')
+  static String reminderTitle(Event event) =>
+      '${reminderWhenWord(event.reminderDays ?? 1)} ${event.title}이에요';
+
+  /// 알림 내용: 날짜 · 장소
+  static String reminderBody(Event event) {
+    final place = (event.place ?? '').trim();
+    return [formatDate(event.date), if (place.isNotEmpty) place].join(' · ');
+  }
+
+  /// 저장 · 수정할 때마다 부른다. 예전 예약을 지우고, 알림이 [없음]이거나 이미 지난 시각이면 다시 걸지 않는다.
   Future<void> scheduleForEvent(Event event) async {
     if (!_ready || event.id == null) return;
     await cancelForEvent(event.id!);
-    if (!event.notify) return;
-
-    final at = reminderTime(event.date);
+    final at = event.reminderAt;
+    if (at == null) return;
     if (!at.isAfter(DateTime.now())) return; // 이미 지난 시각은 예약하지 않음
 
-    final place = (event.place ?? '').trim();
     await _plugin.zonedSchedule(
       id: event.id!,
       scheduledDate: tz.TZDateTime.from(at, tz.local),
       notificationDetails: const NotificationDetails(android: _channel),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      title: '내일 ${event.title}',
-      body: place.isEmpty
-          ? '${event.type} 행사가 내일이에요. 잊지 말고 챙기세요.'
-          : '${event.type} · $place — 잊지 말고 챙기세요.',
+      title: reminderTitle(event),
+      body: reminderBody(event),
     );
   }
 
@@ -88,14 +99,17 @@ class NotificationService {
     }
   }
 
-  /// 개발 모드 테스트용: 바로 알림 띄우기
+  /// 테스트 메뉴: 1분 뒤 알림 (일정 알림과 같은 일반 예약이라 몇 분 늦을 수 있다)
   Future<void> showTest() async {
     if (!_ready) return;
-    await _plugin.show(
+    await _plugin.zonedSchedule(
       id: 999999,
-      title: '알림 테스트',
-      body: '행사 알림이 이렇게 보여요.',
+      scheduledDate: tz.TZDateTime.from(
+          DateTime.now().add(const Duration(minutes: 1)), tz.local),
       notificationDetails: const NotificationDetails(android: _channel),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      title: '알림 테스트',
+      body: '일정 알림이 이렇게 보여요.',
     );
   }
 

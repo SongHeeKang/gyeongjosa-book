@@ -4,6 +4,9 @@ import '../models/event.dart';
 import '../models/gift_record.dart';
 import '../models/person.dart';
 import '../models/reception.dart';
+import '../models/upcoming_item.dart';
+import '../services/format.dart';
+import '../services/settings_service.dart';
 import 'database_helper.dart';
 import 'repository.dart';
 
@@ -103,7 +106,8 @@ class HomeData {
   final int received;
   final int sentCount;
   final int receivedCount;
-  final List<Event> upcoming;
+  /// 다가오는 일정: 일정 추가로 등록한 일정 + 내 행사 + 다른 사람 행사 (오늘 포함, 날짜순, 추가 AC)
+  final List<UpcomingItem> upcoming;
 
   /// 다가오는 일정 전체 개수 (홈 섹션을 접었을 때 '· n개')
   final int upcomingCount;
@@ -127,6 +131,9 @@ class HomeData {
     required this.recent,
     required this.recordCount,
   });
+
+  /// 알림을 켜 둔 다가오는 일정이 있는지 (홈 '알림이 꺼져 있어요' 줄은 이때만)
+  bool get hasUpcomingReminder => upcoming.any((u) => u.hasReminder);
 }
 
 final homeProvider = FutureProvider<HomeData>((ref) async {
@@ -134,7 +141,14 @@ final homeProvider = FutureProvider<HomeData>((ref) async {
   final repo = ref.watch(repositoryProvider);
   final totals = await repo.yearTotals(DateTime.now().year);
   // 추가 AA: 홈 목록은 개수 제한 없이 전부(화면에서는 약 4.5줄 높이로 잘라 안에서 스크롤)
-  final upcoming = await repo.upcomingSchedules();
+  // 추가 AC: 일정 + 다가오는 내 행사 + 다가오는 다른 사람 행사
+  final today = dateOnly(DateTime.now());
+  final upcoming = [
+    for (final e in await repo.upcomingSchedules()) UpcomingItem.fromEvent(e),
+    for (final e in await repo.upcomingMyEvents()) UpcomingItem.fromEvent(e),
+    for (final r in await repo.receptionsBetween(today, null))
+      UpcomingItem.fromReception(r),
+  ]..sort(UpcomingItem.compare);
   return HomeData(
     sent: totals.sent,
     received: totals.received,
@@ -203,6 +217,77 @@ abstract final class AppTabs {
   static const events = 2;
   static const stats = 3;
 }
+
+/// 홈 달력(추가 AC): 표시 중인 주 · 달(또는 고른 하루) [start] ~ [end]의 기록과 일정 · 행사.
+/// 기록 · 일정 · 행사가 바뀌면(dbVersion) 다시 읽는다.
+class CalendarData {
+  const CalendarData({required this.records, required this.items});
+
+  /// 날짜(dayKey)별 보냄 · 받음 기록. 다른 사람 행사의 손님 금액은 내 돈이 아니라 넣지 않는다.
+  final Map<int, List<GiftRecord>> records;
+
+  /// 날짜별 일정 · 내 행사 · 다른 사람 행사
+  final Map<int, List<UpcomingItem>> items;
+
+  static int dayKey(DateTime d) => d.year * 10000 + d.month * 100 + d.day;
+
+  List<GiftRecord> recordsOn(DateTime d) => records[dayKey(d)] ?? const [];
+  List<UpcomingItem> itemsOn(DateTime d) => items[dayKey(d)] ?? const [];
+
+  bool sentOn(DateTime d) => recordsOn(d).any((r) => r.isSent);
+  bool receivedOn(DateTime d) => recordsOn(d).any((r) => !r.isSent);
+
+  int get sentTotal => [
+        for (final l in records.values)
+          for (final r in l)
+            if (r.isSent) r.amount,
+      ].fold(0, (a, b) => a + b);
+  int get receivedTotal => [
+        for (final l in records.values)
+          for (final r in l)
+            if (!r.isSent) r.amount,
+      ].fold(0, (a, b) => a + b);
+
+  static const empty = CalendarData(records: {}, items: {});
+}
+
+final calendarDataProvider = FutureProvider.family<CalendarData,
+    ({DateTime start, DateTime end})>((ref, range) async {
+  ref.watch(dbVersionProvider);
+  final repo = ref.watch(repositoryProvider);
+  final records = <int, List<GiftRecord>>{};
+  for (final r in await repo.recordsBetween(range.start, range.end)) {
+    (records[CalendarData.dayKey(r.date)] ??= []).add(r);
+  }
+  final items = <int, List<UpcomingItem>>{};
+  for (final e in await repo.eventsBetween(range.start, range.end)) {
+    (items[CalendarData.dayKey(e.date)] ??= []).add(UpcomingItem.fromEvent(e));
+  }
+  for (final r in await repo.receptionsBetween(range.start, range.end)) {
+    (items[CalendarData.dayKey(r.date)] ??= [])
+        .add(UpcomingItem.fromReception(r));
+  }
+  for (final l in items.values) {
+    l.sort(UpcomingItem.compare);
+  }
+  return CalendarData(records: records, items: items);
+});
+
+/// 홈 '일정' 달력 모양: false = 주간 띠(기본), true = 월 달력. 앱을 다시 켜도 마지막 모양.
+/// 안드로이드 '데이터 삭제'로 설정이 지워지면 다시 주간.
+class HomeCalendarMonth extends Notifier<bool> {
+  @override
+  bool build() =>
+      ref.watch(prefsProvider).getBool(PrefKeys.homeCalendarMonth) ?? false;
+
+  void toggle() {
+    state = !state;
+    ref.read(prefsProvider).setBool(PrefKeys.homeCalendarMonth, state);
+  }
+}
+
+final homeCalendarMonthProvider =
+    NotifierProvider<HomeCalendarMonth, bool>(HomeCalendarMonth.new);
 
 final relationTotalsProvider = FutureProvider.family<
     List<({String relation, int sent, int received})>, int>((ref, year) {

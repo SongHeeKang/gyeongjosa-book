@@ -189,7 +189,7 @@ void main() {
     ];
     final events = [
       Event(id: 1, type: '결혼', title: '철수 결혼식', date: DateTime(2026, 5, 2), isMine: false, place: '웨딩홀', personId: 1),
-      Event(id: 2, type: '돌', title: '영희 돌잔치', date: DateTime(2026, 12, 1), isMine: false, notify: false),
+      Event(id: 2, type: '돌', title: '영희 돌잔치', date: DateTime(2026, 12, 1), isMine: false, reminderDays: null),
     ];
     final records = [
       GiftRecord(id: 1, personId: 1, eventId: 1, direction: '보냄', amount: 100000,

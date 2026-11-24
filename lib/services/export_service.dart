@@ -12,6 +12,7 @@ import '../models/person.dart';
 import '../models/reception.dart';
 import 'format.dart';
 import 'ledger_text_format.dart';
+import 'reminder_format.dart';
 
 /// 엑셀 파일(.xlsx) 만들기 (무료). 두 가지를 만든다.
 /// ① 행사 장부: [명단] [합계] 시트 (내 행사 · 다른 사람 행사 모두)
@@ -271,7 +272,7 @@ class ExportService {
   ];
   static const eventsHeader = [
     '행사 날짜', '종류', '행사 이름', '장소', '내 행사 여부', '메모',
-    '연결된 사람', '전날 알림', '얼마 내셨어요 숨김', '구분 목록',
+    '연결된 사람', '알림', '얼마 내셨어요 숨김', '구분 목록',
   ];
 
   /// [records]: 모든 기록, [people]: 모든 사람, [events]: 모든 행사(일정 포함)
@@ -373,7 +374,7 @@ class ExportService {
         ..text(row, 4, e.isMine ? '예' : '아니요')
         ..text(row, 5, e.memo ?? '')
         ..text(row, 6, peopleById[e.personId]?.name ?? '')
-        ..text(row, 7, e.notify ? '켬' : '끔')
+        ..text(row, 7, e.hasReminder ? reminderLabel(e) : '끔')
         ..text(row, 8, e.pendingHidden ? '숨김' : '')
         ..text(row, 9, [
           for (final s in e.sides)
@@ -551,7 +552,7 @@ class LedgerExcel {
           for (final s in event.sides)
             if (s != ReceptionDefaults.noSide) s,
         ].join(', ')),
-        ('전날 알림', event.notify ? '켬' : ''),
+        ('알림', event.hasReminder ? reminderLabel(event) : ''),
       ],
       rows: _ordered(rows, order),
       type: event.type,

@@ -338,7 +338,7 @@ void main() {
       await helper.close();
     });
 
-    test('예전(v6) 백업 파일은 검사를 통과하고 복원하면 v7로 올라간다', () async {
+    test('예전(v6) 백업 파일은 검사를 통과하고 복원하면 v8로 올라간다', () async {
       final backup = await makeV6('backup.db');
       await DatabaseHelper.validateBackupFile(backup);
 
@@ -350,7 +350,7 @@ void main() {
       expect((await repo.allPeople()).single.name, '옛손님');
       expect((await repo.myEvents()).single.receiveSettingsDone, isTrue);
       final db = await helper.database;
-      expect((await db.rawQuery('PRAGMA user_version')).first.values.first, 7);
+      expect((await db.rawQuery('PRAGMA user_version')).first.values.first, 8);
       await helper.close();
     });
 
@@ -431,7 +431,7 @@ void main() {
             title: r.title,
             date: r.date,
             isMine: true,
-            notify: false,
+            reminderDays: null,
             receiveSides: r.sides,
             mealTicketEnabled: r.mealTicketEnabled,
             defaultMealTickets: r.defaultMealTickets,

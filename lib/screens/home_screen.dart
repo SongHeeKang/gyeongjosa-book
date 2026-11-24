@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
 import '../services/app_config.dart';
-import '../services/format.dart';
 import '../services/notification_permission.dart';
 import '../theme/app_theme.dart';
 import '../widgets/backup_guide.dart';
 import '../widgets/capped_scroll_list.dart';
 import '../widgets/collapsible_section.dart';
 import '../widgets/grouped_bar_chart.dart';
+import '../widgets/home_calendar.dart';
 import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
@@ -18,7 +18,6 @@ import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 import 'all_records_screen.dart';
 import 'all_schedules_screen.dart';
-import 'event_detail_screen.dart';
 import 'person_detail_screen.dart';
 import '../widgets/share_download.dart';
 
@@ -92,67 +91,35 @@ class HomeScreen extends ConsumerWidget {
                   child: PendingAmountSection(events: data.pending),
                 ),
               ),
-            // 다가오는 일정: 일정이 없어도 섹션은 늘 보이고 빈 화면 문구만 (추가 X)
-            // 접기 · 펼치기 (추가 Y): 접으면 제목 옆에 다가오는 일정 개수
-            CollapsibleSection(
-              section: HomeSection.schedules,
-              title: '다가오는 일정',
-              coachSpot: CoachSpot.homeCollapse,
-              collapsedCount: data.upcomingCount > 0
-                  ? '· ${data.upcomingCount}개'
-                  : null,
-              trailing: data.scheduleCount == 0
-                  ? null
-                  : TestId(
-                      'btn_all_schedules',
-                      child: LinkText(
-                        '전체 보기',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => const AllSchedulesScreen(),
-                          ),
-                        ),
-                      ),
-                    ),
-              footer: const Padding(
-                padding: EdgeInsets.only(top: AppSpacing.section - 6),
-                child: AppDivider(),
-              ),
-              child: Column(
+            // 추가 AC: '일정' = 달력(주간 띠 ↔ 월 달력) + 다가오는 일정(일정 · 내 행사 · 다른 사람 행사).
+            // 일정이 없어도 섹션은 늘 보이고 '다가오는 일정이 없어요.' (추가 X)
+            HomeScheduleSection(
+              upcoming: data.upcoming,
+              // '알림이 꺼져 있어요 · 켜기'는 알림을 켜 둔 다가오는 일정이 있을 때만
+              footerBelowList: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (data.upcoming.isEmpty)
-                    const TestId(
-                      'home_no_schedule',
-                      child: EmptyView(
-                        icon: Icons.event_available,
-                        message: '다가오는 일정이 없어요.',
-                      ),
-                    )
-                  else
-                    // 추가 AA: 오늘 이후 일정 전부, 약 4.5줄 높이까지만 보이며 안에서 스크롤
-                    CappedScrollList(
-                      itemCount: data.upcoming.length,
-                      itemBuilder: (context, i) => EventTile(
-                        event: data.upcoming[i],
-                        highlight: i == 0,
-                        subtitle: [
-                          formatDate(data.upcoming[i].date),
-                          data.upcoming[i].personRelation ??
-                              data.upcoming[i].type,
-                        ].join(' · '),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => EventDetailScreen(
-                              eventId: data.upcoming[i].id!,
+                  if (data.hasUpcomingReminder) const _NotificationOffLine(),
+                  // 지난 일정까지 모두 보는 화면 (제목 줄 오른쪽은 '월 달력'이라 목록 아래로 옮김)
+                  if (data.scheduleCount > 0)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.page),
+                        child: TestId(
+                          'btn_all_schedules',
+                          child: LinkText(
+                            '일정 전체 보기',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const AllSchedulesScreen(),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  if (data.upcoming.isNotEmpty) const _NotificationOffLine(),
                 ],
               ),
             ),
@@ -221,7 +188,8 @@ class HomeScreen extends ConsumerWidget {
 
 /// 홈 '최근 6개월': 이번 달을 포함한 6개월의 보냄 / 받음 막대(통계 탭 월별 그래프와 같은 위젯을 작게).
 /// 그래프나 '통계 ›'를 누르면 통계 탭으로. 무료 · 프로 모두.
-/// 기록이 없어도 틀(0 축 · 월 라벨 · 범례)은 그대로 두고 막대만 없이 "기록이 생기면 여기에 보여요".
+/// 기록이 없어도 틀(0 축 · 눈금 · 월 라벨 · 범례)만 있는 빈 그래프로 둔다(추가 AC: 안내 문구 없음).
+/// 기록이 생기면 dbVersion으로 다시 읽어 막대가 바로 나온다.
 class _RecentMonthsSection extends ConsumerWidget {
   const _RecentMonthsSection();
 
@@ -240,7 +208,6 @@ class _RecentMonthsSection extends ConsumerWidget {
               received: 0,
             ),
         ];
-    final empty = rows.every((r) => r.sent == 0 && r.received == 0);
     void openStats() => ref.read(tabRequestProvider.notifier).go(AppTabs.stats);
     return TestId(
       'home_recent_months',
@@ -283,33 +250,6 @@ class _RecentMonthsSection extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      if (empty)
-                        // 아래 월 라벨 자리(30)를 빼고 그래프 영역 가운데에
-                        Positioned.fill(
-                          bottom: 30,
-                          left: 40,
-                          child: Center(
-                            child: TestId(
-                              'home_months_empty',
-                              // 눈금 선 위에 겹쳐도 읽히게 흰 바탕을 깐다
-                              child: ColoredBox(
-                                color: AppColors.background,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  child: Text(
-                                    '기록이 생기면 여기에 보여요',
-                                    style: AppText.sub.copyWith(
-                                      color: AppColors.textHint,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),

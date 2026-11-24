@@ -11,6 +11,7 @@ import '../services/format.dart';
 import '../services/limit_service.dart';
 import '../services/notification_permission.dart';
 import '../services/notification_service.dart';
+import '../services/reminder_format.dart';
 import '../theme/app_theme.dart';
 import '../widgets/test_id.dart';
 import '../widgets/amount_input.dart';
@@ -41,7 +42,10 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   late String _type;
   late DateTime _date;
   late bool _isMine;
-  late bool _notify;
+
+  /// 알림 며칠 전 (null 없음 · 0 당일 · 1 · 2)과 시각 (추가 AC)
+  late int? _reminderDays;
+  late int _reminderHour;
   bool _saving = false;
 
   /// 처음 열었을 때의 값. 뒤로 갈 때 달라졌으면 작성 중 확인을 묻는다.
@@ -54,7 +58,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     _type,
     _date,
     _isMine,
-    _notify,
+    _reminderDays,
+    _reminderHour,
     _relation,
     _selected?.id,
   ].join('|');
@@ -66,7 +71,9 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     _type = e?.type ?? EventTypes.all.first;
     _date = e?.date ?? DateTime.now();
     _isMine = e?.isMine ?? widget.initialIsMine;
-    _notify = e?.notify ?? true; // 전날 알림 기본 켜짐
+    // 새 일정 기본값은 '1일 전 오전 9시'
+    _reminderDays = e == null ? Event.defaultReminderDays : e.reminderDays;
+    _reminderHour = e?.reminderHour ?? Event.defaultReminderHour;
     // 휴대폰 설정에서 바꿨을 수 있으니 열 때마다 다시 확인한다
     Future.microtask(
       () => ref.read(notificationPermissionProvider.notifier).refresh(),
@@ -103,13 +110,118 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  void _onNotifyChanged(bool value) => setState(() => _notify = value);
+  /// 알림 칩을 고른다. [없음]이 아니고 권한이 꺼져 있으면 권한 창 또는 [설정 열기] 안내.
+  /// 고른 값은 그대로 두고 저장도 막지 않는다.
+  Future<void> _chooseReminder(int? days) async {
+    // 이름 칸에 남아 있던 키보드가 권한 창 · 안내 뒤에 다시 뜨지 않게
+    FocusScope.of(context).unfocus();
+    setState(() => _reminderDays = days);
+    if (days != null) await ensureReminderPermission(context, ref);
+  }
 
-  /// 알림 권한이 없으면 전날 알림을 쓸 수 없다. 권한을 받으면 스위치가 켜진다.
-  Future<void> _askPermission() async {
-    if (await askNotificationPermission(context, ref) && mounted) {
-      setState(() => _notify = true);
-    }
+  /// 시간 줄: 1시간 단위(0시~23시)로 고른다
+  Future<void> _pickHour() async {
+    // 시간을 고르고 돌아왔을 때 이름 칸 키보드가 다시 뜨지 않게
+    FocusScope.of(context).unfocus();
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+          child: ListView(
+            shrinkWrap: true,
+            controller: ScrollController(
+                initialScrollOffset: (_reminderHour - 3).clamp(0, 23) * 52.0),
+            children: [
+              for (var h = 0; h < 24; h++)
+                TestId('reminder_hour_$h', child: ListTile(
+                  minTileHeight: 52,
+                  title: Text(hourLabel(h), style: AppText.body),
+                  trailing: h == _reminderHour
+                      ? const Icon(Icons.check, color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, h),
+                )),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _reminderHour = picked);
+  }
+
+  /// 알림: 칩 [없음] [2일 전] [1일 전] [당일](칩 아래 실제 날짜) + 시간 줄 + 확인 문구
+  List<Widget> _reminderSection() {
+    final none = _reminderDays == null;
+    final at = none
+        ? null
+        : NotificationService.reminderTime(_date,
+            days: _reminderDays!, hour: _reminderHour);
+    return [
+      const FieldLabel('알림'),
+      Row(
+        children: [
+          for (final (i, d) in reminderDayOptions.indexed) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: TestId(
+                'reminder_${d ?? 'none'}',
+                selected: _reminderDays == d,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ChoiceChip(
+                        showCheckmark: false,
+                        labelPadding: EdgeInsets.zero,
+                        label: Center(child: Text(reminderDaysLabel(d))),
+                        selected: _reminderDays == d,
+                        onSelected: (_) => _chooseReminder(d),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      d == null
+                          ? ''
+                          : formatChipDate(
+                              DateTime(_date.year, _date.month, _date.day - d)),
+                      style: AppText.sub.copyWith(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      const SizedBox(height: 4),
+      Opacity(
+        opacity: none ? 0.4 : 1,
+        child: TestId('reminder_hour', child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          enabled: !none,
+          title: const Text('시간', style: AppText.listName),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(hourLabel(_reminderHour), style: AppText.body),
+              const Icon(Icons.chevron_right, color: AppColors.textSub),
+            ],
+          ),
+          onTap: none ? null : _pickHour,
+        )),
+      ),
+      if (at != null)
+        TestId('reminder_preview', child: Text(
+          at.isAfter(DateTime.now())
+              ? '${formatShortDateWithDay(at)} ${hourLabel(_reminderHour)}쯤 알려드려요'
+              : '이미 지난 시간이라 알림이 오지 않아요',
+          style: AppText.sub,
+        )),
+    ];
   }
 
   /// 일정의 사람을 찾거나 새로 등록한다. 한도에 막히면 null.
@@ -172,8 +284,9 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       isMine: _isMine,
       place: _place.text.trim().isEmpty ? null : _place.text.trim(),
       memo: _memo.text.trim().isEmpty ? null : _memo.text.trim(),
-      // 알림 권한이 없으면 전날 알림은 꺼진 채로 저장한다
-      notify: _notify && ref.read(notificationPermissionProvider),
+      // 추가 AC: 권한이 없어도 고른 알림 값은 그대로 저장한다(권한이 생기면 다시 예약)
+      reminderDays: _reminderDays,
+      reminderHour: _reminderHour,
       personId: personId,
       pendingHidden: widget.existing?.pendingHidden ?? false,
     );
@@ -207,9 +320,6 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   );
 
   Widget _buildForm(BuildContext context) {
-    final reminder = NotificationService.reminderTime(_date);
-    final reminderPast = !reminder.isAfter(DateTime.now());
-    final notifAllowed = ref.watch(notificationPermissionProvider);
     final isSchedule = widget.isSchedule;
     final people = ref.watch(allPeopleProvider).value ?? const <Person>[];
     final hasName = _name.text.trim().isNotEmpty;
@@ -320,35 +430,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             ),
           ],
           const SizedBox(height: 12),
-          // 알림 권한이 없으면 스위치를 막고 권한부터 받게 한다
-          TestId(
-            'switch_notify',
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('전날 오전 9시 알림', style: AppText.listName),
-              subtitle: Text(
-                !notifAllowed
-                    ? '알림 권한이 없어 쓸 수 없어요'
-                    : reminderPast
-                    ? '이미 지난 날짜라 알림이 울리지 않아요'
-                    : '${formatShortDate(reminder)} 오전 9시쯤 알려드려요',
-              ),
-              value: notifAllowed && _notify,
-              onChanged: notifAllowed ? _onNotifyChanged : null,
-            ),
-          ),
-          if (!notifAllowed)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TestId(
-                'btn_allow_notify',
-                child: OutlinedButton.icon(
-                  onPressed: _askPermission,
-                  icon: const Icon(Icons.notifications_outlined),
-                  label: const Text('알림 허용하기'),
-                ),
-              ),
-            ),
+          ..._reminderSection(),
           const SizedBox(height: 20),
           TestId(
             'btn_save',

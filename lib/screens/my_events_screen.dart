@@ -28,7 +28,7 @@ class MyEventsScreen extends ConsumerWidget {
           TestId('events_empty', child: EmptyView(
             icon: Icons.event_available,
             message: '아직 행사가 없어요.',
-            detail: '연필 버튼 > 받은 돈 적기에서 만들어요',
+            detail: '연필 버튼 > 행사 장부 작성에서 만들어요',
           )),
           fabBottomSpace,
         ],

@@ -225,13 +225,13 @@ void main() {
         (tester) async {
       await open(tester, const EventDetailScreen(eventId: 1),
           event: _myEvent(meals: true), myEvents: 1);
-      expect(find.text('받은 돈 적기'), findsOneWidget);
+      expect(find.text('장부 작성'), findsOneWidget);
       expect(find.textContaining('가져오기'), findsNothing);
       expect(find.text('장부 보내기'), findsNothing);
       expect(find.byTooltip('공유하기'), findsOneWidget);
       expect(find.byTooltip('폰에 저장'), findsOneWidget);
       expect(find.text('행사장 접수'), findsNothing);
-      await tester.tap(find.text('받은 돈 적기'));
+      await tester.tap(find.text('장부 작성'));
       await tester.pumpAndSettle();
       expect(find.byType(ReceiveMoneyScreen), findsOneWidget);
       expect(find.text('4+'), findsOneWidget);
@@ -240,7 +240,7 @@ void main() {
 
     testWidgets('식권을 끈 행사는 칩이 없다', (tester) async {
       await open(tester, const EventDetailScreen(eventId: 1), myEvents: 1);
-      await tester.tap(find.text('받은 돈 적기'));
+      await tester.tap(find.text('장부 작성'));
       await tester.pumpAndSettle();
       expect(find.byType(ReceiveMoneyScreen), findsOneWidget);
       expect(find.text('4+'), findsNothing);
@@ -250,7 +250,7 @@ void main() {
     testWidgets('설정 전인 행사는 행사 설정(구분 · 식권 · 결제 방법)을 먼저 묻는다', (tester) async {
       await open(tester, const EventDetailScreen(eventId: 1),
           event: _myEvent(settings: false), myEvents: 1);
-      await tester.tap(find.text('받은 돈 적기'));
+      await tester.tap(find.text('장부 작성'));
       await tester.pumpAndSettle();
       expect(find.byType(ReceptionFormScreen), findsOneWidget);
       expect(find.text('내 행사 · 내 결혼식'), findsOneWidget);
@@ -514,6 +514,8 @@ void main() {
       await tester.tap(find.text('나중에 할게요'));
       await tester.pumpAndSettle();
       // '누구 행사예요?' 선택이 비어 있어 [받기 시작]을 누를 수 없다
+      await tester.drag(find.byType(ListView).first, const Offset(0, -1500));
+      await tester.pumpAndSettle();
       expect(
           tester.widget<FilledButton>(find.widgetWithText(FilledButton, '받기 시작'))
               .onPressed,

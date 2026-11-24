@@ -194,6 +194,50 @@ class Repository {
     return rows.map(Event.fromMap).toList();
   }
 
+  /// 홈 달력(추가 AC): [start] ~ [end](둘 다 포함) 사이의 기록. 표시 중인 주 · 달만 읽는다.
+  Future<List<GiftRecord>> recordsBetween(DateTime start, DateTime end) async {
+    final db = await _db;
+    final rows = await db.rawQuery(
+        '$_recordSelect WHERE r.date >= ? AND r.date <= ? ORDER BY r.date ASC, r.id DESC',
+        [toDbDate(start), toDbDate(end)]);
+    return rows.map(GiftRecord.fromMap).toList();
+  }
+
+  /// 홈 달력: 기간 안의 일정 · 내 행사
+  Future<List<Event>> eventsBetween(DateTime start, DateTime end) async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      $_scheduleSelect
+      WHERE e.date >= ? AND e.date <= ?
+      ORDER BY e.date ASC, e.id ASC
+    ''', [toDbDate(start), toDbDate(end)]);
+    return rows.map(Event.fromMap).toList();
+  }
+
+  /// 홈 달력 · 다가오는 일정: 기간 안의 다른 사람 행사.
+  /// 이미 내 행사로 옮긴 장부(imported)는 내 행사와 겹치므로 뺀다. [end]가 null이면 끝 없음.
+  Future<List<Reception>> receptionsBetween(DateTime start, DateTime? end) async {
+    final db = await _db;
+    final rows = await db.query('receptions',
+        where: end == null
+            ? 'imported = 0 AND date >= ?'
+            : 'imported = 0 AND date >= ? AND date <= ?',
+        whereArgs: [toDbDate(start), if (end != null) toDbDate(end)],
+        orderBy: 'date ASC');
+    return rows.map(Reception.fromMap).toList();
+  }
+
+  /// 다가오는 내 행사 (오늘 포함, 가까운 날 순)
+  Future<List<Event>> upcomingMyEvents() async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      $_scheduleSelect
+      WHERE e.is_mine = 1 AND e.date >= ?
+      ORDER BY e.date ASC, e.id ASC
+    ''', [toDbDate(DateTime.now())]);
+    return rows.map(Event.fromMap).toList();
+  }
+
   /// '얼마 내셨어요?': 날짜가 지났는데 보낸 기록이 없고 숨기지 않은 일정 (최근 순)
   Future<List<Event>> pendingAmountEvents({int? limit}) async {
     final db = await _db;

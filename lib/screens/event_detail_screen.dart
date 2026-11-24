@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/providers.dart';
 import '../services/format.dart';
 import '../services/notification_permission.dart';
+import '../services/reminder_format.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
@@ -96,10 +97,10 @@ class EventDetailScreen extends ConsumerWidget {
                           formatDate(e.date),
                           if ((e.place ?? '').isNotEmpty) e.place!,
                           if ((e.memo ?? '').isNotEmpty) e.memo!,
-                          if (e.notify)
+                          if (e.hasReminder)
                             ref.watch(notificationPermissionProvider)
-                                ? '전날 오전 9시 알림'
-                                : '전날 알림 꺼짐 (알림 권한 없음)',
+                                ? '알림: ${reminderLabel(e)}'
+                                : '알림: ${reminderLabel(e)} (알림 권한이 꺼져 있어요)',
                         ].join('\n'),
                         style: AppText.sub.copyWith(height: 1.6),
                       ),
@@ -164,7 +165,7 @@ class EventDetailScreen extends ConsumerWidget {
                           onPressed: () =>
                               Navigator.push(context, myEventReceiveRoute(e)),
                           icon: const Icon(Icons.playlist_add),
-                          label: const Text('받은 돈 적기'),
+                          label: const Text('장부 작성'),
                         )),
                       ),
                     ] else
@@ -186,7 +187,7 @@ class EventDetailScreen extends ConsumerWidget {
                 EmptyView(
                     icon: Icons.list_alt,
                     message: e.isMine
-                        ? '[받은 돈 적기]로 축의금 봉투를\n한 장씩 빠르게 입력해 보세요.'
+                        ? '[장부 작성]으로 축의금 봉투를\n한 장씩 빠르게 입력해 보세요.'
                         : '아직 기록이 없어요.')
               else
                 for (final r in d.records)

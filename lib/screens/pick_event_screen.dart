@@ -71,7 +71,7 @@ class PickEventScreen extends ConsumerWidget {
     final receptions =
         ref.watch(receptionSummariesProvider).value ?? const <ReceptionSummary>[];
     return Scaffold(
-      appBar: AppBar(title: const Text('받은 돈 적기')),
+      appBar: AppBar(title: const Text('행사 장부 작성')),
       body: AsyncBody(
         value: events,
         builder: (all) {

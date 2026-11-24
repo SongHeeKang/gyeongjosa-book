@@ -58,9 +58,8 @@ Future<bool> askNotificationPermission(BuildContext context, WidgetRef ref,
     barrierDismissible: false,
     builder: (ctx) => AlertDialog(
       title: const Text('알림을 허용해 주세요'),
-      content: const Text(
-          '행사 전날 오전 9시에 "내일 ○○ 결혼식이에요" 하고 알려드려요.\n'
-          '알림을 허용하지 않으면 행사 알림을 쓸 수 없어요.'),
+      // 추가 AC: 설명은 한 줄만
+      content: const Text('일정마다 원하는 날짜와 시간에 알려드려요'),
       actions: [
         TextButton(
             key: const ValueKey('notif_later'),
@@ -110,5 +109,49 @@ Future<bool> requestNotificationsOrOpenSettings(WidgetRef ref) async {
     await prefs.setInt(PrefKeys.notifDeniedCount, 2);
     await openNotificationSettings();
   }
+  return false;
+}
+
+/// 일정 알림에서 [없음]이 아닌 값을 고를 때 (추가 AC).
+/// 권한이 있으면 아무것도 하지 않는다. 안드로이드가 아직 허용 창을 띄울 수 있으면 바로 허용 창,
+/// 더 띄울 수 없는 상태(두 번 거절 등)면 "알림이 꺼져 있어 이 일정 알림을 받을 수 없어요"
+/// [설정 열기] [나중에]. 어느 경우든 고른 값과 저장은 막지 않는다(돌려주는 값은 권한 여부).
+Future<bool> ensureReminderPermission(BuildContext context, WidgetRef ref) async {
+  final permission = ref.read(notificationPermissionProvider.notifier);
+  if (await permission.refresh()) return true;
+  final prefs = ref.read(prefsProvider);
+  final denied = prefs.getInt(PrefKeys.notifDeniedCount) ?? 0;
+  if (denied < 2) {
+    final started = DateTime.now();
+    final granted = await NotificationService.instance.requestPermission();
+    if (granted) {
+      await prefs.setInt(PrefKeys.notifDeniedCount, 0);
+      await permission.refresh();
+      return true;
+    }
+    final blocked =
+        DateTime.now().difference(started) < const Duration(milliseconds: 400);
+    await prefs.setInt(PrefKeys.notifDeniedCount, blocked ? 2 : denied + 1);
+    // 허용 창이 뜨지도 않고 바로 거절되면(이미 막힌 경우) 아래 안내로
+    if (!blocked) return false;
+  }
+  if (!context.mounted) return false;
+  final open = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      content: const Text('알림이 꺼져 있어 이 일정 알림을 받을 수 없어요'),
+      actions: [
+        TextButton(
+            key: const ValueKey('reminder_perm_later'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('나중에')),
+        FilledButton(
+            key: const ValueKey('reminder_perm_settings'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('설정 열기')),
+      ],
+    ),
+  );
+  if (open == true) await openNotificationSettings();
   return false;
 }

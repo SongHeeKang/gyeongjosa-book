@@ -56,6 +56,19 @@ DateTime parseDbDate(String? s) {
 
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+/// 홈 '일정'의 오늘 기준 날짜 표시 (추가 AD). 날짜만 비교한다(시각 무시).
+/// 지난 날 'D+10', 오늘 'D-day', 앞으로 'D-10'. 다가오는 일정 · 달력 날짜 목록이 같이 쓴다.
+String dDayLabel(DateTime date, {DateTime? now}) {
+  final diff = daysFromToday(date, now: now);
+  if (diff == 0) return 'D-day';
+  return diff > 0 ? 'D-$diff' : 'D+${-diff}';
+}
+
+/// 오늘부터 [date]까지 며칠(지난 날은 음수). 하루 길이가 다른 날이 있어도 어긋나지 않게 반올림.
+int daysFromToday(DateTime date, {DateTime? now}) =>
+    (dateOnly(date).difference(dateOnly(now ?? DateTime.now())).inHours / 24)
+        .round();
+
 /// D-day 문구: 오늘 → "오늘", 내일 → "내일", 그 외 "D-3"
 String dDay(DateTime date) {
   final diff = dateOnly(date).difference(dateOnly(DateTime.now())).inDays;

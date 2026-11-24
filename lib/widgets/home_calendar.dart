@@ -16,7 +16,7 @@ import 'common.dart';
 import 'test_id.dart';
 
 /// 홈 '일정' 섹션 (추가 AC): 달력(주간 띠 ↔ 월 달력) + 다가오는 일정.
-/// - 제목 줄 오른쪽 '월 달력 ⌄' / '주간 ⌃' + 접기 화살표. 접히면 '· n개'(다가오는 일정 개수)
+/// - 제목 줄 오른쪽 '월 달력' / '주간'(글자만, 추가 AD) + 접기 화살표. 접히면 '· n개'(다가오는 일정 개수)
 /// - 날짜 아래 점(최대 3개): 보냄 코랄 · 받음 파랑 · 일정/행사 회색
 /// - 날짜를 누르면 아래 목록이 그날 내역으로, 같은 날을 다시 누르면 다가오는 일정으로
 /// - 달력은 표시 중인 주 · 달의 데이터만 읽는다([calendarDataProvider])
@@ -132,7 +132,7 @@ class _HomeScheduleSectionState extends ConsumerState<HomeScheduleSection> {
       trailing: TestId(
         'home_calendar_mode',
         selected: month,
-        child: LinkText(month ? '주간 ⌃' : '월 달력 ⌄',
+        child: LinkText(month ? '주간' : '월 달력',
             onTap: () => _toggleMode(!month)),
       ),
       footer: const Padding(
@@ -517,11 +517,12 @@ void _openItem(BuildContext context, UpcomingItem item) {
   Navigator.push(context, MaterialPageRoute<void>(builder: (_) => screen));
 }
 
-/// 'D-day' · 'D-3'
-String upcomingDDay(DateTime date) {
-  final diff = dateOnly(date).difference(dateOnly(DateTime.now())).inDays;
-  return diff <= 0 ? 'D-day' : 'D-$diff';
-}
+/// 일정 · 행사 줄 앞의 날짜 표시 자리 (다가오는 일정 · 날짜 목록 공통 너비)
+const _dDayWidth = 56.0;
+
+/// 날짜 목록의 D±n 색: 지난 날 회색, 오늘 · 앞으로 파랑
+Color _dDayColor(DateTime date) =>
+    daysFromToday(date) < 0 ? AppColors.textSub : AppColors.primary;
 
 /// 다가오는 일정 한 줄: D-n + 이름(+알림 종) + 라벨 칩 + 날짜
 class UpcomingTile extends StatelessWidget {
@@ -541,8 +542,8 @@ class UpcomingTile extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(
-                width: 56,
-                child: Text(upcomingDDay(item.date),
+                width: _dDayWidth,
+                child: Text(dDayLabel(item.date),
                     style: AppText.dDay.copyWith(
                         color: highlight ? AppColors.primary : AppColors.icon)),
               ),
@@ -658,56 +659,81 @@ class _DayList extends ConsumerWidget {
     );
   }
 
-  Widget _recordRow(BuildContext context, GiftRecord r) => InkWell(
-        onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute<void>(
-                builder: (_) => PersonDetailScreen(personId: r.personId))),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.page, vertical: AppSpacing.item),
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(r.personName ?? '',
-                    style: AppText.listName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-              const SizedBox(width: 6),
-              r.isSent
-                  ? const _LabelChip('보냄',
-                      color: AppColors.sent, background: AppColors.sentSoft)
-                  : const _LabelChip('받음',
-                      color: AppColors.received,
-                      background: AppColors.primarySoft),
-              const Spacer(),
-              Text(signedWon(r.amount, isSent: r.isSent),
-                  style: AppText.listAmount
-                      .copyWith(color: AppColors.amount(r.isSent))),
-            ],
+  /// 보냄 · 받음 줄: 이름 + 칩 … 금액(오른쪽 끝) + ›. 누르면 그 사람 상세(기록 목록 · 수정)
+  Widget _recordRow(BuildContext context, GiftRecord r) => TestId(
+        'cal_record_${r.id}',
+        child: InkWell(
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                  builder: (_) => PersonDetailScreen(personId: r.personId))),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.page, vertical: AppSpacing.item),
+            child: Row(
+              children: [
+                // 이름 · 칩이 남는 자리를 모두 차지해 금액이 오른쪽 끝에 붙는다
+                Expanded(
+                  child: Row(children: [
+                    Flexible(
+                      child: Text(r.personName ?? '',
+                          style: AppText.listName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    const SizedBox(width: 6),
+                    r.isSent
+                        ? const _LabelChip('보냄',
+                            color: AppColors.sent,
+                            background: AppColors.sentSoft)
+                        : const _LabelChip('받음',
+                            color: AppColors.received,
+                            background: AppColors.primarySoft),
+                  ]),
+                ),
+                const SizedBox(width: 8),
+                Text(signedWon(r.amount, isSent: r.isSent),
+                    style: AppText.listAmount
+                        .copyWith(color: AppColors.amount(r.isSent))),
+                const Icon(Icons.chevron_right, color: AppColors.divider),
+              ],
+            ),
           ),
         ),
       );
 
-  Widget _itemRow(BuildContext context, UpcomingItem u) => InkWell(
-        onTap: () => _openItem(context, u),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.page, vertical: AppSpacing.item),
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(u.title,
-                    style: AppText.listName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-              const SizedBox(width: 6),
-              _LabelChip.kind(u.kind),
-              const Spacer(),
-              const Icon(Icons.chevron_right, color: AppColors.divider),
-            ],
+  /// 일정 · 내 행사 · 다른 사람 행사 줄: D±n(다가오는 일정과 같은 자리 · 크기) + 이름 + 칩 + ›.
+  /// 지난 날짜의 행사도 눌러서 상세로 들어간다.
+  Widget _itemRow(BuildContext context, UpcomingItem u) => TestId(
+        'cal_item_${u.title}',
+        child: InkWell(
+          onTap: () => _openItem(context, u),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.page, vertical: AppSpacing.item),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: _dDayWidth,
+                  child: Text(dDayLabel(u.date),
+                      style: AppText.dDay.copyWith(color: _dDayColor(u.date))),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Row(children: [
+                    Flexible(
+                      child: Text(u.title,
+                          style: AppText.listName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    const SizedBox(width: 6),
+                    _LabelChip.kind(u.kind),
+                  ]),
+                ),
+                const Icon(Icons.chevron_right, color: AppColors.divider),
+              ],
+            ),
           ),
         ),
       );

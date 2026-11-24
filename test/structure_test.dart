@@ -811,6 +811,48 @@ void main() {
       expect(find.text('이 날은 기록이 없어요'), findsOneWidget);
     });
 
+    testWidgets('추가 AD: 날짜 목록의 일정 · 행사 줄에 D±n, 지난 날도 상세로, 보냄 · 받음 금액은 오른쪽 끝 + ›',
+        (tester) async {
+      final today = inDays(0);
+      // 이번 주 안의 다른 날 (오늘이 일요일이면 토요일, 아니면 일요일 = 지난 날)
+      final other = today.weekday == DateTime.sunday
+          ? inDays(6)
+          : inDays(-(today.weekday % 7));
+      final repo = FakeRepository()
+        ..calendarRecords = [
+          GiftRecord(id: 1, personId: 1, direction: '보냄', amount: 70000,
+              date: other, personName: '김철수'),
+        ]
+        ..calendarEvents = [
+          Event(id: 9, type: '결혼', title: '그날 결혼식', date: other,
+              isMine: false),
+        ];
+      await pump(tester, const HomeScreen(), repository: repo);
+      await tester.tap(byTestIdFinder(
+          'cal_day_${other.year}${'${other.month}'.padLeft(2, '0')}${'${other.day}'.padLeft(2, '0')}'));
+      await tester.pumpAndSettle();
+      final label = dDayLabel(other);
+      expect(label, other.isBefore(today) ? startsWith('D+') : startsWith('D-'));
+      final dText = tester.widget<Text>(find.text(label));
+      expect(dText.style?.color,
+          other.isBefore(today) ? AppColors.textSub : AppColors.primary);
+      // 보냄 줄: 금액이 줄 오른쪽 끝(› 바로 왼쪽)에 붙는다
+      final row = byTestIdFinder('cal_record_1');
+      final amount = find.descendant(of: row, matching: find.text('−70,000원'));
+      final chevron =
+          find.descendant(of: row, matching: find.byIcon(Icons.chevron_right));
+      expect(chevron, findsOneWidget);
+      expect(tester.getTopRight(amount).dx,
+          closeTo(tester.getTopLeft(chevron).dx, 1));
+      // 행사 줄도 › 가 있고, 눌러서 상세로 (지난 날이어도)
+      final item = byTestIdFinder('cal_item_그날 결혼식');
+      expect(find.descendant(of: item, matching: find.byIcon(Icons.chevron_right)),
+          findsOneWidget);
+      await tester.tap(item);
+      await tester.pumpAndSettle();
+      expect(find.byType(EventDetailScreen), findsOneWidget);
+    });
+
     testWidgets('월 달력: 그달 합계, 상태는 저장되어 다시 열어도 월 달력, 주간으로 돌리면 주간',
         (tester) async {
       final today = inDays(0);
@@ -822,13 +864,13 @@ void main() {
               date: today, personName: '이영희'),
         ];
       await pump(tester, const HomeScreen(), repository: repo);
-      await tester.tap(find.text('월 달력 ⌄'));
+      await tester.tap(find.text('월 달력'));
       await tester.pumpAndSettle();
       expect(find.text('${today.year}년 ${today.month}월'), findsOneWidget);
       expect(find.text('오늘'), findsOneWidget);
       expect(byTestIdFinder('cal_month_total'), findsOneWidget);
       expect(find.textContaining('200,000원'), findsWidgets);
-      expect(find.text('주간 ⌃'), findsOneWidget);
+      expect(find.text('주간'), findsOneWidget);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool(PrefKeys.homeCalendarMonth), isTrue);
 
@@ -842,10 +884,10 @@ void main() {
         child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
       ));
       await tester.pumpAndSettle();
-      expect(find.text('주간 ⌃'), findsOneWidget);
-      await tester.tap(find.text('주간 ⌃'));
+      expect(find.text('주간'), findsOneWidget);
+      await tester.tap(find.text('주간'));
       await tester.pumpAndSettle();
-      expect(find.text('월 달력 ⌄'), findsOneWidget);
+      expect(find.text('월 달력'), findsOneWidget);
       expect(prefs.getBool(PrefKeys.homeCalendarMonth), isFalse);
     });
 
@@ -1436,6 +1478,14 @@ void main() {
       expect(find.text('철수 결혼식'), findsOneWidget);
       expect(find.text('알림이 꺼져 있어요'), findsNothing);
     });
+  });
+
+  test('추가 AD: D±n은 날짜만 비교 (지난 날 D+n, 오늘 D-day, 앞으로 D-n)', () {
+    final now = DateTime(2026, 11, 24, 23, 59);
+    expect(dDayLabel(DateTime(2026, 11, 14), now: now), 'D+10');
+    expect(dDayLabel(DateTime(2026, 11, 24, 0, 1), now: now), 'D-day');
+    expect(dDayLabel(DateTime(2026, 11, 25), now: now), 'D-1');
+    expect(dDayLabel(DateTime(2026, 12, 4), now: now), 'D-10');
   });
 
   test('추가 AC: 알림 문구 · 시간 표시', () {

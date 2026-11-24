@@ -37,6 +37,7 @@
 - 안드로이드 설정의 '데이터 삭제' 보호 화면(추가 C, manageSpaceActivity)은 추가 AC에서 없앴다. 기본 확인창만 뜨고 지워진다.
 - 자동 백업: 기록이 바뀌면(`dbVersionProvider`) 5초 뒤 Download/경조사장부/에 저장한다(`lib/services/auto_backup_service.dart`, `DownloadBackup.kt`). 빈 장부로는 백업하지 않고, 이번 앱 데이터에서 만든 파일만 덮어쓴다. Android 10 이상에서만 동작한다.
 - 자동화 테스트는 이 저장소 밖의 별도 프로젝트(AutoTest: Python + behave + Appium + Allure)에 있다. 주요 위젯은 `lib/widgets/test_id.dart`의 `TestId('이름', child: ...)`로 감싸 resource-id를 붙인다. 화면을 고칠 때 이 식별자를 지우거나 이름을 바꾸지 않는다(바꾸면 README 표와 시나리오도 함께 고친다). 자동화용 APK는 debug 빌드.
+- 폰용 APK: VS Code 'Tasks: Run Task > 폰용 APK 올리기' = `scripts/upload_apk.sh`(release 빌드 → `경조사장부_{버전}_{빌드번호}_{날짜시간}.apk` → `.env.local`의 `APK_UPLOAD_DIR`(Synology Drive 동기화 폴더, git 제외)로 복사, 최근 5개만). 실행할 때마다 pubspec 빌드 번호 +1(성공했을 때만). 서명은 release 설정 그대로(지금은 이 맥의 `~/.android/debug.keystore`, SHA-256 bfa9e6dc…)라 이 파일이 바뀌면 폰에 덮어 설치가 안 된다.
 - 인앱 상품 ID: `pro_lifetime` (일회성 제품, 4,900원).
 - 알림은 정확한 알람 권한 없이 일반 예약 알림(inexactAllowWhileIdle)만 사용. 일정마다 `reminder_days`(null 없음 · 0 당일 · 1 · 2)와 `reminder_hour`(0~23, DB v8). 새 일정 기본 1일 전 오전 9시. 예전 `notify` 컬럼은 읽지 않는다. 일정 화면 칩 [없음][2일 전][1일 전][당일] + 시간(1시간 단위). 권한이 꺼져 있으면 칩을 고를 때 허용 창 또는 [설정 열기] 안내(`ensureReminderPermission`), 저장은 막지 않는다. 앱을 켤 때 거절해도 스낵바 없음. 홈 '알림이 꺼져 있어요 · 켜기'는 알림 켠 다가오는 일정이 있을 때만. 설정에 켜짐/꺼짐 + [설정 열기].
 - 사람 탭 인원은 헤더가 아니라 칩 아래 제목 줄('전체 n명', 무료면 '· 무료 50명까지' + 막대).

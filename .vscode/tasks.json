@@ -1,0 +1,23 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "폰용 APK 올리기",
+      "detail": "release APK 빌드 → 이름 바꾸기 → Synology Drive 동기화 폴더로 복사 (최근 5개만 남김)",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/upload_apk.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": { "executable": "/bin/zsh", "args": ["-l", "-c"] }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "clear": true,
+        "showReuseMessage": false
+      }
+    }
+  ]
+}

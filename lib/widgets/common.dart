@@ -290,7 +290,8 @@ class RecordTile extends StatelessWidget {
   }
 }
 
-/// 행사 한 줄: 왼쪽 D-day, 이름, 날짜 · 종류
+/// 행사 한 줄 ('일정 전체' 화면): 이름 · 날짜 · 종류(왼쪽) … D±n(오른쪽 끝, › 바로 앞).
+/// 홈 다가오는 일정 · 달력 날짜 목록과 같은 [dDayLabel] · 같은 자리(추가 AE).
 class EventTile extends StatelessWidget {
   const EventTile({
     super.key,
@@ -302,13 +303,12 @@ class EventTile extends StatelessWidget {
   final Event event;
   final String? subtitle;
 
-  /// 가장 가까운 행사만 D-day를 포인트색으로
+  /// 가장 가까운 행사만 D-n을 포인트색으로
   final bool highlight;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final upcoming = !event.date.isBefore(dateOnly(DateTime.now()));
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -316,17 +316,6 @@ class EventTile extends StatelessWidget {
             horizontal: AppSpacing.page, vertical: AppSpacing.item),
         child: Row(
           children: [
-            SizedBox(
-              width: 52,
-              child: Text(
-                upcoming ? dDay(event.date) : formatShortDate(event.date),
-                style: AppText.dDay.copyWith(
-                    color: highlight && upcoming
-                        ? AppColors.primary
-                        : AppColors.icon),
-              ),
-            ),
-            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,6 +337,12 @@ class EventTile extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              dDayLabel(event.date),
+              style: AppText.listAmount.copyWith(
+                  color: highlight ? AppColors.primary : AppColors.icon),
             ),
             const Icon(Icons.chevron_right, color: AppColors.divider),
           ],

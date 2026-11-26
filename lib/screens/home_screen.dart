@@ -14,6 +14,7 @@ import '../widgets/test_id.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/common.dart';
 import '../widgets/pending_amount_section.dart';
+import '../widgets/period_sheet.dart';
 import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
 import 'all_records_screen.dart';
@@ -30,7 +31,6 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final home = ref.watch(homeProvider);
-    final year = DateTime.now().year;
     return Scaffold(
       appBar: AppBar(
         title: const Text('경조사 장부'),
@@ -54,33 +54,78 @@ class HomeScreen extends ConsumerWidget {
         value: home,
         builder: (data) => ListView(
           children: [
-            // 요약 카드 제목 줄: 왼쪽 '2026년 나의 경조사', 오른쪽 백업 아이콘(v1에서는 숨김)
+            // 요약 카드 제목 줄: 왼쪽 '2026년 나의 경조사 ⌄'(누르면 기간 선택, 추가 AE),
+            // 오른쪽 백업 아이콘(v1에서는 숨김)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.page,
+                AppSpacing.page - 8,
                 4,
                 AppSpacing.page - 8,
                 4,
               ),
               child: Row(
                 children: [
-                  Expanded(child: Text('$year년 나의 경조사', style: AppText.label)),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TestId(
+                        'home_period',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => showPeriodSheet(context),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 48),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      periodTitle(ref.watch(homePeriodProvider)),
+                                      style: AppText.label,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  const Icon(
+                                    Icons.keyboard_arrow_down,
+                                    size: 20,
+                                    color: AppColors.primary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   if (showBackup)
-                    BackupStatusButton(recordCount: data.recordCount)
-                  else
-                    // 아이콘이 없어도 제목 줄 높이는 같게
-                    const SizedBox(height: 48),
+                    BackupStatusButton(recordCount: data.recordCount),
                 ],
               ),
             ),
-            SummaryRow(
-              sent: data.sent,
-              received: data.received,
-              sentCount: data.sentCount,
-              receivedCount: data.receivedCount,
-              sentId: 'home_sent_total',
-              receivedId: 'home_received_total',
-            ),
+            // 보낸 마음 · 받은 마음: 고른 기간의 합계 · 건수 (summaryFor 한 곳에서 계산)
+            Builder(builder: (context) {
+              final period = ref.watch(homePeriodProvider);
+              final s = ref.watch(homeSummaryProvider).value ??
+                  (period == DateTime.now().year
+                      ? (
+                          sent: data.sent,
+                          received: data.received,
+                          sentCount: data.sentCount,
+                          receivedCount: data.receivedCount,
+                        )
+                      : (sent: 0, received: 0, sentCount: 0, receivedCount: 0));
+              return SummaryRow(
+                sent: s.sent,
+                received: s.received,
+                sentCount: s.sentCount,
+                receivedCount: s.receivedCount,
+                sentId: 'home_sent_total',
+                receivedId: 'home_received_total',
+              );
+            }),
             const SizedBox(height: AppSpacing.section),
             const AppDivider(),
             if (data.pending.isNotEmpty)

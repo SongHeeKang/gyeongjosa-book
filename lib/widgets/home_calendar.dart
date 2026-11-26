@@ -517,14 +517,13 @@ void _openItem(BuildContext context, UpcomingItem item) {
   Navigator.push(context, MaterialPageRoute<void>(builder: (_) => screen));
 }
 
-/// 일정 · 행사 줄 앞의 날짜 표시 자리 (다가오는 일정 · 날짜 목록 공통 너비)
-const _dDayWidth = 56.0;
-
 /// 날짜 목록의 D±n 색: 지난 날 회색, 오늘 · 앞으로 파랑
 Color _dDayColor(DateTime date) =>
     daysFromToday(date) < 0 ? AppColors.textSub : AppColors.primary;
 
-/// 다가오는 일정 한 줄: D-n + 이름(+알림 종) + 라벨 칩 + 날짜
+/// 다가오는 일정 한 줄: 이름(+알림 종) · 라벨 칩 · 날짜(왼쪽) … D-n(오른쪽 끝, › 바로 앞).
+/// D-n은 달력 날짜 목록과 같은 [dDayLabel] · 같은 자리 · 같은 크기(추가 AE).
+/// 가장 가까운 일정([highlight])만 파랑, 나머지는 진한 회색, 굵게.
 class UpcomingTile extends StatelessWidget {
   const UpcomingTile({super.key, required this.item, this.highlight = false});
   final UpcomingItem item;
@@ -541,13 +540,6 @@ class UpcomingTile extends StatelessWidget {
               horizontal: AppSpacing.page, vertical: AppSpacing.item),
           child: Row(
             children: [
-              SizedBox(
-                width: _dDayWidth,
-                child: Text(dDayLabel(item.date),
-                    style: AppText.dDay.copyWith(
-                        color: highlight ? AppColors.primary : AppColors.icon)),
-              ),
-              const SizedBox(width: 4),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -581,6 +573,10 @@ class UpcomingTile extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              Text(dDayLabel(item.date),
+                  style: AppText.listAmount.copyWith(
+                      color: highlight ? AppColors.primary : AppColors.icon)),
               const Icon(Icons.chevron_right, color: AppColors.divider),
             ],
           ),

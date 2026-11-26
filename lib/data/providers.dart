@@ -163,6 +163,35 @@ final homeProvider = FutureProvider<HomeData>((ref) async {
   );
 });
 
+/// 홈 요약 카드의 기간 (추가 AE). null = 전체 기간, 숫자 = 그 연도.
+/// 저장하지 않아서 앱을 다시 켜면 올해로 돌아온다. 요약 카드에만 쓴다(달력 · 그래프 · 최근 기록 · 공유 범위는 그대로).
+class HomePeriod extends Notifier<int?> {
+  @override
+  int? build() => DateTime.now().year;
+
+  void select(int? year) => state = year;
+}
+
+final homePeriodProvider = NotifierProvider<HomePeriod, int?>(HomePeriod.new);
+
+/// 기간별 보냄 · 받음 합계와 건수. 합계 계산은 여기 한 곳([Repository.yearTotals] · [Repository.allTotals]).
+Future<({int sent, int received, int sentCount, int receivedCount})> summaryFor(
+        Repository repo, int? year) =>
+    year == null ? repo.allTotals() : repo.yearTotals(year);
+
+final homeSummaryProvider = FutureProvider<
+    ({int sent, int received, int sentCount, int receivedCount})>((ref) {
+  ref.watch(dbVersionProvider);
+  return summaryFor(ref.watch(repositoryProvider), ref.watch(homePeriodProvider));
+});
+
+/// 기간 선택창 목록: 기록이 있는 연도와 건수(최신순, 올해는 항상)
+final recordYearCountsProvider =
+    FutureProvider<List<({int year, int count})>>((ref) {
+  ref.watch(dbVersionProvider);
+  return ref.watch(repositoryProvider).recordYearCounts();
+});
+
 final recordYearsProvider = FutureProvider<List<int>>((ref) {
   ref.watch(dbVersionProvider);
   return ref.watch(repositoryProvider).recordYears();

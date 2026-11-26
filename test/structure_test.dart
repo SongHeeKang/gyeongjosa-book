@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gyeongjosa/widgets/period_sheet.dart';
 import 'package:gyeongjosa/screens/event_detail_screen.dart';
 import 'package:gyeongjosa/services/reminder_format.dart';
 import 'package:gyeongjosa/data/database_helper.dart';
@@ -90,10 +91,32 @@ class FakeRepository extends Repository {
   final insertedEvents = <Event>[];
   final hidden = <int>[];
 
+  /// 연도별 합계 (추가 AE: 요약 카드 기간 선택). 없는 연도는 0.
+  Map<int, ({int sent, int received, int sentCount, int receivedCount})>
+      totalsByYear = {};
+  List<({int year, int count})>? yearCounts;
   @override
   Future<({int sent, int received, int sentCount, int receivedCount})> yearTotals(
           int year) async =>
-      (sent: 0, received: 0, sentCount: 0, receivedCount: 0);
+      totalsByYear[year] ?? (sent: 0, received: 0, sentCount: 0, receivedCount: 0);
+  @override
+  Future<({int sent, int received, int sentCount, int receivedCount})>
+      allTotals() async {
+    var t = (sent: 0, received: 0, sentCount: 0, receivedCount: 0);
+    for (final v in totalsByYear.values) {
+      t = (
+        sent: t.sent + v.sent,
+        received: t.received + v.received,
+        sentCount: t.sentCount + v.sentCount,
+        receivedCount: t.receivedCount + v.receivedCount,
+      );
+    }
+    return t;
+  }
+
+  @override
+  Future<List<({int year, int count})>> recordYearCounts() async =>
+      yearCounts ?? [(year: DateTime.now().year, count: 0)];
   /// 올해 월별 보낸 금액 (홈 '최근 6개월' · 통계 탭)
   Map<int, int> sentByMonth = {};
   @override
@@ -283,6 +306,30 @@ void main() {
       }
       await repo.insertEvent(mine('다시'), maxMyEvents: 1);
       expect(await repo.countMyEvents(), 1);
+    });
+
+    test('추가 AE: 기간 선택 연도는 보냄 · 받음 기록 기준(일정만 있는 해 제외), 올해는 항상, 전체 합계', () async {
+      final now = DateTime.now().year;
+      final pid = await repo.insertPerson(
+          Person(name: '김철수', createdAt: DateTime(now)));
+      await repo.insertRecord(GiftRecord(personId: pid, direction: '보냄',
+          amount: 100000, date: DateTime(now - 2, 5, 1)));
+      await repo.insertRecord(GiftRecord(personId: pid, direction: '받음',
+          amount: 30000, date: DateTime(now - 2, 6, 1)));
+      final gone = await repo.insertRecord(GiftRecord(personId: pid,
+          direction: '보냄', amount: 999, date: DateTime(now - 1, 1, 1)));
+      await repo.deleteRecord(gone); // 지운 기록은 빠진다
+      await repo.insertEvent(Event(type: '결혼', title: '일정만', date: DateTime(now - 3, 1, 1),
+          isMine: false));
+      final years = await repo.recordYearCounts();
+      expect(years.map((y) => y.year), [now, now - 2]);
+      expect(years.first.count, 0);
+      expect(years.last.count, 2);
+      final all = await repo.allTotals();
+      expect((all.sent, all.received, all.sentCount, all.receivedCount),
+          (100000, 30000, 1, 1));
+      final y = await repo.yearTotals(now - 2);
+      expect(y.sent, 100000);
     });
 
     test('v3 데이터는 최신 버전으로 올려도 그대로 남는다', () async {
@@ -863,6 +910,103 @@ void main() {
       await tester.tap(item);
       await tester.pumpAndSettle();
       expect(find.byType(EventDetailScreen), findsOneWidget);
+    });
+
+    testWidgets('추가 AE: 요약 카드 기간 선택 — 연도 · 전체 기간으로 합계 · 건수만 바뀌고, 다시 켜면 올해',
+        (tester) async {
+      final now = DateTime.now().year;
+      final last = now - 1;
+      final repo = FakeRepository()
+        ..totalsByYear = {
+          now: (sent: 50000, received: 0, sentCount: 1, receivedCount: 0),
+          last: (sent: 300000, received: 200000, sentCount: 5, receivedCount: 4),
+        }
+        ..yearCounts = [(year: now, count: 1), (year: last, count: 9)];
+      await pump(tester, const HomeScreen(), repository: repo);
+      expect(find.text('$now년 나의 경조사'), findsOneWidget);
+      expect(find.text('50,000원'), findsOneWidget);
+      expect(find.text('최근 6개월'), findsOneWidget);
+
+      await tester.tap(find.text('$now년 나의 경조사'));
+      await tester.pumpAndSettle();
+      expect(find.text('어느 기간을 볼까요?'), findsOneWidget);
+      expect(find.text('전체 기간 · $last~$now'), findsOneWidget);
+      expect(find.text('$now년 · 1건'), findsOneWidget);
+      expect(find.text('$last년 · 9건'), findsOneWidget);
+      // 최신순, 지금 고른 올해에 체크
+      expect(tester.getTopLeft(find.text('$now년 · 1건')).dy,
+          lessThan(tester.getTopLeft(find.text('$last년 · 9건')).dy));
+      expect(find.byIcon(Icons.check), findsOneWidget);
+
+      await tester.tap(find.text('$last년 · 9건'));
+      await tester.pumpAndSettle();
+      expect(find.text('어느 기간을 볼까요?'), findsNothing);
+      expect(find.text('$last년 나의 경조사'), findsOneWidget);
+      expect(find.text('300,000원'), findsOneWidget);
+      expect(find.text('200,000원'), findsOneWidget);
+      expect(find.text('5건'), findsOneWidget);
+      expect(find.text('4건'), findsOneWidget);
+      // 요약 카드만 바뀌고 다른 섹션은 그대로
+      expect(find.text('최근 6개월'), findsOneWidget);
+      expect(find.text('다가오는 일정이 없어요.'), findsOneWidget);
+
+      await tester.tap(find.text('$last년 나의 경조사'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('전체 기간 · $last~$now'));
+      await tester.pumpAndSettle();
+      expect(find.text('전체 기간 나의 경조사'), findsOneWidget);
+      expect(find.text('350,000원'), findsOneWidget);
+      expect(find.text('6건'), findsOneWidget);
+
+      // X로 닫기
+      await tester.tap(find.text('전체 기간 나의 경조사'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('닫기'));
+      await tester.pumpAndSettle();
+      expect(find.text('어느 기간을 볼까요?'), findsNothing);
+
+      // 앱을 다시 켠 것처럼 새로 그리면 올해 (저장하지 않음)
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          repositoryProvider.overrideWithValue(repo),
+        ],
+        child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('$now년 나의 경조사'), findsOneWidget);
+    });
+
+    testWidgets('추가 AE: 다가오는 일정 D-n은 줄 오른쪽 끝 › 앞, 가장 가까운 것만 파랑',
+        (tester) async {
+      final repo = FakeRepository()
+        ..upcoming = [
+          Event(id: 1, type: '결혼', title: '가까운 결혼식', date: inDays(3),
+              isMine: false),
+          Event(id: 2, type: '장례', title: '먼 장례식', date: inDays(20),
+              isMine: false),
+        ];
+      await pump(tester, const HomeScreen(), repository: repo);
+      for (final (title, d, color) in [
+        ('가까운 결혼식', 'D-3', AppColors.primary),
+        ('먼 장례식', 'D-20', AppColors.icon),
+      ]) {
+        final row = byTestIdFinder('upcoming_item_$title');
+        final label = find.descendant(of: row, matching: find.text(d));
+        final chevron =
+            find.descendant(of: row, matching: find.byIcon(Icons.chevron_right));
+        expect(tester.getTopLeft(label).dx,
+            greaterThan(tester.getTopRight(find.text(title)).dx));
+        expect(tester.getTopRight(label).dx,
+            closeTo(tester.getTopLeft(chevron).dx, 1));
+        // 이름이 왼쪽 여백(24)에 붙는다 (왼쪽 빈 칸 없음)
+        expect(tester.getTopLeft(find.text(title)).dx, closeTo(AppSpacing.page, 1));
+        final style = tester.widget<Text>(label).style!;
+        expect(style.color, color);
+        expect(style.fontWeight, FontWeight.w700);
+      }
     });
 
     testWidgets('월 달력: 그달 합계, 상태는 저장되어 다시 열어도 월 달력, 주간으로 돌리면 주간',
@@ -1490,6 +1634,13 @@ void main() {
       expect(find.text('철수 결혼식'), findsOneWidget);
       expect(find.text('알림이 꺼져 있어요'), findsNothing);
     });
+  });
+
+  test('추가 AE: 기간 선택창 문구', () {
+    expect(periodTitle(2025), '2025년 나의 경조사');
+    expect(periodTitle(null), '전체 기간 나의 경조사');
+    expect(allPeriodLabel([2026, 2025, 2024]), '전체 기간 · 2024~2026');
+    expect(allPeriodLabel([2026]), '전체 기간 · 2026');
   });
 
   test('추가 AD: D±n은 날짜만 비교 (지난 날 D+n, 오늘 D-day, 앞으로 D-n)', () {

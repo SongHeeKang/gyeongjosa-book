@@ -627,7 +627,16 @@ class Repository {
 
   /// 해당 연도의 보냄/받음 총액과 건수
   Future<({int sent, int received, int sentCount, int receivedCount})>
-      yearTotals(int year) async {
+      yearTotals(int year) => _totals(year);
+
+  /// 전체 기간의 보냄/받음 총액과 건수 (홈 요약 카드 '전체 기간', 추가 AE)
+  Future<({int sent, int received, int sentCount, int receivedCount})>
+      allTotals() => _totals(null);
+
+  /// 보냄 · 받음 기록 합계. [year]가 null이면 전체 기간.
+  /// 기록은 지우면 표에서 바로 지워지므로 지운 기록은 자연히 빠진다.
+  Future<({int sent, int received, int sentCount, int receivedCount})> _totals(
+      int? year) async {
     final db = await _db;
     final rows = await db.rawQuery('''
       SELECT
@@ -635,8 +644,8 @@ class Repository {
         COALESCE(SUM(CASE WHEN direction = '받음' THEN amount END), 0) AS received,
         COUNT(CASE WHEN direction = '보냄' THEN 1 END) AS sent_count,
         COUNT(CASE WHEN direction = '받음' THEN 1 END) AS received_count
-      FROM records WHERE substr(date, 1, 4) = ?
-    ''', ['$year']);
+      FROM records ${year == null ? '' : 'WHERE substr(date, 1, 4) = ?'}
+    ''', [if (year != null) '$year']);
     final r = rows.first;
     return (
       sent: r['sent'] as int? ?? 0,
@@ -708,6 +717,20 @@ class Repository {
   }
 
   /// 내역이 있는 연도 목록 (+올해)
+  /// 보냄 · 받음 기록이 있는 연도와 건수 (최신순). 올해는 기록이 없어도 넣는다(추가 AE).
+  /// 일정만 있는 연도는 넣지 않는다(기록 날짜 기준).
+  Future<List<({int year, int count})>> recordYearCounts() async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      SELECT CAST(substr(date, 1, 4) AS INTEGER) AS y, COUNT(*) AS c
+      FROM records GROUP BY y
+    ''');
+    final counts = {for (final r in rows) r['y'] as int: r['c'] as int};
+    counts.putIfAbsent(DateTime.now().year, () => 0);
+    final years = counts.keys.toList()..sort((a, b) => b.compareTo(a));
+    return [for (final y in years) (year: y, count: counts[y]!)];
+  }
+
   Future<List<int>> recordYears() async {
     final db = await _db;
     final rows = await db.rawQuery(

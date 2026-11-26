@@ -12,7 +12,7 @@
 
 ## 참고 (구현 메모)
 
-- 단계별 요청문(기획서)은 `docs/`의 `경조사비 장부 앱 기획서 & Claude Code 개발 요청문 (3).md`에 있다(파일이 여러 개면 숫자가 가장 큰 것이 최신). 공개 저장소이므로 이 파일은 커밋하지 않는다(.gitignore). Claude Docs 링크는 VS Code에서 읽을 수 없으니 이 파일을 본다.
+- 기획서는 `docs/v1 최종 기획서.md`(2026-11-26부터, 예전 '개발 요청문' 파일들은 지웠다). 공개 저장소이므로 이 파일은 커밋하지 않는다(.gitignore). Claude Docs 링크는 VS Code에서 읽을 수 없으니 이 파일을 본다.
 - 앱 이름: 경조사 장부 / 패키지: com.heekangsong.gyeongjosa
 - DB 스키마 변경 시 `lib/data/database_helper.dart`의 `_dbVersion`을 올리고 `_migrations`에 단계를 추가한다. 기존 데이터를 지우는 마이그레이션은 금지.
 - 무료 한도: 사람 50명(`kFreePeopleLimit`, 이 상수 하나만 바꾸면 문구까지 바뀜), 내 행사 1개. 관계별·연도별 차트만 프로 전용 (`lib/services/limits.dart`). 공유 · 다운로드(엑셀 .xlsx · 텍스트)는 무료: 홈(주고받은 내역) · 행사 탭(행사 장부 전체) · 행사 상세(그 행사) 오른쪽 위 [공유] [다운로드] 아이콘(사람 탭에는 없음). 기록이 없으면 회색. 받기 끝내기 화면의 [공유하기]도 같은 선택창. 만드는 코드는 `lib/services/export_service.dart` 한 곳(행사 텍스트는 `ledger_text_format.dart` 재사용), 아이콘 · 선택창은 `lib/widgets/share_download.dart`. 다운로드는 `FilePicker.saveFile`(권한 요청 없음). 보관/지우기 질문은 다른 사람 행사 상세에서 공유한 뒤에만(행사 탭 공유 뒤엔 묻지 않음). 숨긴 [정보] 시트에 파일 종류 · 형식 버전(1)을 넣는다. 설정의 CSV 내보내기는 없앴다.
@@ -26,6 +26,7 @@
 - **Google Play 업로드 전 필수:** 설정의 테스트 도구(isPro 켜기/끄기 등)를 없앤다. `lib/services/app_config.dart`의 `testBuild`를 `false`로 바꾸면 APK·AAB에서 사라진다. 사용자가 출시·AAB·Play Console 업로드를 언급하면 먼저 이 작업을 하자고 요청할 것. `testBuild`가 `true`이면 `flutter build appbundle`은 일부러 실패한다. 이때 테스트 메뉴의 '더미데이터 추가'(`lib/data/dummy_data.dart`, 저장소의 더미 함수)도 사용자에게 알리고 코드째 지운다.
 - Google 드라이브 백업은 v1에서 뺐다(추가 W). Drive API · google_sign_in · OAuth 설정을 쓰지 않는다. 백업은 ① 다운로드 자동 백업(최근 7개) ② 안드로이드 자동 백업(allowBackup, backup_rules · data_extraction_rules에 DB · 설정 포함) ③ 백업 파일 → 공유창.
 - 내 행사 한도: 버튼을 누르는 순간 `LimitService.canCreateMyEvent`, 저장 순간 `LimitService.saveMyEvent` + 저장소의 `maxMyEvents`(트랜잭션 안에서 다시 세어 넘으면 `MyEventLimitReached`). 내 행사를 만드는 새 입구를 만들면 둘 다 거치게 하고, 저장 버튼은 첫 await 전에 막는다(빠른 연속 누르기).
+- 홈 요약 카드(추가 AE): 제목 '2026년 나의 경조사 ⌄'를 누르면 '어느 기간을 볼까요?'(`lib/widgets/period_sheet.dart`): 전체 기간 · 기록 있는 연도(최신순, 올해는 항상, `recordYearCounts`). 고른 기간은 `homePeriodProvider`(저장 안 함, 다시 켜면 올해), 합계는 `summaryFor`(→ `yearTotals` / `allTotals`) 한 곳. 바뀌는 건 요약 카드뿐. 다가오는 일정 · '일정 전체' 화면의 D-n도 줄 오른쪽 끝 › 앞(`dDayLabel`, 가장 가까운 것만 파랑).
 - 홈: 기록 · 일정이 없어도 요약 카드 → '일정'(달력 + 다가오는 일정, '다가오는 일정이 없어요.') → 최근 6개월(축 · 월 라벨 · 범례만 있는 빈 그래프, 문구 없음) → 최근 기록 순서로 늘 보인다.
 - 홈 '일정'(추가 AC, `lib/widgets/home_calendar.dart`): 주간 띠(기본) ↔ 월 달력(파란 글자 '월 달력' / '주간', `PrefKeys.homeCalendarMonth`에 저장). 날짜 목록의 일정 · 행사 줄 오른쪽 끝(금액 자리, › 앞) D±n(지난 날 'D+n' 회색, 오늘 'D-day', 앞으로 'D-n' 파랑)은 `dDayLabel`(format.dart) 한 곳, 다가오는 일정도 같이 씀. 보냄 · 받음 줄은 금액 오른쪽 끝 + › → 사람 상세. 점은 보냄 코랄 · 받음 파랑 · 일정/행사 회색(다른 사람 행사 손님 금액은 넣지 않음). 날짜를 누르면 그날 내역, 다시 누르면 다가오는 일정. 표시 중인 주 · 달만 `calendarDataProvider`로 읽는다. 다가오는 일정 = 일정 + 내 행사 + 다른 사람 행사(오늘 포함, `UpcomingItem`). '일정 전체 보기'는 목록 아래.
 - 화면 이름: '받은 돈 적기' → '행사 장부 작성'(연필 메뉴 · 입력 화면 제목), 내 행사 상세 [장부 작성], 다른 사람 행사 상세 [이어서 작성]. 클래스 이름(ReceiveMoneyScreen 등)은 그대로. 빈 화면 화살표는 없앴다. 세 섹션은 `CollapsibleSection`(`lib/widgets/collapsible_section.dart`)으로 접고 편다: 제목 · 화살표를 누르면 접힘, 링크('전체 보기' · '통계 ›')는 접지 않음, 접히면 '· n개' / '· n건', 상태는 prefs(`PrefKeys.homeCollapsed`)에 저장, 새 기록이 생겨도 저절로 펴지 않음. '최근 6개월' 그래프는 통계 탭과 같은 `GroupedBarChart`(`lib/widgets/grouped_bar_chart.dart`).

@@ -22,6 +22,7 @@
 - 결제 화면 프로 혜택은 4줄(사람 무제한 · 내 행사 여러 개 · 관계별 · 연도별 상세 통계 · 한 번 결제로 평생, 숫자는 `FreeLimits` 상수). 엑셀 · 공유는 무료라 넣지 않는다. 행사 텍스트 끝 줄은 '경조사 장부 앱으로 정리했어요' + Play 스토어 링크.
 - (가져오기를 다시 켤 때 규칙) 붙여넣어 가져오기만 사람 한도를 적용한다(넘으면 "N명 중 n명까지" 결제 화면, 같은 메시지로 나중에 마저). 같은 줄(행사 이름 · 날짜 · 이름 · 금액 · 구분)은 두 번 저장하지 않는다. 예전 JSON 장부 파일은 [예전 장부 파일 가져오기]로 읽기만 한다. 파일 연결(intent-filter)은 없앴다.
 - 이미 입력한 기록의 보기·수정·삭제는 한도와 상관없이 항상 허용.
+- **2026-11-26: `testBuild = false`로 바꿨다.** 릴리스 APK · AAB에는 테스트 메뉴가 없고, flutter run · debug APK에서만 보인다. '더미데이터 추가' 코드는 사용자 요청으로 아직 남겨 뒀다(릴리스에서는 메뉴가 없어 못 씀). Play 등록 안내는 `docs/PLAY_STORE_등록안내.md`, 스토어 아이콘은 `store/icon_512.png`. 업로드 서명 키 · AAB · 문의 이메일(appmihk87@gmail.com 사용 예정)은 사용자가 따로 요청할 때 진행.
 - **Google Play 업로드 전 필수:** 설정의 테스트 도구(isPro 켜기/끄기 등)를 없앤다. `lib/services/app_config.dart`의 `testBuild`를 `false`로 바꾸면 APK·AAB에서 사라진다. 사용자가 출시·AAB·Play Console 업로드를 언급하면 먼저 이 작업을 하자고 요청할 것. `testBuild`가 `true`이면 `flutter build appbundle`은 일부러 실패한다. 이때 테스트 메뉴의 '더미데이터 추가'(`lib/data/dummy_data.dart`, 저장소의 더미 함수)도 사용자에게 알리고 코드째 지운다.
 - Google 드라이브 백업은 v1에서 뺐다(추가 W). Drive API · google_sign_in · OAuth 설정을 쓰지 않는다. 백업은 ① 다운로드 자동 백업(최근 7개) ② 안드로이드 자동 백업(allowBackup, backup_rules · data_extraction_rules에 DB · 설정 포함) ③ 백업 파일 → 공유창.
 - 내 행사 한도: 버튼을 누르는 순간 `LimitService.canCreateMyEvent`, 저장 순간 `LimitService.saveMyEvent` + 저장소의 `maxMyEvents`(트랜잭션 안에서 다시 세어 넘으면 `MyEventLimitReached`). 내 행사를 만드는 새 입구를 만들면 둘 다 거치게 하고, 저장 버튼은 첫 await 전에 막는다(빠른 연속 누르기).

@@ -6,9 +6,11 @@ const kShowHomeBackup = false;
 
 /// 출시 전에 직접 채워 넣어야 하는 값들.
 class AppConfig {
-  /// TODO(출시 전): false로 바꾸세요. true면 받은 사람 누구나 프로를 공짜로 켤 수 있어요.
-  /// true인 동안 'flutter build appbundle'은 일부러 실패한다 (android/app/build.gradle.kts).
-  static const testBuild = true;
+  /// 출시용(2026-11-26): false. 릴리스 APK · AAB에는 설정의 테스트 메뉴가 나오지 않는다.
+  /// (flutter run · debug APK에서는 [devToolsEnabled]로 계속 보인다.)
+  /// true로 바꾸면 테스트 메뉴가 릴리스에도 나오고, 'flutter build appbundle'은 일부러 실패한다
+  /// (android/app/build.gradle.kts). true면 받은 사람 누구나 프로를 공짜로 켤 수 있으니 출시에는 쓰지 않는다.
+  static const testBuild = false;
 
   /// 설정 화면의 테스트 도구(isPro 켜기/끄기 등)를 쓸 수 있는지.
   /// flutter run에서는 항상 쓸 수 있고, APK에서는 [testBuild]가 true일 때만 쓸 수 있다.

@@ -260,53 +260,12 @@ void main() {
         '경조사장부_엄마_아빠_ _회갑___20260102.xlsx');
   });
 
-  group('추가 T: 행사 전체 · 텍스트', () {
-    test('행사 전체 엑셀: [행사 목록](최신순) + 행사마다 시트(정보 → 명단 → 합계)', () {
-      final small = ReceptionPackage(
-        Reception(id: 'r2', title: '친구 돌잔치', eventType: '돌', date: DateTime(2027, 3, 1), sides: const [], operatorName: '', startedAt: DateTime(2027, 3, 1, 11)),
-        [
-          ReceptionEntry(id: 'a', receptionId: 'r2', name: '홍길동', amount: 30000, side: '', createdAt: DateTime(2027, 3, 1, 12)),
-        ],
-      );
-      final bytes = ExportService.buildAllEvents([
-        LedgerExcel.fromReception(reception),
-        LedgerExcel.fromReception(small),
-      ], now: DateTime(2026, 11, 17));
-      expect(ExportService.allEventsFileName(DateTime(2026, 11, 17)),
-          '경조사장부_행사전체_20261117.xlsx');
-      final book = Excel.decodeBytes(bytes);
-      expect(book.tables.keys, containsAll(['행사 목록', '누나 결혼식', '친구 돌잔치', '정보']));
-      final index = book['행사 목록'];
-      expect([for (var c = 0; c < 9; c++) _v(index, 0, c)], ExportService.eventListHeader);
-      expect(_v(index, 1, 0), '친구 돌잔치'); // 최신순
-      expect(_v(index, 2, 0), '누나 결혼식');
-      expect(_v(index, 2, 3), '다른 사람 행사');
-      expect(_v(index, 2, 4), '120');
-      final sheet = book['누나 결혼식'];
-      expect(_v(sheet, 3, 0), '번호');
-      expect(_v(sheet, 4, 1).isNotEmpty, isTrue);
-      expect(_sheetXml(bytes, '누나 결혼식'), contains('ySplit="4"'));
-      final info = book['정보'];
-      expect(_v(info, 1, 1), '행사 전체');
-    });
-
-    test('시트 이름: 쓸 수 없는 글자를 빼고 31자, 같은 이름은 (2)(3)', () {
-      final used = <String>{'행사 목록', '정보'};
-      expect(ExportService.uniqueSheetName('결혼식', used), '결혼식');
-      expect(ExportService.uniqueSheetName('결혼식', used), '결혼식(2)');
-      expect(ExportService.uniqueSheetName('결혼식', used), '결혼식(3)');
-      expect(ExportService.uniqueSheetName('[엄마]/아빠: 회갑*?', used), '엄마아빠 회갑');
-      final long = '가' * 40;
-      expect(ExportService.uniqueSheetName(long, used), '가' * 31);
-      expect(ExportService.uniqueSheetName(long, used), '${'가' * 28}(2)');
-      expect(ExportService.uniqueSheetName('', used), '행사');
-    });
-
-    test('행사 텍스트: 공유는 행사마다(100명 넘으면 나눔), 다운로드는 .txt 하나', () {
-      final parts = ExportService.allEventsTextParts([reception, reception]);
-      expect(parts.length, 4); // 120명 = 2개씩
-      final file = ExportService.ledgersTextFile([reception, reception]);
-      expect('\n\n'.allMatches(file).isNotEmpty, isTrue);
+  group('추가 T: 행사 하나 · 주고받은 내역 텍스트 (행사 전체 공유는 v1에서 없앰)', () {
+    test('행사 하나 텍스트: 공유는 100명씩 나눔, 다운로드는 나누지 않은 .txt 하나', () {
+      final parts = LedgerText.build(reception);
+      expect(parts.length, 2); // 120명 = 100 + 20
+      final file = ExportService.ledgersTextFile([reception]);
+      expect(file, LedgerText.build(reception, chunkSize: 1 << 30).single);
       expect(ExportService.ledgerFileName('누나 결혼식', DateTime(2026, 12, 26), ext: 'txt'),
           '경조사장부_누나 결혼식_20261226.txt');
       // 붙여넣어 가져오기로 다시 읽힌다

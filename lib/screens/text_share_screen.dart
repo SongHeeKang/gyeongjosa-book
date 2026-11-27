@@ -7,7 +7,7 @@ import '../widgets/common.dart';
 import '../widgets/test_id.dart';
 
 /// 여러 메시지로 나눈 글을 [1/5 보내기] [2/5 보내기]… 차례로 보낸다.
-/// (행사 장부 전체 · 주고받은 내역. 행사 하나는 장부 보내기 화면을 쓴다)
+/// (홈의 주고받은 내역. 행사 하나는 장부 보내기 화면을 쓴다)
 class TextShareScreen extends StatefulWidget {
   const TextShareScreen({
     super.key,

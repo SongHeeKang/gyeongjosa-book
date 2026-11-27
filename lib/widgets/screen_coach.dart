@@ -36,7 +36,6 @@ enum CoachScreen {
       [
         CoachMark(CoachSpot.myEventsCreate, '+ 추가를 눌러 행사를 만들고 장부를 작성해요'),
         CoachMark(CoachSpot.myEventsFirst, '누르면 받은 명단이 나와요'),
-        CoachMark(CoachSpot.myEventsShare, '공유 · 다운로드: 엑셀이나 텍스트로 보내거나 폰에 저장해요'),
       ],
       auto: false),
   eventDetail('내 행사 상세', [

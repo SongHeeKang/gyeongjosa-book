@@ -20,7 +20,6 @@ enum CoachSpot {
   peopleCard,
   myEventsCreate,
   myEventsFirst,
-  myEventsShare,
   eventReceive,
   eventImport,
   eventSend,

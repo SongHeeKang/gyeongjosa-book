@@ -25,7 +25,6 @@ class ExportService {
   static const appName = '경조사 장부';
   static const kindLedger = '장부';
   static const kindHistory = '주고받은 내역';
-  static const kindAllEvents = '행사 전체';
 
   /// 파일 이름에 쓸 수 없는 글자를 '_'로 바꾼다.
   static String safeFileName(String name) =>
@@ -36,10 +35,6 @@ class ExportService {
   /// 경조사장부_{행사이름}_{행사날짜}.xlsx (텍스트는 [ext] = 'txt')
   static String ledgerFileName(String title, DateTime date, {String ext = 'xlsx'}) =>
       safeFileName('경조사장부_${title}_${_yyyymmdd(date)}.$ext');
-
-  /// 경조사장부_행사전체_{오늘}.xlsx
-  static String allEventsFileName(DateTime today, {String ext = 'xlsx'}) =>
-      safeFileName('경조사장부_행사전체_${_yyyymmdd(today)}.$ext');
 
   /// 경조사장부_주고받은내역_{오늘}.xlsx
   static String historyFileName(DateTime today, {String ext = 'xlsx'}) =>
@@ -137,74 +132,9 @@ class ExportService {
     }
   }
 
-  // ───────────────────────── ② 행사 전체 (행사 탭) ─────────────────────────
-
-  static const eventListHeader = [
-    '행사 이름', '종류', '날짜', '내/다른 사람 행사', '인원', '총액', '식권', '장소', '메모',
-  ];
-
-  /// [행사 목록] 시트(날짜 최신순) + 행사마다 시트 하나(위 행사 정보 → 명단 → 아래 합계)
-  static Uint8List buildAllEvents(List<LedgerExcel> ledgers, {DateTime? now}) {
-    final book = _Book();
-    final sorted = [...ledgers]..sort((a, b) => b.date.compareTo(a.date));
-    final index = book.sheet('행사 목록');
-    index.header(0, eventListHeader);
-    for (var i = 0; i < sorted.length; i++) {
-      final l = sorted[i];
-      final known = l.rows.where((r) => r.mealTickets != null);
-      final row = 1 + i;
-      index
-        ..text(row, 0, l.title)
-        ..text(row, 1, l.type)
-        ..text(row, 2, toDbDate(l.date))
-        ..text(row, 3, l.isMine ? '내 행사' : '다른 사람 행사')
-        ..number(row, 4, l.rows.length, money: false)
-        ..number(row, 5, l.rows.fold(0, (s, r) => s + r.amount));
-      known.isEmpty
-          ? index.text(row, 6, '')
-          : index.number(row, 6, known.fold(0, (s, r) => s + r.mealTickets!),
-              money: false);
-      index
-        ..text(row, 7, l.place)
-        ..text(row, 8, l.memo);
-    }
-    index.freezeRows = 1;
-
-    final used = {'행사 목록', '정보'};
-    for (final l in sorted) {
-      final sheet = book.sheet(uniqueSheetName(l.title, used));
-      _writeInfo(sheet, l, 0);
-      final next = _writeList(sheet, l, 3);
-      _writeTotals(sheet, l, next + 1);
-      sheet.freezeRows = 4;
-    }
-    book.info(kindAllEvents, now ?? DateTime.now());
-    return book.encode();
-  }
-
-  /// 엑셀 시트 이름: [ ] : * ? / \ 를 빼고 31자까지, 같은 이름은 (2) (3)…
-  static String uniqueSheetName(String title, Set<String> used) {
-    var base = title.replaceAll(RegExp(r'[\[\]:*?/\\]'), '').trim();
-    if (base.isEmpty) base = '행사';
-    String cut(String s, int max) =>
-        s.runes.length <= max ? s : String.fromCharCodes(s.runes.take(max));
-    var name = cut(base, 31);
-    for (var n = 2; used.contains(name); n++) {
-      final suffix = '($n)';
-      name = cut(base, 31 - suffix.length) + suffix;
-    }
-    used.add(name);
-    return name;
-  }
-
   // ───────────────────────── 텍스트 ─────────────────────────
 
-  /// 행사 전체 공유: 행사마다 메시지 하나(100명이 넘는 행사만 나눔). 붙여넣어 가져오기와 같은 형식.
-  static List<String> allEventsTextParts(List<ReceptionPackage> packages) => [
-        for (final p in packages) ...LedgerText.build(p),
-      ];
-
-  /// 행사 하나 · 행사 전체 다운로드: 나누지 않고 .txt 하나 (행사 사이는 빈 줄)
+  /// 행사 하나 다운로드(행사 상세): 나누지 않고 .txt 하나 (여러 개를 주면 행사 사이는 빈 줄)
   static String ledgersTextFile(List<ReceptionPackage> packages) => [
         for (final p in packages) LedgerText.build(p, chunkSize: 1 << 30).single,
       ].join('\n\n');

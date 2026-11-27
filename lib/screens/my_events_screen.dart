@@ -10,7 +10,6 @@ import '../widgets/common.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/screen_coach.dart';
 import '../widgets/settings_button.dart';
-import '../widgets/share_download.dart';
 import 'event_detail_screen.dart';
 import 'reception_summary_screen.dart';
 import 'event_routes.dart';
@@ -71,20 +70,11 @@ class MyEventsScreen extends ConsumerWidget {
     final events = ref.watch(eventSummariesProvider);
     final receptions =
         ref.watch(receptionSummariesProvider).value ?? const <ReceptionSummary>[];
-    final mineCount = events.value?.where((s) => s.event.isMine).length ?? 0;
-    // 행사 장부 전체 = 내 행사 + 아직 내 행사로 옮기지 않은 다른 사람 행사
-    final ledgerCount =
-        mineCount + receptions.where((s) => !s.reception.imported).length;
     return Scaffold(
       appBar: AppBar(
         title: const Text('행사'),
+        // 행사 탭은 (?) · 설정만. 공유 · 다운로드는 행사 상세에서 그 행사 하나만 (v1)
         actions: [
-          // [공유] [다운로드]: 행사 장부 전체. 행사가 없으면 회색
-          ShareDownloadButtons(
-            spot: CoachSpot.myEventsShare,
-            enabled: ledgerCount > 0,
-            target: () => AllEventsExport(ref, count: ledgerCount),
-          ),
           const HelpButton(screen: CoachScreen.myEvents),
           const SettingsButton(),
           SettingsButton.trailingGap,

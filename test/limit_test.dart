@@ -466,7 +466,7 @@ void main() {
       expect(find.text('표로 정리 · .xlsx'), findsNothing);
     });
 
-    testWidgets('행사 탭(행사가 있을 때): 점선 줄 · 묶음 제목 옆 개수 · 합계 · 아래 링크, 아이콘 켜짐',
+    testWidgets('행사 탭(행사가 있을 때): 묶음 제목 옆 개수 · 합계, 오른쪽 위는 (?) · 설정만',
         (tester) async {
       await open(tester, const MyEventsScreen(), myEvents: 1);
       expect(find.text('+ 새 행사 만들기'), findsNothing);
@@ -476,10 +476,25 @@ void main() {
       expect(find.text('0개 · 0원'), findsOneWidget);
       expect(find.text('+ 추가'), findsNWidgets(2));
       expect(find.textContaining('가져오기'), findsNothing);
-      expect(icon(tester, '공유하기').onPressed, isNotNull);
-      await tester.tap(find.byTooltip('공유하기'));
+      // v1: 행사 탭에는 공유 · 다운로드 아이콘이 없다 (행사 상세에서 그 행사 하나만)
+      expect(find.byTooltip('공유하기'), findsNothing);
+      expect(find.byTooltip('폰에 저장'), findsNothing);
+      expect(find.byTooltip('도움말'), findsOneWidget);
+      expect(find.byTooltip('설정'), findsOneWidget);
+    });
+
+    testWidgets('행사 탭(행사가 없을 때): 빈 화면 그대로, 회색 공유 · 다운로드 아이콘도 없음',
+        (tester) async {
+      final repo = await open(tester, const MyEventsScreen(), myEvents: 0);
+      repo.event = null; // 행사가 하나도 없는 상태로 다시 읽기
+      ProviderScope.containerOf(tester.element(find.byType(MyEventsScreen)))
+          .read(dbVersionProvider.notifier)
+          .bump();
       await tester.pumpAndSettle();
-      expect(find.text('행사 장부 1개 전체'), findsOneWidget);
+      expect(find.text('아직 행사가 없어요.'), findsOneWidget);
+      expect(find.byTooltip('공유하기'), findsNothing);
+      expect(find.byTooltip('폰에 저장'), findsNothing);
+      expect(find.byTooltip('설정'), findsOneWidget);
     });
   });
 

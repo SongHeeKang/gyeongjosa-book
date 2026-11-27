@@ -31,7 +31,8 @@ const _xlsxMime =
 /// 공유하기 · 폰에 저장 (엑셀 · 텍스트, 모두 무료)
 enum ExportMode { share, download }
 
-/// 공유 · 다운로드할 범위. 홈 = 주고받은 내역, 행사 탭 = 행사 장부 전체, 행사 상세 = 그 행사 하나.
+/// 공유 · 다운로드할 범위. 홈 = 주고받은 내역, 행사 상세 = 그 행사 하나.
+/// (행사 탭의 행사 장부 전체 공유 · 다운로드는 v1에서 없앴다.)
 abstract class ExportTarget {
   /// 선택창에 보여줄 범위 한 줄 (예: '행사 장부 12개 전체')
   String get rangeLabel;
@@ -311,69 +312,6 @@ class HistoryExport extends ExportTarget {
             builder: (_) => TextShareScreen(
                 title: '주고받은 내역 보내기',
                 intro: '보기용 글이에요. 받는 분이 앱으로 가져올 수는 없어요.',
-                parts: parts)));
-  }
-}
-
-/// 행사 탭: 행사 장부 전체 (내 행사 · 다른 사람 행사). 보낸 뒤 보관 · 지우기는 묻지 않는다.
-class AllEventsExport extends ExportTarget {
-  AllEventsExport(this.ref, {required this.count});
-  final WidgetRef ref;
-  final int count;
-
-  @override
-  String get rangeLabel => '행사 장부 $count개 전체';
-  @override
-  String excelFileName(DateTime now) => ExportService.allEventsFileName(now);
-  @override
-  String textFileName(DateTime now) =>
-      ExportService.allEventsFileName(now, ext: 'txt');
-
-  /// 내 행사(받은 기록) + 아직 내 행사로 옮기지 않은 다른 사람 행사, 날짜 최신순
-  Future<List<({ReceptionPackage package, LedgerExcel excel})>> _load() async {
-    final repo = ref.read(repositoryProvider);
-    final prefs = ref.read(prefsProvider);
-    final people = {for (final p in await repo.allPeople()) p.id: p};
-    final out = <({ReceptionPackage package, LedgerExcel excel})>[];
-    for (final e in await repo.myEvents()) {
-      final records = [
-        for (final r in await repo.recordsForEvent(e.id!))
-          if (!r.isSent) r,
-      ];
-      out.add((
-        package: eventPackage(prefs, e, records),
-        excel: LedgerExcel.fromEvent(e, records, people),
-      ));
-    }
-    for (final s in await repo.receptionSummaries()) {
-      if (s.reception.imported) continue;
-      final pkg = await repo.getReceptionPackage(s.reception.id);
-      if (pkg == null) continue;
-      out.add((package: pkg, excel: LedgerExcel.fromReception(pkg)));
-    }
-    out.sort((a, b) => b.excel.date.compareTo(a.excel.date));
-    return out;
-  }
-
-  @override
-  Future<Uint8List> buildExcel(DateTime now) async =>
-      ExportService.buildAllEvents([for (final l in await _load()) l.excel], now: now);
-
-  @override
-  Future<String> buildTextFile(DateTime now) async =>
-      ExportService.ledgersTextFile([for (final l in await _load()) l.package]);
-
-  @override
-  Future<void> shareText(BuildContext context) async {
-    final parts =
-        ExportService.allEventsTextParts([for (final l in await _load()) l.package]);
-    if (!context.mounted) return;
-    await Navigator.push(
-        context,
-        MaterialPageRoute<void>(
-            builder: (_) => TextShareScreen(
-                title: '행사 장부 전체 보내기',
-                intro: '행사마다 메시지 하나씩 차례로 보내요. 100명이 넘는 행사는 나눠서 보내요.',
                 parts: parts)));
   }
 }

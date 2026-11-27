@@ -195,8 +195,6 @@ class _DemoRepository extends Repository {
   @override
   Future<bool> hasDummyData() async => false;
   @override
-  Future<int> countReceptionEntries() async => entries.length;
-  @override
   Future<ImportPlan> planImport(ReceptionPackage package,
           {int? eventId, int? maxPeople}) async =>
       buildImportPlan(

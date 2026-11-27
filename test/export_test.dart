@@ -268,8 +268,6 @@ void main() {
       expect(file, LedgerText.build(reception, chunkSize: 1 << 30).single);
       expect(ExportService.ledgerFileName('누나 결혼식', DateTime(2026, 12, 26), ext: 'txt'),
           '경조사장부_누나 결혼식_20261226.txt');
-      // 붙여넣어 가져오기로 다시 읽힌다
-      expect(LedgerText.parse(parts.first), isNotNull);
     });
 
     test('주고받은 내역 텍스트: 머리 · 합계 · 한 줄씩(빈 값 빼고), 100줄씩 나눔', () {

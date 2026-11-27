@@ -28,7 +28,6 @@ class ImportPlan {
 
   /// 아직 가져오지 않은 전체 건수
   int get remaining => items.length + skippedByLimit;
-  int get reviewCount => items.where((i) => i.needsReview).length;
 }
 
 /// 어떤 항목을 어떤 사람에게 연결할지 결정한다. (DB 없이 동작하는 규칙)

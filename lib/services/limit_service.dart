@@ -118,14 +118,6 @@ final limitStatusProvider = FutureProvider<LimitStatus>((ref) async {
   );
 });
 
-/// 내 행사 한도에 닿았는지. '새로 만들기' 옆에 자물쇠 · 프로 표시를 미리 보여줄 때 쓴다.
-final myEventLimitReachedProvider = FutureProvider<bool>((ref) async {
-  ref.watch(dbVersionProvider);
-  if (ref.watch(isProProvider)) return false;
-  final count = await ref.watch(repositoryProvider).countMyEvents();
-  return count >= FreeLimits.myEvents;
-});
-
 /// 화면에 '무료로 n명 더 적을 수 있어요'를 보여주기 위한 남은 인원. 프로면 null.
 final remainingPeopleProvider = FutureProvider<int?>((ref) async {
   ref.watch(dbVersionProvider);

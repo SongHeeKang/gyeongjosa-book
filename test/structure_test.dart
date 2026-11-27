@@ -762,7 +762,6 @@ void main() {
           lessThan(top('최근 6개월')));
       expect(top('최근 6개월'), lessThan(top('최근 기록')));
       // 보냄 막대는 코랄, 받음은 파랑
-      expect(AppColors.chartSent, AppColors.sent);
       expect(AppColors.sent, const Color(0xFFD85A30));
 
       await tester.tap(find.text('통계 ›'));

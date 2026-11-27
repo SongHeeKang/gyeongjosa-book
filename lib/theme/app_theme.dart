@@ -19,7 +19,6 @@ class AppColors {
   static const received = primary;
   static const sentSoft = Color(0xFFFBE9E3); // '보냄' 칩 바탕 (연한 코랄)
   static const calendarDot = textHint; // 홈 달력: 일정 · 행사 점 (회색)
-  static const chartSent = sent; // 차트의 보냄 막대
   static const backupOk = success; // 홈 백업 아이콘: 7일 이내 백업
   static const backupDue = Color(0xFFF59E0B); // 홈 백업 아이콘의 주황 점: 백업 없음 · 30일 지남
   static const guidePanel = Color(0xFFEEF4FF); // 가이드 그림의 연파랑 패널

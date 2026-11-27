@@ -7,7 +7,6 @@ final prefsProvider = Provider<SharedPreferences>(
 
 class PrefKeys {
   static const lastBackupAt = 'last_backup_at';
-  static const backupBannerDismissedAt = 'backup_banner_dismissed_at';
   static const notifPermissionAsked = 'notif_permission_asked';
 
   /// 홈 섹션(다가오는 일정 · 최근 6개월 · 최근 기록)을 접어 두었는지

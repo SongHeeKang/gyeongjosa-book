@@ -6,14 +6,10 @@ import 'package:gyeongjosa/data/repository.dart';
 import 'package:gyeongjosa/models/event.dart';
 import 'package:gyeongjosa/models/person.dart';
 import 'package:gyeongjosa/models/reception.dart';
-import 'package:gyeongjosa/models/gift_record.dart';
 import 'package:gyeongjosa/services/backup_service.dart';
-import 'package:gyeongjosa/services/event_package.dart';
-import 'package:gyeongjosa/services/ledger_text_format.dart';
 import 'package:gyeongjosa/services/reception_import.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:path/path.dart' as p;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 ReceptionEntry entry(String id, String name,
@@ -45,42 +41,6 @@ void main() {
   databaseFactory = databaseFactoryFfi;
 
   setUpAll(() => initializeDateFormatting('ko_KR'));
-
-  group('예전 장부 파일 형식', () {
-    test('보내고 읽으면 내용이 같고, 지운 항목은 빠진다', () {
-      final text = ReceptionPackage(reception(), [
-        entry('a', '김철수', amount: 100000),
-        ReceptionEntry(
-            id: 'b',
-            receptionId: 'r1',
-            name: '지운사람',
-            amount: 1000,
-            side: '',
-            createdAt: DateTime(2026),
-            deleted: true),
-      ]).toJsonString();
-      final parsed = ReceptionPackage.parse(text);
-      expect(parsed.reception.title, '홍길동 결혼식');
-      expect(parsed.reception.sides, ['신랑측', '신부측']);
-      expect(parsed.entries.single.name, '김철수');
-      expect(parsed.entries.single.amount, 100000);
-    });
-
-    test('다른 파일 · 손상된 파일 · 새 버전 파일은 안내 문구와 함께 거절', () {
-      for (final bad in [
-        'not json',
-        '{}',
-        '{"format":"other","version":1}',
-        '{"format":"gyeongjosa_reception","version":1,"reception":{},"entries":[]}',
-        '{"format":"gyeongjosa_reception","version":99}',
-        '{"format":"gyeongjosa_reception","version":1,"reception":{"id":"r","title":"t","date":"2026-01-01"},"entries":[{"id":"a","name":"","amount":1}]}',
-        '{"format":"gyeongjosa_reception","version":1,"reception":{"id":"r","title":"t","date":"2026-01-01"},"entries":[{"id":"a","name":"x","amount":-5}]}',
-      ]) {
-        expect(() => ReceptionPackage.parse(bad), throwsFormatException,
-            reason: bad);
-      }
-    });
-  });
 
   group('가져오기 규칙', () {
     test('한도를 넘는 새 사람은 남기고, 기존 사람은 한도와 상관없이 가져온다', () {
@@ -216,7 +176,7 @@ void main() {
       ]);
       final first = await repo.applyImport(phone1, newEvent: myEvent());
       final second = await repo.applyImport(phone2, eventId: first.eventId);
-      expect(second.plan.reviewCount, 1);
+      expect(second.plan.items.where((i) => i.needsReview).length, 1);
 
       final records = await repo.recordsForEvent(first.eventId);
       expect(records.length, 3);
@@ -381,22 +341,6 @@ void main() {
       await helper.close();
     });
 
-    test('예전 장부 파일(식권 · 결제 방법 값이 없는 것)도 가져온다', () async {
-      const oldFile = '''
-{"format":"gyeongjosa_reception","version":1,
- "reception":{"id":"r-old","title":"홍길동 결혼식","event_type":"결혼","date":"2026-11-01",
-   "sides":["신랑측","신부측"],"operator_name":"김민수","started_at":"2026-11-01T09:00:00"},
- "entries":[{"id":"a","name":"김철수","amount":50000,"side":"신랑측","method":"현금","meal_tickets":2,"created_at":"2026-11-01T10:00:00"}]}''';
-      final package = ReceptionPackage.parse(oldFile);
-      final helper = DatabaseHelper.forTest(p.join(dir.path, 'imp.db'));
-      final repo = Repository(helper);
-      final result = await repo.applyImport(package, newEvent: myEvent());
-      final record = (await repo.recordsForEvent(result.eventId)).single;
-      expect(record.side, '신랑측');
-      expect(record.mealTickets, 2);
-      await helper.close();
-    });
-
     test('내 행사로 바꾸기: 구분 · 식권이 기록에, 받기 설정이 새 내 행사에 옮겨지고 원래 장부는 지워진다', () async {
       final helper = DatabaseHelper.forTest(p.join(dir.path, 'move.db'));
       final repo = Repository(helper);
@@ -453,51 +397,5 @@ void main() {
       await helper.close();
     });
 
-    test('내 행사 [장부 보내기] 글을 붙여넣어 읽으면 같은 명단', () async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final event = Event(
-        id: 7,
-        type: '결혼',
-        title: '우리 결혼식',
-        date: DateTime(2026, 10, 3),
-        isMine: true,
-        receiveSides: const ['신랑측', '신부측'],
-        mealTicketEnabled: true,
-      );
-      final records = [
-        GiftRecord(
-            id: 1,
-            personId: 1,
-            eventId: 7,
-            direction: '받음',
-            amount: 50000,
-            date: DateTime(2026, 10, 3),
-            side: '신랑측',
-            mealTickets: 2,
-            personName: '김철수'),
-        GiftRecord(
-            id: 2,
-            personId: 2,
-            eventId: 7,
-            direction: '받음',
-            amount: 100000,
-            method: '계좌',
-            date: DateTime(2026, 10, 3),
-            personName: '이영희'),
-      ];
-      final text =
-          LedgerText.build(eventPackage(prefs, event, records)).single;
-      expect(text, startsWith('[경조사 장부] 우리 결혼식 받은 명단'));
-      final back = LedgerText.parse(text)!.toPackage();
-      expect(back.reception.title, '우리 결혼식');
-      expect(back.entries.map((e) => e.name), ['김철수', '이영희']);
-      expect(back.entries.first.side, '신랑측');
-      expect(back.entries.first.mealTickets, 2);
-      expect(back.entries.last.method, '계좌');
-      // 같은 글을 다시 읽어도 항목 ID가 같아 두 번 들어가지 않는다
-      final again = LedgerText.parse(text)!.toPackage();
-      expect(again.entries.map((e) => e.id), back.entries.map((e) => e.id));
-    });
   });
 }

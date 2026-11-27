@@ -172,13 +172,6 @@ class ReceptionEntry {
         createdAt: createdAt,
         deleted: deleted,
       );
-
-  /// 내 장부로 옮길 때 내역 메모에 남길 내용 (구분, 식권, 메모)
-  String get recordMemo => [
-        if (side.isNotEmpty && side != ReceptionDefaults.noSide) side,
-        if (mealTickets > 1) '식권 $mealTickets매',
-        if ((memo ?? '').isNotEmpty) memo!,
-      ].join(' · ');
 }
 
 /// 구분별 또는 전체 합계
@@ -201,12 +194,9 @@ class ReceptionTotals {
   }
 }
 
-/// 다른 사람 행사 장부 + 항목. 장부 보내기 · 가져오기의 단위이자 화면 표시용 묶음.
+/// 다른 사람 행사 장부 + 항목. 장부 보내기의 단위이자 화면 표시용 묶음.
+/// (예전 JSON 장부 파일 만들기 · 읽기는 v1에서 없앴다, 2026-11-27)
 class ReceptionPackage {
-  static const formatName = 'gyeongjosa_reception';
-  static const notOursMessage = '경조사 장부 파일이 아니에요. 기존 기록은 그대로예요.';
-  static const formatVersion = 1;
-
   final Reception reception;
   final List<ReceptionEntry> entries;
 
@@ -230,99 +220,6 @@ class ReceptionPackage {
         ...reception.sides,
         ...entries.map((e) => e.side),
       }.toList();
-
-  String toJsonString() => const JsonEncoder.withIndent(' ').convert({
-        'format': formatName,
-        'version': formatVersion,
-        'reception': reception.toMap()
-          ..['sides'] = reception.sides
-          ..remove('imported'),
-        'entries': [
-          for (final e in entries.where((e) => !e.deleted))
-            e.toMap()..remove('deleted'),
-        ],
-      });
-
-  /// 받은 파일을 읽는다. 다른 사람이 보낸 파일이므로 내용을 모두 검사하고,
-  /// 문제가 있으면 사용자에게 보여줄 문구를 담은 [FormatException]을 던진다.
-  factory ReceptionPackage.parse(String text) {
-    const notOurs = FormatException(notOursMessage);
-    final Object? root;
-    try {
-      root = jsonDecode(text);
-    } on FormatException {
-      throw notOurs;
-    }
-    if (root is! Map || root['format'] != formatName) throw notOurs;
-    final version = root['version'];
-    if (version is! int) throw notOurs;
-    if (version > formatVersion) {
-      throw const FormatException('더 새로운 버전의 앱에서 만든 파일이에요. 앱을 업데이트한 뒤 다시 시도해 주세요.');
-    }
-    final r = root['reception'];
-    final rawEntries = root['entries'];
-    if (r is! Map || rawEntries is! List) throw notOurs;
-
-    final id = r['id'];
-    final title = r['title'];
-    final date = DateTime.tryParse('${r['date']}');
-    if (id is! String || id.isEmpty || title is! String || date == null) {
-      throw notOurs;
-    }
-    final rawSides = r['sides'];
-    final sides = rawSides is List
-        ? rawSides.whereType<String>().toList()
-        : <String>[];
-    final eventType = r['event_type'];
-    final reception = Reception(
-      id: id,
-      title: title.trim(),
-      eventType:
-          EventTypes.all.contains(eventType) ? eventType as String : '기타',
-      date: date,
-      sides: sides.isEmpty ? const [ReceptionDefaults.noSide] : sides,
-      operatorName: r['operator_name'] is String ? r['operator_name'] : '',
-      startedAt: DateTime.tryParse('${r['started_at']}') ?? date,
-      finishedAt: DateTime.tryParse('${r['finished_at']}'),
-      // 이 값들이 없는 예전 파일은 전처럼 식권과 결제 방법을 모두 보여준다.
-      mealTicketEnabled: r['meal_ticket_enabled'] != 0,
-      defaultMealTickets:
-          r['default_meal_tickets'] is int ? r['default_meal_tickets'] : 1,
-      methodEnabled: r['method_enabled'] != 0,
-    );
-
-    final entries = <ReceptionEntry>[];
-    for (final e in rawEntries) {
-      if (e is! Map) throw notOurs;
-      final entryId = e['id'];
-      final name = e['name'];
-      final amount = e['amount'];
-      if (entryId is! String ||
-          entryId.isEmpty ||
-          name is! String ||
-          name.trim().isEmpty ||
-          amount is! int ||
-          amount <= 0) {
-        throw const FormatException('장부 파일의 내용이 손상되었어요. 다시 받아 주세요.');
-      }
-      final meals = e['meal_tickets'];
-      final memo = e['memo'];
-      entries.add(ReceptionEntry(
-        id: entryId,
-        receptionId: id,
-        name: name.trim(),
-        amount: amount,
-        side: e['side'] is String ? e['side'] : '',
-        method: e['method'] == ReceptionDefaults.transfer
-            ? ReceptionDefaults.transfer
-            : ReceptionDefaults.cash,
-        mealTickets: meals is int && meals >= 0 ? meals : 1,
-        memo: memo is String && memo.isNotEmpty ? memo : null,
-        createdAt: DateTime.tryParse('${e['created_at']}') ?? date,
-      ));
-    }
-    return ReceptionPackage(reception, entries);
-  }
 }
 
 /// 장부 목록에 보여줄 다른 사람 행사 장부 요약
